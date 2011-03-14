@@ -28,11 +28,11 @@ def scrape_document(browser, id, visit_first=True):
         out['Comment On'] = comment_on
     
     # Docket info
-    docket_id = get_elements(browser, '#mainContentTop .Gsqk2cKN a.gwt-Anchor')
+    docket_id = get_elements(browser, '#mainContentTop .Gsqk2cBO a.gwt-Anchor')
     out['Docket ID'] = docket_id[0].text
     
     topics = get_elements(browser, '#mainContentTop > span:last-child')
-    if topics[0].get_attribute('class') == 'Gsqk2cMN':
+    if topics[0].get_attribute('class') == 'Gsqk2cDO':
         out['Topics'] = []
     else:
         out['Topics'] = topics[0].text.split(', ')
@@ -58,7 +58,7 @@ def scrape_document(browser, id, visit_first=True):
     qs = dict(urlparse.parse_qsl(url.query))
     qs['disposition'] == 'attachment'
     
-    view_buttons = get_elements(browser, '#mainContentBottom .gwt-Image.Gsqk2cIN')
+    view_buttons = get_elements(browser, '#mainContentBottom .gwt-Image.Gsqk2cPN')
     for button in view_buttons:
         title = button.get_attribute('title')
         format = title.split(' ')[-1]
@@ -75,7 +75,7 @@ def scrape_document(browser, id, visit_first=True):
     
     out['Views'] = views
     
-    attachment_links = get_elements(browser, '#mainContentBottom .Gsqk2cHN a.gwt-InlineHyperlink, #mainContentBottom .Gsqk2cHN img.gwt-Image', optional=True)
+    attachment_links = get_elements(browser, '#mainContentBottom .Gsqk2cNN a.gwt-InlineHyperlink, #mainContentBottom .Gsqk2cNN img.gwt-Image', optional=True)
     if attachment_links:
         attachments = []
         for idx in range(0, len(attachment_links), 2):
