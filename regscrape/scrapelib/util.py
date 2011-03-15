@@ -10,9 +10,7 @@ def get_elements(browser, selector, check=None, optional=False, min_count=1):
             break
         else:
             count += 1
-            if count and count % 40 == 0:
+            if count and count % 10 == 0:
                 raise StillNotFound()
-            elif count and count % 10 == 0:
-                browser.refresh()
             time.sleep(0.5)
     return elements
