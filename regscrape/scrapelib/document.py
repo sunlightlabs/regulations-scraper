@@ -4,11 +4,13 @@ import urllib, urlparse
 
 from scrapelib.util import get_elements
 
+import settings
+
 FORMAT_OVERRIDES = {'html': 'xml', 'doc': 'msw8'}
 
 def scrape_document(browser, id, visit_first=True):
     if visit_first:
-        browser.get('http://localhost:8088/#!documentDetail;D=%s' % id)
+        browser.get('http://%s/#!documentDetail;D=%s' % (settings.TARGET_SERVER, id))
     
     out = {}
     # document id
@@ -43,7 +45,7 @@ def scrape_document(browser, id, visit_first=True):
     details = {}
     cells = get_elements(browser, '#mainContentBottom .gwt-DisclosurePanel table.Gsqk2cJC tr td')
     for idx in range(0, len(cells), 2):
-        title = cells[idx].text[:-1]
+        title = cells[idx].text[:-1].replace('.', '')
         content = cells[idx + 1].text
         details[title] = content
     out['Details'] = details

@@ -3,6 +3,8 @@ from selenium import webdriver
 from listing import scrape_listing
 import sys
 import os
+from pymongo import Connection
+import time
 
 import settings
 
@@ -16,8 +18,9 @@ class MasterActor(GeventActor):
             print 'Starting scrape...'
             self.current = 0
             self.max = message.get('max')
+            self.db = DbActor.start()
             for i in range(self.num_actors):
-                actor = ScraperActor.start(self.actor_ref)
+                actor = ScraperActor.start(self.actor_ref, self.db)
                 actor.send_one_way({'command': 'scrape_listing', 'url': self.get_url()})
                 self.actors.append(actor)
         elif message.get('command') == 'done':
@@ -31,20 +34,22 @@ class MasterActor(GeventActor):
                 self.actors.remove(actor)
                 if len(self.actors) == 0:
                     print 'Done'
+                    time.sleep(5)
                     os._exit(os.EX_OK)
     
     def get_url(self):
         if self.current <= self.max:
-            url = "http://www.regulations.gov/#!searchResults;dct=PS;rpp=%s;po=%s" % (settings.PER_PAGE, self.current)
+            url = "http://%s/#!searchResults;dct=PS;rpp=%s;po=%s" % (settings.TARGET_SERVER, settings.PER_PAGE, self.current)
             self.current += settings.PER_PAGE
             return url
         else:
             return None
 
 class ScraperActor(GeventActor):
-    def __init__(self, master):
+    def __init__(self, master, db):
         self.browser = webdriver.Remote(browser_name='firefox')
         self.master = master
+        self.db = db
     
     def react(self, message):
         if message.get('command') == 'scrape_listing':
@@ -55,8 +60,30 @@ class ScraperActor(GeventActor):
                     break
                 except:
                     pass
-            if docs == None:
+            if docs:
+                self.write('docs', docs)
+                if errors:
+                    self.write('errors', errors)
+            else:
                 print 'Gave up on listing %s' % url
+                self.write('errors', [{'type': 'listing', 'reason': 'Failed to scrape listing', 'url': message.get('url')}])
             self.master.send_one_way({'command': 'done', 'actor': self.actor_ref})
         elif message.get('command') == 'shutdown':
             self.browser.quit()
+    
+    def write(self, collection, records):
+        self.db.send_one_way({'command': 'write', 'collection': collection, 'records': records})
+
+class DbActor(GeventActor):
+    def __init__(self):
+        self.db = Connection('localhost', 27017)['regulations']
+        if settings.CLEAR_FIRST:
+            self.db.docs.drop()
+            self.db.errors.drop()
+    
+    def react(self, message):
+        if message.get('command') == 'write':
+            try:
+                self.db[message['collection']].insert(message['records'], safe=True)
+            except:
+                print "Error writing to database: %s" % sys.exc_info()[0]

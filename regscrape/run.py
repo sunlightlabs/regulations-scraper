@@ -6,7 +6,9 @@ patch_all()
 from scrapelib.actors import MasterActor
 import time
 
-master = MasterActor.start(3)
-master.send_request_reply({'command': 'scrape', 'max': 100})
+import settings
+
+master = MasterActor.start(settings.INSTANCES)
+master.send_request_reply({'command': 'scrape', 'max': settings.MAX_RECORDS})
 while True:
     time.sleep(3600)
