@@ -47,7 +47,15 @@ class ScraperActor(GeventActor):
     
     def react(self, message):
         if message.get('command') == 'scrape_listing':
-            scrape_listing(self.browser, message.get('url'))
+            docs = None
+            for i in range(2):
+                try:
+                    docs, errors = scrape_listing(self.browser, message.get('url'))
+                    break
+                except:
+                    pass
+            if docs == None:
+                print 'gave up on listing %s' % url
             print 'sending done'
             self.master.send_one_way({'command': 'done', 'actor': self.actor_ref})
         elif message.get('command') == 'shutdown':

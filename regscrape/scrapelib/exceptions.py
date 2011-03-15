@@ -1,0 +1,2 @@
+class StillNotFound(Exception):
+    pass
