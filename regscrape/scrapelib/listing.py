@@ -3,9 +3,10 @@ from scrapelib.document import scrape_document
 from scrapelib.exceptions import StillNotFound
 import sys
 import settings
+from scrapelib import logger
 
 def scrape_listing(browser, url=None, visit_first=True):
-    print "Scraping listing %s" % url
+    logger.info("Scraping listing %s" % url)
     if visit_first:
         browser.get(url)
     
@@ -38,10 +39,9 @@ def scrape_listing(browser, url=None, visit_first=True):
         
         if doc:
             docs.append(doc)
-            # print doc
         else:
             errors.append({'type': 'document', 'reason': 'scraping failed', 'doc_id': id, 'listing': url, 'position': num})
         
         browser.back()
-    print 'Scraped %s: got %s documents of %s expected, with %s errors' % (url, len(docs), num_links, len(errors))
+    logger.info('Scraped %s: got %s documents of %s expected, with %s errors' % (url, len(docs), num_links, len(errors)))
     return (docs, errors)

@@ -6,6 +6,7 @@ import os
 from pymongo import Connection
 import time
 
+from scrapelib import logger
 import settings
 
 class MasterActor(GeventActor):
@@ -15,7 +16,7 @@ class MasterActor(GeventActor):
     
     def react(self, message):
         if message.get('command') == 'scrape':
-            print 'Starting scrape...'
+            logger.info('Starting scrape...')
             self.current = 0
             self.max = message.get('max')
             self.db = DbActor.start()
@@ -33,7 +34,7 @@ class MasterActor(GeventActor):
                 actor.stop()
                 self.actors.remove(actor)
                 if len(self.actors) == 0:
-                    print 'Done'
+                    logger.info('Done')
                     time.sleep(5)
                     os._exit(os.EX_OK)
     
@@ -65,7 +66,7 @@ class ScraperActor(GeventActor):
                 if errors:
                     self.write('errors', errors)
             else:
-                print 'Gave up on listing %s' % url
+                logger.error('Gave up on listing %s' % url)
                 self.write('errors', [{'type': 'listing', 'reason': 'Failed to scrape listing', 'url': message.get('url')}])
             self.master.send_one_way({'command': 'done', 'actor': self.actor_ref})
         elif message.get('command') == 'shutdown':
@@ -86,4 +87,4 @@ class DbActor(GeventActor):
             try:
                 self.db[message['collection']].insert(message['records'], safe=True)
             except:
-                print "Error writing to database: %s" % sys.exc_info()[0]
+                logger.error("Error writing to database: %s" % sys.exc_info()[0])
