@@ -48,7 +48,7 @@ class MasterActor(GeventActor):
 
 class ScraperActor(GeventActor):
     def __init__(self, master, db):
-        self.browser = webdriver.Remote(browser_name='firefox')
+        self.browser = webdriver.Remote(browser_name=settings.BROWSER)
         self.master = master
         self.db = db
     
