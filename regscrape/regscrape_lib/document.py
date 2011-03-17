@@ -2,7 +2,7 @@
 
 import urllib, urlparse
 
-from scrapelib.util import get_elements
+from regscrape_lib.util import get_elements
 
 import settings
 

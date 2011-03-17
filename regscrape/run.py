@@ -3,7 +3,7 @@
 from gevent.monkey import patch_all
 patch_all()
 
-from scrapelib.actors import MasterActor
+from regscrape_lib.actors import MasterActor
 import time
 
 import settings
