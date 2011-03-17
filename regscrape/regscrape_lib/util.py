@@ -1,13 +1,12 @@
 import time
 from exceptions import StillNotFound
 import xpath
-import settings
 
 def get_elements(browser, selector, check=None, optional=False, min_count=1):
     count = 0
     elements = []
     
-    if settings.BROWSER == 'chrome':
+    if browser.name == 'chrome':
         selector = xpath.css2xpath(selector)
         func = 'find_elements_by_xpath'
     else:
