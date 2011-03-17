@@ -6,7 +6,7 @@ import os
 from pymongo import Connection
 import time
 
-from scrapelib import logger
+from regscrape_lib import logger
 import settings
 
 class MasterActor(GeventActor):

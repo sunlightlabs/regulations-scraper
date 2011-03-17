@@ -1,9 +1,9 @@
-from scrapelib.util import get_elements
-from scrapelib.document import scrape_document
-from scrapelib.exceptions import StillNotFound
+from regscrape_lib.util import get_elements
+from regscrape_lib.document import scrape_document
+from regscrape_lib.exceptions import StillNotFound
 import sys
 import settings
-from scrapelib import logger
+from regscrape_lib import logger
 
 def scrape_listing(browser, url=None, visit_first=True):
     logger.info("Scraping listing %s" % url)
