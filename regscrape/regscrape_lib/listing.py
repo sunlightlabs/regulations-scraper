@@ -42,6 +42,10 @@ def scrape_listing(browser, url=None, visit_first=True):
         else:
             errors.append({'type': 'document', 'reason': 'scraping failed', 'doc_id': id, 'listing': url, 'position': num})
         
-        browser.back()
+        if browser.name == 'chrome':
+            print "getting url"
+            browser.get(url)
+        else:
+            browser.back()
     logger.info('Scraped %s: got %s documents of %s expected, with %s errors' % (url, len(docs), num_links, len(errors)))
     return (docs, errors)
