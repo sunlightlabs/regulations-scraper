@@ -1,35 +1,14 @@
 #!/usr/bin/env python
 
-MAP = """
-function() {
-    if (this.Views) {
-        for (var i = 0; i < this.Views.length; i++) {
-            if (!this.Views[i].Downloaded) {
-                emit(this.Views[i].URL, {doc: this._id, url: this.Views[i].URL, type: this.Views[i].Type})
-            }
-        }
-    }
-}
-"""
-
-REDUCE = """
-function(key, values) {
-    return values[0];
-}
-"""
+from regscrape_lib.processing import *
 
 def run():
-    from pymongo import Connection
-    from bson.code import Code
-    from pymongo.objectid import ObjectId
     import subprocess, os, urlparse
     
     # initial database pass
-    db = Connection().regulations
-    results = db.docs.map_reduce(Code(MAP), Code(REDUCE))
-    
     f = open('/data/downloads/downloads.dat', 'w')
-    for result in results.find():
+    view_cursor = find_views(Downloaded=False)
+    for result in view_cursor.find():
         f.write(result['value']['url'])
         f.write('\n')
     f.close()
@@ -39,8 +18,8 @@ def run():
     proc.wait()
     
     # database check pass
-    for result in results.find():
-        filename = result['value']['url'].split('/')[-1]
+    for result in view_cursor.find():
+        filename = result['value']['view']['URL'].split('/')[-1]
         fullpath = os.path.join('/data/downloads', filename)
         
         qs = dict(urlparse.parse_qsl(filename.split('?')[-1]))
@@ -53,20 +32,11 @@ def run():
         
         if os.path.exists(newfullpath):
             # update database record to point to file
-            
-            # can't figure out a way to do this automically because of bug SERVER-1050
-            db.docs.update({
-                '_id': ObjectId(result['value']['doc'])
-            },
-            {
-                '$pull': { "Views": {"URL": result['value']['url']}}
-            }, safe=True)
-            db.docs.update({
-                '_id': ObjectId(result['value']['doc'])
-            },
-            {
-                '$push': { "Views": {"URL": result['value']['url'], "Downloaded": True, "Type": result['value']['type'], "File": newfullpath, "Decoded": False}}
-            }, safe=True)
+            view = result['value']['view'].copy()
+            view['Downloaded'] = True
+            view['File'] = newfullpath
+            view['Decoded'] = False
+            update_view(result['value']['doc'], view)
 
 if __name__ == "__main__":
     run()
