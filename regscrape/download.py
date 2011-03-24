@@ -53,7 +53,6 @@ def run():
         
         if os.path.exists(newfullpath):
             # update database record to point to file
-            print "updating", result['value']['doc']
             
             # can't figure out a way to do this automically because of bug SERVER-1050
             db.docs.update({
