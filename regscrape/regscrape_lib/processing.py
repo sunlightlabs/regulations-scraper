@@ -23,12 +23,13 @@ function(key, values) {
 }
 """
 
+DB = Connection().regulations
+
 def find_views(**params):
     rule = " && ".join(['this.Views[i].%s == %s' % (item[0], json.dumps(item[1])) for item in params.items()])
     mapfunc = MAP % rule
     
-    db = Connection().regulations
-    results = db.docs.map_reduce(Code(mapfunc), Code(REDUCE))
+    results = DB.docs.map_reduce(Code(mapfunc), Code(REDUCE))
     
     return results
 
@@ -36,13 +37,13 @@ def update_view(id, view):
     oid = ObjectId(id)
     
     # can't figure out a way to do this automically because of bug SERVER-1050
-    db.docs.update({
+    DB.docs.update({
         '_id': oid
     },
     {
         '$pull': { "Views": {"URL": view['URL']}}
     }, safe=True)
-    db.docs.update({
+    DB.docs.update({
         '_id': oid
     },
     {
