@@ -7,6 +7,8 @@ from pymongo import Connection
 import time
 
 from regscrape_lib import logger
+from regscrape_lib.exceptions import Finished
+from regscrape_lib.util import pseudoqs_encode
 import settings
 
 class MasterActor(GeventActor):
@@ -30,21 +32,26 @@ class MasterActor(GeventActor):
             if new_url:
                 actor.send_one_way({'command': 'scrape_listing', 'url': new_url})
             else:
-                actor.send_request_reply({'command': 'shutdown'})
-                actor.stop()
-                self.actors.remove(actor)
-                if len(self.actors) == 0:
-                    logger.info('Done')
-                    time.sleep(5)
-                    os._exit(os.EX_OK)
+                self.shutdown(actor)
+        elif message.get('command') == 'finished':
+            self.shutdown(message.get('actor'))
     
     def get_url(self):
-        if self.current <= self.max:
-            url = "http://%s/#!searchResults;dct=PS;rpp=%s;po=%s" % (settings.TARGET_SERVER, settings.PER_PAGE, self.current)
+        if self.max == 0 or self.current <= self.max:
+            url = "http://%s/#!searchResults;%s;rpp=%s;po=%s" % (settings.TARGET_SERVER, pseudoqs_encode(settings.SEARCH), settings.PER_PAGE, self.current)
             self.current += settings.PER_PAGE
             return url
         else:
             return None
+    
+    def shutdown(self, actor):
+        actor.send_request_reply({'command': 'shutdown'})
+        actor.stop()
+        self.actors.remove(actor)
+        if len(self.actors) == 0:
+            logger.info('Done')
+            time.sleep(5)
+            os._exit(os.EX_OK)
 
 class ScraperActor(GeventActor):
     def __init__(self, master, db):
@@ -59,6 +66,10 @@ class ScraperActor(GeventActor):
                 try:
                     docs, errors = scrape_listing(self.browser, message.get('url'))
                     break
+                except Finished:
+                    logger.info('Reached end of search results; terminating.')
+                    self.master.send_one_way({'command': 'finished', 'actor': self.actor_ref})
+                    return
                 except:
                     pass
             if docs:

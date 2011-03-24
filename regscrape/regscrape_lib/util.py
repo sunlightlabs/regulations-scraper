@@ -21,3 +21,6 @@ def get_elements(browser, selector, check=None, optional=False, min_count=1):
                 raise StillNotFound()
             time.sleep(0.5)
     return elements
+
+def pseudoqs_encode(qs_dict):
+    return ";".join(["=".join(item) for item in qs_dict.items()])

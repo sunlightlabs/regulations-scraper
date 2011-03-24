@@ -3,5 +3,6 @@ PER_PAGE = 50
 INSTANCES = 4
 CLEAR_FIRST = True
 MAX_RECORDS = 10000
+SEARCH = {'dct': 'PS'}
 # BROWSER = {'driver': 'Remote', 'kwargs': {'browser_name': 'Firefox'}}
 BROWSER = {'driver': 'Firefox'}

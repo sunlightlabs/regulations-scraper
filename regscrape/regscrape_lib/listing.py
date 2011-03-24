@@ -1,6 +1,6 @@
 from regscrape_lib.util import get_elements
 from regscrape_lib.document import scrape_document
-from regscrape_lib.exceptions import StillNotFound
+from regscrape_lib.exceptions import StillNotFound, Finished
 import sys
 import settings
 from regscrape_lib import logger
@@ -16,7 +16,14 @@ def scrape_listing(browser, url=None, visit_first=True):
     try:
         num_links = len(get_elements(browser, 'a[href*=documentDetail]', min_count=settings.PER_PAGE))
     except StillNotFound:
-        num_links = len(get_elements(browser, 'a[href*=documentDetail]'))
+        try:
+            num_links = len(get_elements(browser, 'a[href*=documentDetail]'))
+        except StillNotFound:
+            empty = get_elements(browser, '.x-grid-empty', optional=True)
+            if empty:
+                raise Finished
+            else:
+                raise StillNotFound
     
     for num in range(num_links):
         doc = None
