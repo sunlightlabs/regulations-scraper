@@ -1,13 +1,12 @@
 import time
 from exceptions import StillNotFound
 import xpath
-import settings
 
 def get_elements(browser, selector, check=None, optional=False, min_count=1):
     count = 0
     elements = []
     
-    if settings.BROWSER == 'chrome':
+    if browser.name == 'chrome':
         selector = xpath.css2xpath(selector)
         func = 'find_elements_by_xpath'
     else:
@@ -22,3 +21,6 @@ def get_elements(browser, selector, check=None, optional=False, min_count=1):
                 raise StillNotFound()
             time.sleep(0.5)
     return elements
+
+def pseudoqs_encode(qs_dict):
+    return ";".join(["=".join(item) for item in qs_dict.items()])
