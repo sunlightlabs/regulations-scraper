@@ -4,6 +4,7 @@ INSTANCES = 6
 CLEAR_FIRST = True
 MAX_RECORDS = 0
 SEARCH = {'dct': 'PS'}
+MAX_WAIT = 600
 # BROWSER = {'driver': 'Remote', 'kwargs': {'browser_name': 'Firefox'}}
 BROWSER = {'driver': 'Firefox'}
 

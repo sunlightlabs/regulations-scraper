@@ -15,4 +15,5 @@ if settings.BROWSER['driver'] == 'Chrome':
 master = MasterActor.start(settings.INSTANCES)
 master.send_request_reply({'command': 'scrape', 'max': settings.MAX_RECORDS})
 while True:
-    time.sleep(3600)
+    time.sleep(60)
+    master.send_one_way({'command': 'tick'})
