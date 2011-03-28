@@ -60,7 +60,7 @@ def scrape_document(browser, id, visit_first=True):
     qs = dict(urlparse.parse_qsl(url.query))
     qs['disposition'] == 'attachment'
     
-    view_buttons = get_elements(browser, '#mainContentBottom .gwt-Image.Gsqk2cPN', optional=True)
+    view_buttons = get_elements(browser, '#mainContentBottom > div > .gwt-Image', optional=True)
     for button in view_buttons:
         title = button.get_attribute('title')
         format = title.split(' ')[-1]
