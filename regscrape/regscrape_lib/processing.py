@@ -36,7 +36,7 @@ def find_views(**params):
 def update_view(id, view):
     oid = ObjectId(id)
     
-    # can't figure out a way to do this automically because of bug SERVER-1050
+    # can't figure out a way to do this atomically because of bug SERVER-1050
     DB.docs.update({
         '_id': oid
     },
