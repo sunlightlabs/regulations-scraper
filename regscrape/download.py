@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from regscrape_lib.processing import *
+import os
 
 def run():
     import subprocess, os, urlparse
@@ -37,6 +38,9 @@ def run():
             view['File'] = newfullpath
             view['Decoded'] = False
             update_view(result['value']['doc'], view)
+    
+    # cleanup
+    os.unlink('/data/downloads/downloads.dat')
 
 if __name__ == "__main__":
     run()
