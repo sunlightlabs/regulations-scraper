@@ -34,20 +34,23 @@ class Clustering(object):
         for x in range(0, self.num_docs):
             if self.assignments[x] == cluster_j:
                 self.assignments[x] = cluster_i
+                
+    def get_clusters(self):
+        mapping = dict([(rep, list()) for rep in set(self.assignments)])
+        for i in range(0, len(self.assignments)):
+            mapping[self.assignments[i]].append(i)
+
+        return mapping
 
 
-def interactive_cluster(raw_docs, ngram = 4):
-    ngrams = NGramSpace(ngram)
-    docs = [ngrams.parse(raw) for raw in raw_docs]
-    clustering = Clustering(docs)
-    
+def cluster_loop(clustering, raw_docs):
     while True:
         (i, j) = clustering.min_link()
-        
+
         if (i, j) == (None, None):
             print "All elements in single cluster."
             break
-    
+
         print "Potential Clustering (%d, %d):" % (i, j)
         print raw_docs[i]
         print "===================="
@@ -56,10 +59,18 @@ def interactive_cluster(raw_docs, ngram = 4):
             choice = raw_input("Cluster? [Y/n] ").lower()
             if choice in ('', 'y', 'n'):
                 break
-    
+
         if choice == 'n':
             break
-    
+
         clustering.merge(i, j)
+
+
+def interactive_cluster(raw_docs, ngram = 4):
+    ngrams = NGramSpace(ngram)
+    docs = [ngrams.parse(raw) for raw in raw_docs]
+    clustering = Clustering(docs)
+
+    cluster_loop(clustering, raw_docs)
     
-    print clustering.assignments
+    return clustering.assignments

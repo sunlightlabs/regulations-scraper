@@ -64,5 +64,5 @@ def jaccard(x, y):
     intersection_size = overlap(x, y)
     union_size = len(x) + len(y) - intersection_size
     
-    return float(intersection_size) / union_size
+    return float(intersection_size) / union_size if union_size != 0 else 0
 
