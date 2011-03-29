@@ -10,7 +10,7 @@ def run():
     f = open('/data/downloads/downloads.dat', 'w')
     view_cursor = find_views(Downloaded=False)
     for result in view_cursor.find():
-        f.write(result['value']['url'])
+        f.write(result['value']['view']['URL'])
         f.write('\n')
     f.close()
     
