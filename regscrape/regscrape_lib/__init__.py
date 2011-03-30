@@ -18,3 +18,11 @@ ch.setFormatter(formatter)
 
 # add ch to logger
 logger.addHandler(ch)
+
+# also log pykka stuff if DEBUG is true
+import settings
+
+if settings.DEBUG:
+    pykka_logger = logging.getLogger("pykka")
+    pykka_logger.setLevel(logging.DEBUG)
+    pykka_logger.addHandler(ch)

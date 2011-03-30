@@ -7,6 +7,7 @@ SEARCH = {'dct': 'PS'}
 MAX_WAIT = 600
 # BROWSER = {'driver': 'Remote', 'kwargs': {'browser_name': 'Firefox'}}
 BROWSER = {'driver': 'Firefox'}
+DEBUG = True
 
 try:
     from local_settings import *

@@ -1,4 +1,4 @@
 selenium
 gevent
-pykka
+-e git+https://github.com/jodal/pykka.git@71cc295747a03384a4953fcd8f6f7198e9cac153#egg=pykka
 pymongo
