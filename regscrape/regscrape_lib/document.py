@@ -6,7 +6,7 @@ from regscrape_lib.util import get_elements
 
 import settings
 
-FORMAT_OVERRIDES = {'html': 'xml', 'doc': 'msw8'}
+FORMAT_OVERRIDES = {'html': 'xml', 'doc': 'msw8', 'crtxt': 'crtext'}
 
 def scrape_document(browser, id, visit_first=True):
     if visit_first:

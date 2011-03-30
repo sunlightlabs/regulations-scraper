@@ -35,6 +35,9 @@ DECODERS = {
         'error': 'The document does not have a content file of type' # not really an error, as above
     }],
 }
+
+DECODERS['crtext'] = DECODERS['xml']
+
 def run():
     import subprocess, os, urlparse, json
     view_cursor = find_views(Downloaded=True, Decoded=False)
