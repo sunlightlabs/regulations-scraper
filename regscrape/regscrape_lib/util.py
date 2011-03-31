@@ -1,6 +1,8 @@
 import time
 from exceptions import StillNotFound, FoundErrorElement
 import xpath
+import settings
+from pymongo import Connection
 
 def get_elements(browser, selector, check=None, optional=False, min_count=1, error_selector=None):
     count = 0
@@ -28,3 +30,7 @@ def get_elements(browser, selector, check=None, optional=False, min_count=1, err
 
 def pseudoqs_encode(qs_dict):
     return ";".join(["=".join(item) for item in qs_dict.items()])
+
+def get_db():
+    db_settings = settings.get('DB_SETTINGS', {})
+    return Connection(**db_settings)[settings.get('DB_NAME', 'regulations')]

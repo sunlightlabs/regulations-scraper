@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-from pymongo import Connection
+from regscrape_lib.util import get_db
 import operator
 
 def run():
-    db = Connection().regulations
+    db = get_db()
     
     data = list(db.docs.find())
     doc_count = len(data)

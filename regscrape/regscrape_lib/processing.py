@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-from pymongo import Connection
 from bson.code import Code
 from pymongo.objectid import ObjectId
 import subprocess, os, urlparse, json
+from regscrape_lib.util import get_db
 
 MAP = """
 function() {
@@ -23,7 +23,7 @@ function(key, values) {
 }
 """
 
-DB = Connection().regulations
+DB = get_db()
 
 def find_views(**params):
     rule = " && ".join(['this.Views[i].%s == %s' % (item[0], json.dumps(item[1])) for item in params.items()])

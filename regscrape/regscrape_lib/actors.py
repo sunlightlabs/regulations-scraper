@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 from regscrape_lib import logger
 from regscrape_lib.exceptions import Finished
-from regscrape_lib.util import pseudoqs_encode
+from regscrape_lib.util import pseudoqs_encode, get_db
 import settings
 
 class MasterActor(GeventActor):
@@ -120,7 +120,7 @@ class ScraperActor(GeventActor):
 
 class DbActor(GeventActor):
     def __init__(self):
-        self.db = Connection('localhost', 27017)['regulations']
+        self.db = get_db()
         if settings.CLEAR_FIRST:
             self.db.docs.drop()
             self.db.errors.drop()
