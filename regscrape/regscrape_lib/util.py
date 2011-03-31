@@ -32,5 +32,5 @@ def pseudoqs_encode(qs_dict):
     return ";".join(["=".join(item) for item in qs_dict.items()])
 
 def get_db():
-    db_settings = settings.get('DB_SETTINGS', {})
-    return Connection(**db_settings)[settings.get('DB_NAME', 'regulations')]
+    db_settings = getattr(settings, 'DB_SETTINGS', {})
+    return Connection(**db_settings)[getattr(settings, 'DB_NAME', 'regulations')]
