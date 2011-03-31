@@ -127,6 +127,19 @@ class TestClustering(unittest.TestCase):
 
         c.merge(2, 0)
         self.assertEqual([2, 2, 2], c.assignments)
+    
+    def test_pairs(self):
+        ngrams = NGramSpace(1)
+        docs = [ngrams.parse(raw) for raw in test_docs]
+        c = Clustering(docs)
+        
+        self.assertEqual((1, 0), c.closest_pair([0, 1, 2]))
+        self.assertEqual((5, 3), c.closest_pair([3, 4, 5]))
+        self.assertEqual((7, 6), c.closest_pair([6, 7]))
+        
+        self.assertEqual((2, 0), c.farthest_pair([0, 1, 2]))
+        self.assertEqual((5, 4), c.farthest_pair([3, 4, 5]))
+        self.assertEqual((7, 6), c.farthest_pair([6, 7]))        
         
         
 if __name__ == '__main__':

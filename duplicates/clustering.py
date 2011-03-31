@@ -1,5 +1,5 @@
 from ngrams import jaccard, NGramSpace
-
+import numpy
 
 class Clustering(object):
     
@@ -7,11 +7,11 @@ class Clustering(object):
         self.num_docs = len(docs)
         self.assignments = range(0, self.num_docs)
         
-        self.distance = [None for _ in range(0, self.num_docs)]
+        self.distance = numpy.zeros((self.num_docs, self.num_docs))
         for i in range(0, self.num_docs):
-            self.distance[i] = [None for _ in range(0, i+1)]
             for j in range(0, i + 1):
                 self.distance[i][j] = 1.0 - jaccard(docs[i], docs[j])
+        
 
     def min_link(self):
         min_i = None
@@ -35,11 +35,16 @@ class Clustering(object):
             if self.assignments[x] == cluster_j:
                 self.assignments[x] = cluster_i
                 
+                
     def get_clusters(self):
         mapping = dict([(rep, list()) for rep in set(self.assignments)])
-        for i in range(0, len(self.assignments)):
+        for i in range(0, self.num_docs):
             mapping[self.assignments[i]].append(i)
         return mapping
+        
+    def get_cluster(self, i):
+        rep = self.assignments[i]
+        return [i for i in range(0, self.num_docs) if self.assignments[i] == rep]
         
     def pp_distance(self, ids):
         """ Pretty-print the distances between given docs. """
@@ -52,9 +57,43 @@ class Clustering(object):
         
         (min, avg, max) = ['{0:.3}'.format(s) for s in self.stats(ids)]
         print "min/avg/max = %s / %s / %s" % (min, avg, max)
-            
-            
+        
+    def closest_pair(self, ids):
+        ids.sort()
+        
+        min_i = None
+        min_j = None
+        min_d = 1.0
+        
+        for i in range(0, len(ids)):
+            for j in range(0, i):
+                if self.distance[ids[i]][ids[j]] <= min_d:
+                    min_i = ids[i]
+                    min_j = ids[j]
+                    min_d = self.distance[ids[i]][ids[j]]
+        
+        return (min_i, min_j)
+    
+    def farthest_pair(self, ids):
+        ids.sort()
+
+        max_i = None
+        max_j = None
+        max_d = 0.0
+
+        for i in range(0, len(ids)):
+            for j in range(0, i):
+                if self.distance[ids[i]][ids[j]] >= max_d:
+                    max_i = ids[i]
+                    max_j = ids[j]
+                    max_d = self.distance[ids[i]][ids[j]]
+
+        return (max_i, max_j)          
+    
     def stats(self, ids):
+        if len(ids) < 2:
+            return (0.0, 0.0, 0.0)
+        
         ids.sort()
         distances = list()
         
@@ -73,17 +112,24 @@ def cluster_loop(clustering, raw_docs):
             print "All elements in single cluster."
             break
 
-        print "Potential Clustering (%d, %d):" % (i, j)
-        print raw_docs[i]
-        print "===================="
-        print raw_docs[j]
-        while True:
-            choice = raw_input("Cluster? [Y/n] ").lower()
-            if choice in ('', 'y', 'n'):
-                break
+        if clustering.distance[i][j] != 0.0:
+            print "Potential Clustering (%d, %d):" % (i, j)
+            clustering.pp_distance(clustering.get_cluster(i))
+            print raw_docs[i]
+            print "\n========================================\n"
+            clustering.pp_distance(clustering.get_cluster(j))
+            print raw_docs[j]
+            print "\n========================================\n"
+            print "Would create:"
+            clustering.pp_distance(clustering.get_cluster(i) + clustering.get_cluster(j))
+            print '\n'
+            while True:
+                choice = raw_input("Cluster? [Y/n] ").lower()
+                if choice in ('', 'y', 'n'):
+                    break
 
-        if choice == 'n':
-            break
+            if choice == 'n':
+                break
 
         clustering.merge(i, j)
 

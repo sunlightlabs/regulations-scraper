@@ -32,5 +32,6 @@ def get_texts():
         for v in d.get('Views', []):
             if v.get('Decoded', False):
                 texts.append(v.get('Text', ''))
+                break
 
     return texts
