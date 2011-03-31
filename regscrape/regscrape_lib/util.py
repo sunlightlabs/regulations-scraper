@@ -17,9 +17,7 @@ def get_elements(browser, selector, check=None, optional=False, min_count=1, err
             break
         else:
             if error_selector:
-                print 'checking error selector'
                 error_elements = getattr(browser, func)(error_selector)
-                print error_elements
                 if error_elements:
                     raise FoundErrorElement()
             count += 1
