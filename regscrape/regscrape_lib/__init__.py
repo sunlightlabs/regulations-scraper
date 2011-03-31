@@ -24,5 +24,5 @@ import settings
 
 if settings.DEBUG:
     pykka_logger = logging.getLogger("pykka")
-    pykka_logger.setLevel(logging.DEBUG)
+    pykka_logger.setLevel(logging.INFO)
     pykka_logger.addHandler(ch)

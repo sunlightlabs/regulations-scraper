@@ -41,6 +41,9 @@ class MasterActor(GeventActor):
             else:
                 self.shutdown(actor)
         elif message.get('command') == 'finished':
+            message_position = int(message.get('url').split('=')[-1])
+            if self.max == 0 or message_position < self.max:
+                self.max = message_position
             self.shutdown(message.get('actor'))
         elif message.get('command') == 'tick':
             now = datetime.now()
@@ -68,7 +71,10 @@ class MasterActor(GeventActor):
             return None
     
     def shutdown(self, actor):
-        actor.send_one_way({'command': 'shutdown'})
+        try:
+            actor.send_one_way({'command': 'shutdown'})
+        except:
+            pass
         time.sleep(0.5)
         actor.stop()
         self.actors.remove(actor)
@@ -94,7 +100,7 @@ class ScraperActor(GeventActor):
                     break
                 except Finished:
                     logger.info('Reached end of search results; terminating.')
-                    self.master.send_one_way({'command': 'finished', 'actor': self.actor_ref})
+                    self.master.send_one_way({'command': 'finished', 'actor': self.actor_ref, 'url': message.get('url')})
                     return
                 except:
                     pass
@@ -103,7 +109,7 @@ class ScraperActor(GeventActor):
                 if errors:
                     self.write('errors', errors)
             else:
-                logger.error('Gave up on listing %s' % url)
+                logger.error('Gave up on listing %s' % message['url'])
                 self.write('errors', [{'type': 'listing', 'reason': 'Failed to scrape listing', 'url': message.get('url')}])
             self.master.send_one_way({'command': 'ready', 'actor': self.actor_ref})
         elif message.get('command') == 'shutdown':
