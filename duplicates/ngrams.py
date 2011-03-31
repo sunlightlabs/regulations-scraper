@@ -1,4 +1,4 @@
-
+import re
 
 
 class Sequencer(object):
@@ -27,7 +27,8 @@ class NGramSpace(object):
         self.ngrams = Sequencer()
         
     def parse(self, text):
-        split_text = text.lower().split()
+        normalized_text = re.sub('\W', ' ', text.lower())
+        split_text = normalized_text.split()
         
         ids = set()
         

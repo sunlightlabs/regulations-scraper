@@ -39,8 +39,30 @@ class Clustering(object):
         mapping = dict([(rep, list()) for rep in set(self.assignments)])
         for i in range(0, len(self.assignments)):
             mapping[self.assignments[i]].append(i)
-
         return mapping
+        
+    def pp_distance(self, ids):
+        """ Pretty-print the distances between given docs. """
+        
+        ids.sort()
+        print '\t' + '\t'.join([str(id) for id in ids])
+        for i in range(0, len(ids)):
+            distances = [self.distance[ids[i]][ids[j]] for j in range(0, i)]
+            print "%d:\t%s" % (ids[i], '\t'.join(['{0:.3}'.format(d) for d in distances]))
+        
+        (min, avg, max) = ['{0:.3}'.format(s) for s in self.stats(ids)]
+        print "min/avg/max = %s / %s / %s" % (min, avg, max)
+            
+            
+    def stats(self, ids):
+        ids.sort()
+        distances = list()
+        
+        for i in range(0, len(ids)):
+            for j in range(0, i):
+                distances.append(self.distance[ids[i]][ids[j]])
+        
+        return (min(distances), sum(distances) / float(len(distances)), max(distances))
 
 
 def cluster_loop(clustering, raw_docs):
@@ -73,4 +95,4 @@ def interactive_cluster(raw_docs, ngram = 4):
 
     cluster_loop(clustering, raw_docs)
     
-    return clustering.assignments
+    return clustering

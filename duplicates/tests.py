@@ -4,6 +4,23 @@ import unittest
 from ngrams import Sequencer, NGramSpace, overlap, jaccard
 from clustering import Clustering
 
+
+# for use in interactive tests
+test_docs = [
+    "Penguins swim in the waters of antarctica.",
+    "In antarctica, penguins swim in the waters.",
+    "The waters where penguins swim are in antarctica.",
+    
+    "Bears eat honey in the forest.",
+    "The forest where bears eat has honey.",
+    "Honey is eaten bears in the forest.",
+    
+    "Sea gulls fly on the coast.",
+    "Sea gulls fly over the water.",
+]
+
+
+
 class TestSequencer(unittest.TestCase):
     
     def test_basic(self):
