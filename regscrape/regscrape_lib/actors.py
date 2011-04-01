@@ -78,6 +78,7 @@ class MasterActor(GeventActor):
         time.sleep(0.5)
         actor.stop()
         self.actors.remove(actor)
+        logger.debug('Shut down 1 worker, %s remaining.' % len(self.actors))
         if len(self.actors) == 0:
             logger.info('Done')
             time.sleep(5)
@@ -104,6 +105,7 @@ class ScraperActor(GeventActor):
                     return
                 except:
                     pass
+                logger.warn('Failed on first try scraping %s' % message.get('url'))
             if docs:
                 self.write('docs', docs)
                 if errors:

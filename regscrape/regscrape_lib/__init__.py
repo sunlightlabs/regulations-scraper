@@ -23,6 +23,7 @@ logger.addHandler(ch)
 import settings
 
 if settings.DEBUG:
-    pykka_logger = logging.getLogger("pykka")
-    pykka_logger.setLevel(logging.INFO)
-    pykka_logger.addHandler(ch)
+    for ext_logger_name in ['pykka', 'remote_connection']:
+        ext_logger = logging.getLogger(ext_logger_name)
+        ext_logger.setLevel(logging.DEBUG)
+        ext_logger.addHandler(ch)
