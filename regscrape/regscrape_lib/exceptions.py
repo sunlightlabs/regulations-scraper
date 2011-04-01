@@ -3,3 +3,6 @@ class StillNotFound(Exception):
 
 class Finished(Exception):
     pass
+
+class FoundErrorElement(Exception):
+    pass

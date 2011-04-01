@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
-import urllib, urlparse
+import urllib, urlparse, json
 
 from regscrape_lib.util import get_elements
 
+from regscrape_lib import logger
 import settings
 
-FORMAT_OVERRIDES = {'html': 'xml', 'doc': 'msw8'}
+FORMAT_OVERRIDES = {'html': 'xml', 'doc': 'msw8', 'crtxt': 'crtext'}
 
 def scrape_document(browser, id, visit_first=True):
     if visit_first:
@@ -60,20 +61,44 @@ def scrape_document(browser, id, visit_first=True):
     qs = dict(urlparse.parse_qsl(url.query))
     qs['disposition'] == 'attachment'
     
-    view_buttons = get_elements(browser, '#mainContentBottom .gwt-Image.Gsqk2cPN', optional=True)
-    for button in view_buttons:
-        title = button.get_attribute('title')
-        format = title.split(' ')[-1]
-        download_format = format
-        if format in FORMAT_OVERRIDES:
-            download_format = FORMAT_OVERRIDES[format]
+    view_selector = '#mainContentBottom > div > .gwt-Image'
+    view_buttons = get_elements(browser, view_selector, optional=True)
+    view_data = []
+    try:
+        view_data = json.loads(browser.execute_script("""
+            return JSON.stringify(
+                Array.prototype.slice.call(document.querySelectorAll('%s')).map(function(el) {
+                    return el.__listener.Gc.e.b.e.slice(-1)[0][0].g.b[0]
+                })
+            )
+        """ % view_selector))
+    except:
+        pass
+    
+    if len(view_data) == len(view_buttons):
+        for view in view_data:
+            views.append({
+                'Type': view['d'],
+                'URL': 'http://www.regulations.gov/contentStreamer?objectId=%s&disposition=inline&contentType=%s' % (view['c'], view['d']),
+                'Downloaded': False
+            })
+    else:
+        # fallback to old-style guessing with a warning
+        logger.warn("Falling back to old-style URL guessing on document %s" % id)
         
-        qs['contentType'] = download_format    
-        views.append({
-            'Type': format,
-            'URL': 'http://www.regulations.gov/contentStreamer?%s' % urllib.urlencode(qs),
-            'Downloaded': False
-        })
+        for button in view_buttons:
+            title = button.get_attribute('title')
+            format = title.split(' ')[-1]
+            download_format = format
+            if format in FORMAT_OVERRIDES:
+                download_format = FORMAT_OVERRIDES[format]
+            
+            qs['contentType'] = download_format    
+            views.append({
+                'Type': download_format,
+                'URL': 'http://www.regulations.gov/contentStreamer?%s' % urllib.urlencode(qs),
+                'Downloaded': False
+            })
     
     out['Views'] = views
     

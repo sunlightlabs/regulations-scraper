@@ -1,2 +1,3 @@
 *.pyc
 nohup.out
+local_settings.py

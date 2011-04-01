@@ -1,30 +1,32 @@
 #!/usr/bin/env python
 
 from regscrape_lib.processing import *
+import os
+import settings
 
 def run():
     import subprocess, os, urlparse
     
     # initial database pass
-    f = open('/data/downloads/downloads.dat', 'w')
+    f = open(os.path.join(settings.DOWNLOAD_DIR, 'downloads.dat'), 'w')
     view_cursor = find_views(Downloaded=False)
     for result in view_cursor.find():
-        f.write(result['value']['url'])
+        f.write(result['value']['view']['URL'])
         f.write('\n')
     f.close()
     
     # download
-    proc = subprocess.Popen(['puf', '-xg', '-P', '/data/downloads', '-i', '/data/downloads/downloads.dat'])
+    proc = subprocess.Popen(['puf', '-xg', '-P', settings.DOWNLOAD_DIR, '-i', os.path.join(settings.DOWNLOAD_DIR, 'downloads.dat')])
     proc.wait()
     
     # database check pass
     for result in view_cursor.find():
         filename = result['value']['view']['URL'].split('/')[-1]
-        fullpath = os.path.join('/data/downloads', filename)
+        fullpath = os.path.join(settings.DOWNLOAD_DIR, filename)
         
         qs = dict(urlparse.parse_qsl(filename.split('?')[-1]))
         newname = '%s.%s' % (qs['objectId'], qs['contentType'])
-        newfullpath = os.path.join('/data/downloads', newname)
+        newfullpath = os.path.join(settings.DOWNLOAD_DIR, newname)
         
         if os.path.exists(fullpath):
             # rename file to something more sensible
@@ -37,6 +39,9 @@ def run():
             view['File'] = newfullpath
             view['Decoded'] = False
             update_view(result['value']['doc'], view)
+    
+    # cleanup
+    os.unlink(os.path.join(settings.DOWNLOAD_DIR, 'downloads.dat'))
 
 if __name__ == "__main__":
     run()

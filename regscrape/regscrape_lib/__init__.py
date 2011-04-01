@@ -18,3 +18,12 @@ ch.setFormatter(formatter)
 
 # add ch to logger
 logger.addHandler(ch)
+
+# also log pykka stuff if DEBUG is true
+import settings
+
+if settings.DEBUG:
+    for ext_logger_name in ['pykka', 'remote_connection']:
+        ext_logger = logging.getLogger(ext_logger_name)
+        ext_logger.setLevel(logging.DEBUG)
+        ext_logger.addHandler(ch)
