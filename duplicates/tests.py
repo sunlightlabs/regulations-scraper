@@ -2,7 +2,7 @@
 import unittest
 
 from ngrams import Sequencer, NGramSpace, overlap, jaccard
-from clustering import Clustering
+from clustering import Clustering, SymmetricMatrix
 
 
 # for use in interactive tests
@@ -19,6 +19,43 @@ test_docs = [
     "Sea gulls fly over the water.",
 ]
 
+
+
+class TestSymmetricMatrix(unittest.TestCase):
+    
+    def test_basic(self):
+        m = SymmetricMatrix(5)
+        
+        self.assertEqual(5, len(m))
+        
+        self.assertEqual(0, m[2,3])
+        
+        m[2,3] = 2.3
+        
+        self.assertEqual(2.3, m[2, 3])
+        self.assertEqual(2.3, m[3, 2])
+    
+    def test_translate(self):
+        m = SymmetricMatrix(5)
+        
+        for i in range(0, 5):
+            for j in range(0, i + 1):
+                m[i, j] = i + j * 0.1
+        
+        self.assertEqual(2.1, m[1,2])
+        self.assertEqual(2.1, m[2,1])
+        
+        s = m.submatrix([0, 3, 4])
+        
+        self.assertEqual(3, len(s))
+        
+        self.assertEqual(0.0, s[0,0])
+        self.assertEqual(3.3, s[1,1])
+        self.assertEqual(4.4, s[2,2])
+        
+        self.assertEqual(4.3, s[1, 2])
+        self.assertEqual(4.3, s[2, 1])        
+        
 
 
 class TestSequencer(unittest.TestCase):
@@ -104,12 +141,12 @@ class TestClustering(unittest.TestCase):
         
         c = Clustering(docs)
         
-        self.assertEqual(0, c.distance[0][0])
-        self.assertEqual(0.5, c.distance[1][0])
-        self.assertEqual(0, c.distance[1][1])
-        self.assertEqual(1.0, c.distance[2][0])
-        self.assertEqual(0.8, c.distance[2][1])
-        self.assertEqual(0, c.distance[2][2])
+        self.assertEqual(0, c.distance[0, 0])
+        self.assertEqual(0.5, c.distance[1, 0])
+        self.assertEqual(0, c.distance[1, 1])
+        self.assertEqual(1.0, c.distance[2, 0])
+        self.assertEqual(0.8, c.distance[2, 1])
+        self.assertEqual(0, c.distance[2, 2])
         
     def test_clustering(self):
         raw_docs = ['a b c', 'b c d', 'd e f']
