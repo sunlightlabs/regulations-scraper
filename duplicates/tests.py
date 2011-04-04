@@ -164,6 +164,44 @@ class TestClustering(unittest.TestCase):
 
         c.merge(2, 0)
         self.assertEqual([2, 2, 2], c.assignments)
+        
+    def test_nonseeded_clustering(self):
+        ngrams = NGramSpace(1)
+        docs = [ngrams.parse(raw) for raw in test_docs]
+        c = Clustering(docs)
+        
+        self.assertEqual((1, 0), c.min_link())
+        c.merge(1, 0)
+        self.assertEqual((2, 1), c.min_link())
+        c.merge(2, 1)
+        self.assertTrue(c.min_link() in [(4,3), (5,3)])
+        c.merge(3,4)
+        c.merge(3, 5)
+        self.assertEqual((7,6), c.min_link())
+                
+    def test_seeded_clustering(self):
+        ngrams = NGramSpace(1)
+        docs = [ngrams.parse(raw) for raw in test_docs]
+        c = Clustering(docs)
+        
+        self.assertEqual((0, 1), c.min_link(0))
+        c.merge(0, 1)
+        self.assertEqual((0, 2), c.min_link(0))
+        c.merge(0, 2)
+        self.assertEqual((0, 3), c.min_link(0))
+        
+        self.assertTrue(c.min_link(3) in [(3, 4), (3, 5)])
+        c.merge(3, 4)
+        self.assertEqual((3, 5), c.min_link(3))
+        
+        # merge the rest so we can test single-cluster case
+        c.merge(3, 5)
+        c.merge(6, 7)
+        c.merge(0, 3)
+        c.merge(0, 6)
+    
+        self.assertEqual((None, None), c.min_link(7))
+        self.assertEqual((None, None), c.min_link())
     
     def test_pairs(self):
         ngrams = NGramSpace(1)

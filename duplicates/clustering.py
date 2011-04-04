@@ -43,17 +43,23 @@ class Clustering(object):
             for j in range(0, i + 1):
                 self.distance[i, j] = 1.0 - jaccard(docs[i], docs[j])
         
-    def min_link(self):
+    def min_link(self, seed=None):
         min_i = None
         min_j = None
         min_d = 1.0
         
-        for i in range(0, self.num_docs):
-            for j in range(0, i):
-                if self.distance[i, j] <= min_d and self.assignments[i] != self.assignments[j]:
-                    min_i = i
-                    min_j = j
-                    min_d = self.distance[i, j]
+        if seed is not None:
+            candidates = [(seed, i) for i in range(0, self.num_docs)]
+        else:
+            candidates = list()
+            for i in range(0, self.num_docs):
+                candidates += [(i, j) for j in range(0, i)]
+        
+        for (i, j) in candidates:
+            if self.distance[i, j] <= min_d and self.assignments[i] != self.assignments[j]:
+                min_i = i
+                min_j = j
+                min_d = self.distance[i, j]
         
         return (min_i, min_j)
 
