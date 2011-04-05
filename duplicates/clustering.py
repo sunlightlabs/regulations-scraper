@@ -43,6 +43,12 @@ class Clustering(object):
             for j in range(0, i + 1):
                 self.distance[i, j] = 1.0 - jaccard(docs[i], docs[j])
         
+        # merge identical documents
+        (i, j) = self.min_link()
+        while self.distance[i, j] == 0:
+            self.merge(i, j)
+            (i, j) = self.min_link()
+        
     def min_link(self, seed=None):
         min_i = None
         min_j = None

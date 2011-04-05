@@ -78,3 +78,7 @@ def interactive_cluster(raw_docs, ngram = 4):
     cluster_loop(clustering, raw_docs)
     
     return clustering
+
+
+from pprint import PrettyPrinter
+pp = PrettyPrinter().pprint
