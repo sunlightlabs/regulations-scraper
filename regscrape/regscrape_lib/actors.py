@@ -14,7 +14,7 @@ from regscrape_lib.util import pseudoqs_encode, get_db
 import settings
 
 class BaseActor(GeventActor):
-    def react(self, message):
+    def on_receive(self, message):
         command = message.get('command', None)
         if command and not command.startswith('_'):
             method = getattr(self, command, None)
@@ -144,7 +144,7 @@ class ScraperActor(BaseActor):
             self._write('errors', [{'type': 'listing', 'reason': 'Failed to scrape listing', 'url': message.get('url')}])
         self._send_ready()
     
-    def post_stop(self):
+    def on_stop(self):
         try:
             self.browser.quit()
         except:
