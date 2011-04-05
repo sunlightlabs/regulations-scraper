@@ -54,10 +54,12 @@ class Clustering(object):
         min_j = None
         min_d = 1.0
         
+        candidates = list()
         if seed is not None:
-            candidates = [(seed, i) for i in range(0, self.num_docs)]
+            members = self.get_cluster(seed)
+            for i in members:
+                candidates += [(i, j) for j in range(0, self.num_docs) if j not in members]
         else:
-            candidates = list()
             for i in range(0, self.num_docs):
                 candidates += [(i, j) for j in range(0, i)]
         

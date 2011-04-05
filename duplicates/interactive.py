@@ -29,6 +29,7 @@ def cluster_loop(clustering, raw_docs):
 
         clustering.merge(i, j)
         
+        
 def seeded_cluster_loop(clustering, raw_docs):
     
     while True:
@@ -66,8 +67,6 @@ def seeded_cluster_loop(clustering, raw_docs):
                     return
 
             clustering.merge(i, j)
-        
-        
 
 
 def interactive_cluster(raw_docs, ngram = 4):

@@ -185,11 +185,11 @@ class TestClustering(unittest.TestCase):
         docs = [ngrams.parse(raw) for raw in test_docs]
         c = Clustering(docs)
         
-        self.assertEqual((0, 1), c.min_link(0))
+        self.assertTrue(c.min_link(0) in ((0, 1), (1, 0)))
         c.merge(0, 1)
-        self.assertEqual((0, 2), c.min_link(0))
-        c.merge(0, 2)
-        self.assertEqual((0, 3), c.min_link(0))
+        self.assertTrue(c.min_link(0) in ((1, 2), (2, 1)))
+        c.merge(1, 2)
+        self.assertTrue(c.min_link(0) in ((1, 3), (3, 1)))
         
         self.assertTrue(c.min_link(3) in [(3, 4), (3, 5)])
         c.merge(3, 4)
