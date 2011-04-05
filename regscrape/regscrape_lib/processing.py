@@ -29,9 +29,9 @@ def find_views(**params):
     rule = " && ".join(['this.Views[i].%s == %s' % (item[0], json.dumps(item[1])) for item in params.items()])
     mapfunc = MAP % rule
     
-    results = DB.docs.map_reduce(Code(mapfunc), Code(REDUCE))
+    results = DB.docs.inline_map_reduce(Code(mapfunc), Code(REDUCE), full_response=True)
     
-    return results
+    return DB[results['result']]
 
 def update_view(id, view):
     oid = ObjectId(id)
