@@ -14,3 +14,6 @@ dpkg -i *.deb
 cd
 rm -rf /tmp/tesseract
 apt-get install -f
+if [ ! -f /usr/lib/liblept.so.0 ]; then
+    ln -s /usr/lib/liblept.so.1 /usr/lib/liblept.so.0
+fi
