@@ -3,6 +3,7 @@ from selenium import webdriver
 from listing import scrape_listing
 import sys
 import os
+import urllib2
 from pymongo import Connection
 import time
 from datetime import datetime, timedelta
@@ -41,13 +42,13 @@ class MasterActor(BaseActor):
         if actor.actor_urn in self.assignments:
             del self.assignments[actor.actor_urn]
         
-        new_url = self._get_url()
-        
-        if new_url:
-            actor.send_one_way({'command': 'scrape_listing', 'url': new_url})
-            self.assignments[actor.actor_urn] = {'actor': actor, 'url': new_url, 'assigned': datetime.now()}
-        else:
-            self._shutdown(actor)
+        if actor in self.actors:
+            new_url = self._get_url()
+            if new_url:
+                actor.send_one_way({'command': 'scrape_listing', 'url': new_url})
+                self.assignments[actor.actor_urn] = {'actor': actor, 'url': new_url, 'assigned': datetime.now(), 'pid': message['pid']}
+            else:
+                self._shutdown(actor)
     
     def finished(self, message):
         message_position = int(message.get('url').split('=')[-1])
@@ -61,14 +62,34 @@ class MasterActor(BaseActor):
         for urn, record in self.assignments.items():
             if now - record['assigned'] > diff:
                 logger.warn("Actor %s has been working on its assigned URL for longer than the maximum-allowed time; resetting browser and reassigning %s." % (urn, record['url']))
-                self._shutdown(record['actor'])
-                del self.assignments[urn]
+                self._handle_dead_scraper(urn, record)
                 
-                self.temporary_hopper.append(record['url'])
-                
-                replacement = ScraperActor.start(self.actor_ref, self.db)
-                
-                self.actors.append(replacement)
+                # if the actor is doing something, it won't stop until it finishes, which may never happen, so wait a second and nuke its browser from orbit
+                time.sleep(1)
+                if record['pid']:
+                    try:
+                        os.kill(record['pid'], 9)
+                    except:
+                        pass
+    
+    def dead(self, message):
+        actor = message['actor']
+        if actor in self.actors:
+            # a browser died and we didn't kill it
+            urn = actor.actor_urn
+            record = self.assignments[urn]
+            logger.warn('Actor %s had its browser die while working on %s.' % (urn, record['url']))
+            self._handle_dead_scraper(urn, record)
+    
+    def _handle_dead_scraper(self, urn, record):
+        self._shutdown(record['actor'], True)
+        del self.assignments[urn]
+        
+        self.temporary_hopper.append(record['url'])
+        
+        replacement = ScraperActor.start(self.actor_ref, self.db)
+        
+        self.actors.append(replacement)
     
     def _get_url(self):
         if len(self.temporary_hopper) > 0:
@@ -80,16 +101,11 @@ class MasterActor(BaseActor):
         else:
             return None
     
-    def _shutdown(self, actor):
-        try:
-            actor.send_one_way({'command': 'shutdown'})
-        except:
-            pass
-        time.sleep(0.5)
-        actor.stop()
+    def _shutdown(self, actor, will_replace=False):
+        actor.stop(block=False)
         self.actors.remove(actor)
         logger.debug('Shut down 1 worker, %s remaining.' % len(self.actors))
-        if len(self.actors) == 0:
+        if len(self.actors) == 0 and will_replace == False:
             logger.info('Done')
             time.sleep(5)
             os._exit(os.EX_OK)
@@ -100,7 +116,7 @@ class ScraperActor(BaseActor):
         self.master = master
         self.db = db
         
-        self.master.send_one_way({'command': 'ready', 'actor': self.actor_ref})
+        self._send_ready()
     
     def scrape_listing(self, message):
         docs = None
@@ -112,6 +128,10 @@ class ScraperActor(BaseActor):
                 logger.info('Reached end of search results; terminating.')
                 self.master.send_one_way({'command': 'finished', 'actor': self.actor_ref, 'url': message.get('url')})
                 return
+            except urllib2.URLError:
+                # looks like our browser died
+                self.master.send_one_way({'command': 'dead', 'actor': self.actor_ref, 'url': message.get('url')})
+                return
             except:
                 pass
             logger.warn('Failed on first try scraping %s' % message.get('url'))
@@ -122,13 +142,24 @@ class ScraperActor(BaseActor):
         else:
             logger.error('Gave up on listing %s' % message['url'])
             self._write('errors', [{'type': 'listing', 'reason': 'Failed to scrape listing', 'url': message.get('url')}])
-        self.master.send_one_way({'command': 'ready', 'actor': self.actor_ref})
+        self._send_ready()
     
-    def shutdown(self, message):
-        self.browser.quit()
+    def post_stop(self):
+        try:
+            self.browser.quit()
+        except:
+            pass
     
     def _write(self, collection, records):
         self.db.send_one_way({'command': 'write', 'collection': collection, 'records': records})
+    
+    def _send_ready(self):
+        pid = None
+        try:
+            pid = self.browser.binary.process.pid
+        except:
+            pass
+        self.master.send_one_way({'command': 'ready', 'actor': self.actor_ref, 'pid': pid})
 
 class DbActor(BaseActor):
     def __init__(self):
