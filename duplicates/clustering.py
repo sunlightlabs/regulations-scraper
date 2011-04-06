@@ -71,6 +71,23 @@ class Clustering(object):
         
         return (min_i, min_j)
 
+    def closest_neighbor(self, seeds):
+        min_i = None
+        min_j = None
+        min_d = 1.0
+
+        others = [i for i in range(0, self.num_docs) if i not in seeds]
+        
+        for i in seeds:
+            for j in others:
+                if self.distance[i, j] <= min_d:
+                    min_i = i
+                    min_j = j
+                    min_d = self.distance[i, j]
+        
+        return (min_i, min_j)
+
+
     def merge(self, i, j):
         cluster_i = self.assignments[i]
         cluster_j = self.assignments[j]
