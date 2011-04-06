@@ -43,9 +43,12 @@ def seeded_cluster_loop(clustering, raw_docs):
         if seed is None:
             print "All elements in single cluster."
             break
+        
+        step_size = 1
                 
         while True:
             (i, j) = clustering.min_link(seed)
+
             cluster_i = clustering.get_cluster(i)
             cluster_j = clustering.get_cluster(j)
             stats_i = clustering.stats(cluster_i)
@@ -64,13 +67,13 @@ def seeded_cluster_loop(clustering, raw_docs):
             print "Second cluster has distances\t\t" + format_stats(stats_j)
             print "Combined cluster would have distances\t" + format_stats(stats_ij)
             print ""
-            
+        
             avg_sim_before = 1 - stats_i[1]
             avg_sim_after = 1 - stats_ij[1]
             if avg_sim_after < .5 * avg_sim_before:
                 print "*** Average distance increased too much. Stopping clustering automatically. ***"
                 break
-            
+        
             while True:
                 choice = raw_input("Cluster? [Y/n/b] ").lower()
                 if choice in ('', 'y', 'n', 'b'):
@@ -78,11 +81,54 @@ def seeded_cluster_loop(clustering, raw_docs):
 
             if choice == 'n':
                 break
-            
+        
             if choice == 'b':
                 return
 
             clustering.merge(i, j)
+
+            exponential_loop(clustering, seed, raw_docs)
+
+
+def exponential_loop(clustering, seed, raw_docs):
+    step_size = 1
+    current_cluster = clustering.get_cluster(seed)
+    current_stats = clustering.stats(current_cluster)
+    
+    while True:
+        potential_reps = merge_multiple(clustering, current_cluster, step_size)
+        potential_cluster = reduce(lambda x, y: x + y, map(clustering.get_cluster, potential_reps))
+        combined_stats = clustering.stats(current_cluster + potential_cluster)
+        
+        avg_sim_before = 1 - current_stats[1]
+        avg_sim_after = 1 - combined_stats[1]
+        if avg_sim_after < .5 * avg_sim_before:
+            print "*** Average distance increased too much. Stopping clustering automatically. ***"
+            break        
+        
+        print "\n%s\n" % ('=' * 80)
+        print "Potential Clustering: %s with %s\n" % (current_cluster, potential_cluster)
+        print "Sample doc to cluster:"
+        print raw_docs[potential_reps[-1]]
+        print ""
+        print "Existing cluster has distances\t\t%s" % format_stats(current_stats)
+        print "Combined cluster would have distance\t\t%s" % format_stats(combined_stats)
+    
+        while True:
+            choice = raw_input("Cluster? [Y/n] ").lower()
+            if choice in ('', 'y', 'n'):
+                break
+
+        if choice == 'n':
+            break
+        
+        for rep in potential_reps:
+            clustering.merge(seed, rep)
+        
+        step_size *= 2
+        current_cluster = clustering.get_cluster(seed)
+        current_stats = clustering.stats(current_cluster)
+        
 
 
 def automatic_merges(clustering, cluster, max_similarity_drop):
@@ -111,7 +157,7 @@ def merge_multiple(clustering, cluster, n):
     
     for _ in range(0, n):
         (orig, next) = clustering.closest_neighbor(new_cluster)
-        new_reps += next
+        new_reps.append(next)
         new_cluster += clustering.get_cluster(next)
         
     return new_reps
