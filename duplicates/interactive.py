@@ -1,6 +1,7 @@
 import sys
 import os
 import cPickle
+import csv
 
 from clustering import *
 from db import setup
@@ -102,6 +103,20 @@ def merge_multiple(clustering, cluster, n):
     return new_reps
     
 
+def dump_to_csv(clustering, docs, filename):
+    writer = csv.writer(open(filename, 'w'))
+    writer.writerow(['cluster number', 'document number', 'URL'])
+    
+    clusters = [c for c in clustering.get_clusters().values() if len(c) > 1]
+    clusters.sort(key=len, reverse=True)
+    
+    for i in range(0, len(clusters)):
+        for d in clusters[i]:
+            writer.writerow([i, d, docs[d].url])
+    
+    return writer
+    
+
 def main(filename):
     if os.path.exists(filename):
         print "Reading existing clustering from %s..." % filename 
@@ -117,6 +132,8 @@ def main(filename):
     
     print "\nWriting clustering to %s..." % filename
     cPickle.dump((clustering, docs), open(filename, 'wb'), cPickle.HIGHEST_PROTOCOL)
+    
+    dump_to_csv(clustering, docs, filename + '.csv')
     
 
 if __name__ == '__main__':
