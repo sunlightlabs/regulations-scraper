@@ -11,7 +11,7 @@ def format_stats(stats):
     return "min/avg/max = %s / %s / %s" % (min, avg, max)
     
 
-def cluster_loop(clustering, raw_docs):
+def cluster_loop(clustering, docs):
     while True:
         (seed, _) = clustering.min_link()
 
@@ -21,12 +21,12 @@ def cluster_loop(clustering, raw_docs):
         
         print "\n%s\n" % ('=' * 80)
         print "Initial document:\n"
-        print raw_docs[seed]     
+        print docs[seed]     
         
-        exponential_loop(clustering, seed, raw_docs)
+        exponential_loop(clustering, seed, docs)
         
 
-def exponential_loop(clustering, seed, raw_docs):
+def exponential_loop(clustering, seed, docs):
     step_size = 1
     current_cluster = clustering.get_cluster(seed)
     current_stats = clustering.stats(current_cluster)
@@ -45,7 +45,7 @@ def exponential_loop(clustering, seed, raw_docs):
         print "\n%s\n" % ('-' * 80)
         print "Potential Clustering: %s with %s\n" % (current_cluster, potential_cluster)
         print "Sample doc to cluster:"
-        print raw_docs[potential_reps[-1]]
+        print docs[potential_reps[-1]]
         print ""
         print "Existing cluster has distances\t\t%s" % format_stats(current_stats)
         print "Combined cluster would have distance\t%s" % format_stats(combined_stats)
@@ -101,32 +101,22 @@ def merge_multiple(clustering, cluster, n):
         
     return new_reps
     
-    
-def interactive_cluster(raw_docs, ngram = 4):
-    ngrams = NGramSpace(ngram)
-    docs = [ngrams.parse(raw) for raw in raw_docs]
-    clustering = Clustering(docs)
-
-    cluster_loop(clustering, raw_docs)
-    
-    return clustering
-
 
 def main(filename):
     if os.path.exists(filename):
         print "Reading existing clustering from %s..." % filename 
-        (texts, parsed, ngrams, clustering) = cPickle.load(open(filename, 'rb'), cPickle.HIGHEST_PROTOCOL)
+        (clustering, docs) = cPickle.load(open(filename, 'rb'))
     else:
         print "Loading new clustering from database..."
-        (texts, parsed, ngrams, clustering) = setup()
+        (clustering, docs) = setup()
     
     try:
-        cluster_loop(clustering, texts)
+        cluster_loop(clustering, docs)
     except KeyboardInterrupt:
         pass
     
     print "\nWriting clustering to %s..." % filename
-    cPickle.dump((texts, parsed, ngrams, clustering), open(filename, 'wb'), cPickle.HIGHEST_PROTOCOL)
+    cPickle.dump((clustering, docs), open(filename, 'wb'), cPickle.HIGHEST_PROTOCOL)
     
 
 if __name__ == '__main__':

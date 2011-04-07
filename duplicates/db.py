@@ -4,6 +4,20 @@ from BeautifulSoup import BeautifulSoup, Tag, NavigableString
 from clustering import NGramSpace, Clustering
 
 
+DOCUMENT_URL = 'http://www.regulations.gov/#!documentDetail;D='
+
+class Document(object):
+    
+    def __init__(self, mongo_doc, ngrams):
+        self.mongo_doc = mongo_doc
+        self.comment = get_comment(mongo_doc)
+        self.parsed = ngrams.parse(self.comment)
+        self.url = DOCUMENT_URL + mongo_doc['Document ID']
+        self.title = mongo_doc['Details'].get('Title', '') if 'Details' in mongo_doc else ''
+    
+    def __str__(self):
+        return "%s\n%s\n%s" % (self.title, self.url, self.comment) 
+        
 def extract_html_comment(comment):
     soup = BeautifulSoup(comment)
     
@@ -46,14 +60,14 @@ def get_comment(doc):
     return ''
     
 
-def get_texts():
+def get_texts(ngrams):
     c = Connection()
     docs = c.regulations.docs.find()
-    return [get_comment(d) for d in docs]
+    return [Document(d, ngrams) for d in docs]
 
 def setup():
-    texts = get_texts()
     ngrams = NGramSpace(4)
-    parsed = [ngrams.parse(raw) for raw in texts]
-    clustering = Clustering(parsed)
-    return (texts, parsed, ngrams, clustering)
+    docs = get_texts(ngrams)
+    clustering = Clustering([doc.parsed for doc in docs])
+    return (clustering, docs)
+
