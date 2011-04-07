@@ -1,4 +1,9 @@
+import sys
+import os
+import cPickle
+
 from clustering import *
+from db import setup
 
 
 def format_stats(stats):
@@ -107,5 +112,23 @@ def interactive_cluster(raw_docs, ngram = 4):
     return clustering
 
 
-from pprint import PrettyPrinter
-pp = PrettyPrinter().pprint
+def main(filename):
+    if os.path.exists(filename):
+        print "Reading existing clustering from %s..." % filename 
+        (texts, parsed, ngrams, clustering) = cPickle.load(open(filename, 'rb'), cPickle.HIGHEST_PROTOCOL)
+    else:
+        print "Loading new clustering from database..."
+        (texts, parsed, ngrams, clustering) = setup()
+    
+    try:
+        cluster_loop(clustering, texts)
+    except KeyboardInterrupt:
+        pass
+    
+    print "\nWriting clustering to %s..." % filename
+    cPickle.dump((texts, parsed, ngrams, clustering), open(filename, 'wb'), cPickle.HIGHEST_PROTOCOL)
+    
+
+if __name__ == '__main__':
+    main(sys.argv[1])
+
