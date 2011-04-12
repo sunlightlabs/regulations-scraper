@@ -1,64 +1,70 @@
 #!/usr/bin/env python
 
 from regscrape_lib.processing import *
+from optparse import OptionParser
+from regscrape_lib.exceptions import *
 
 DECODERS = {
-    'xml': [{
-        'bin': 'html2text'
-    }],
+    'xml': [
+        binary_decoder('html2text', error='The document does not have a content file of type')
+    ],
         
-    'pdf': [{
-        'bin': 'pdftotext',
-        'error': 'PDF file is damaged'
-    },
-    {
-        'bin': 'ps2ascii',
-        'error': 'Unrecoverable error'
-    }],
+    'pdf': [
+        binary_decoder('ps2ascii', error='Unrecoverable error'),
+        binary_decoder('pdftotext', error='PDF file is damaged')
+    ],
     
-    'msw8': [{
-        'bin': 'antiword',
-        'error': 'is not a Word Document'
-    },
-    {
-        'bin': 'catdoc',
-        'error': 'The document does not have a content file of type' # not really an error, but catdoc happily regurgitates whatever you throw at it
-    }],
+    'msw8': [
+        binary_decoder('antiword', error='is not a Word Document'),
+        binary_decoder('catdoc', error='The document does not have a content file of type') # not really an error, but catdoc happily regurgitates whatever you throw at it
+    ],
     
-    'rtf': [{
-        'bin': 'catdoc',
-        'error': 'The document does not have a content file of type' # not really an error, as above
-    }],
+    'rtf': [
+        binary_decoder('catdoc', error='The document does not have a content file of type') # not really an error, as above
+    ],
     
-    'txt': [{
-        'bin': 'cat',
-        'error': 'The document does not have a content file of type' # not really an error, as above
-    }],
+    'txt': [
+        binary_decoder('cat', error='The document does not have a content file of type') # not really an error, as above
+    ],
 }
 
 DECODERS['crtext'] = DECODERS['xml']
+DECODERS['msw6'] = DECODERS['msw8']
+DECODERS['msw'] = DECODERS['msw8']
 
-def run():
+# arguments
+arg_parser = OptionParser()
+arg_parser.add_option("-p", "--pretend", action="store_true", dest="pretend", default=False)
+arg_parser.add_option("-t", "--type", action="store", dest="type", default=None)
+
+# runner
+def run(options, args):
+    if options.pretend:
+        print 'Warning: no records will be saved to the database during this run.'
+    
     import subprocess, os, urlparse, json
-    view_cursor = find_views(Downloaded=True, Decoded=False)
+    view_cursor = find_views(Downloaded=True, Decoded=False, Type=options.type) if options.type else find_views(Downloaded=True, Decoded=False)
     
     for result in view_cursor.find():
         ext = result['value']['view']['File'].split('.')[-1]
         if ext in DECODERS:
             for decoder in DECODERS[ext]:
-                interpreter = subprocess.Popen([decoder['bin'], result['value']['view']['File']], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-                output, error = interpreter.communicate()
-                
-                if not output.strip() or ('error' in decoder and decoder['error'] in output):
-                    print 'Failed to decode %s using %s' % (result['value']['view']['URL'], decoder['bin'])
+                try:
+                    output = decoder(result['value']['view']['File'])
+                except DecodeFailed:
+                    print 'Failed to decode %s using %s' % (result['value']['view']['URL'], decoder.__str__())
                     continue
+
+                view = result['value']['view'].copy()
+                view['Decoded'] = True
+                view['Text'] = unicode(remove_control_chars(output), 'utf-8', 'ignore')
+                if options.pretend:
+                    print 'Decoded %s using %s' % (view['URL'], decoder.__str__())
+                    print view['Text']
                 else:
-                    view = result['value']['view'].copy()
-                    view['Decoded'] = True
-                    view['Text'] = unicode(remove_control_chars(output), 'utf-8', 'ignore')
                     update_view(result['value']['doc'], view)
-                    print 'Decoded and saved %s using %s' % (view['URL'], decoder['bin'])
-                    break
+                    print 'Decoded and saved %s using %s' % (view['URL'], decoder.__str__())
+                break
 
 if __name__ == "__main__":
     run()
