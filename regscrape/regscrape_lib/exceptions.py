@@ -6,3 +6,6 @@ class Finished(Exception):
 
 class FoundErrorElement(Exception):
     pass
+
+class DecodeFailed(Exception):
+    pass

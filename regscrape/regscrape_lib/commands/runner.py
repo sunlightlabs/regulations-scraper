@@ -20,6 +20,11 @@ def run_command():
         print 'Command %s is not runnable' % command
         sys.exit()
     
-    out = run()
+    parser = getattr(mod, 'arg_parser', None)
+    parse_results = []
+    if parser:
+        parse_results = parser.parse_args(sys.argv[2:])
+    
+    out = run(*parse_results)
     if out:
         print out

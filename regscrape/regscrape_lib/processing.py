@@ -4,6 +4,7 @@ from bson.code import Code
 from pymongo.objectid import ObjectId
 import subprocess, os, urlparse, json
 from regscrape_lib.util import get_db
+from exceptions import DecodeFailed
 
 MAP = """
 function() {
@@ -71,12 +72,24 @@ def which(program):
 # the following is from http://stackoverflow.com/questions/92438/stripping-non-printable-characters-from-a-string-in-python
 import unicodedata, re
 
-all_chars = (unichr(i) for i in xrange(0x110000))
-control_chars = ''.join(c for c in all_chars if unicodedata.category(c) == 'Cc')
-# or equivalently and much more efficiently
 control_chars = ''.join(map(unichr, range(0,32) + range(127,160)))
 
 control_char_re = re.compile('[%s]' % re.escape(control_chars))
 
 def remove_control_chars(s):
     return control_char_re.sub('', s)
+
+# decoders
+def binary_decoder(binary, error=None):
+    def decoder(filename):
+        interpreter = subprocess.Popen([binary, filename], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        output, run_error = interpreter.communicate()
+        
+        if not output.strip() or (error and error in output):
+            raise DecodeFailed()
+        else:
+            return output
+    
+    decoder.__str__ = lambda: binary
+    
+    return decoder
