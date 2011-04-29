@@ -39,9 +39,14 @@ class Clustering(object):
         self.assignments = range(0, self.num_docs)
         
         self.distance = SymmetricMatrix(self.num_docs)
+        count = 0
         for i in range(0, self.num_docs):
             for j in range(0, i + 1):
                 self.distance[i, j] = 1.0 - jaccard(docs[i], docs[j])
+                
+                count += 1
+                if count % 100000 == 0:
+                    print "Computed %d distances out of %d..." % (count, self.num_docs * self.num_docs / 2)
         
         # merge identical documents
         (i, j) = self.min_link()
