@@ -45,7 +45,7 @@ class Clustering(object):
                 self.distance[i, j] = 1.0 - jaccard(docs[i], docs[j])
                 
                 count += 1
-                if count % 100000 == 0:
+                if count % 1000000 == 0:
                     print "Computed %d distances out of %d..." % (count, self.num_docs * self.num_docs / 2)
         
         # merge identical documents
