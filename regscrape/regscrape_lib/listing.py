@@ -56,3 +56,16 @@ def scrape_listing(browser, url=None, visit_first=True):
             browser.back()
     logger.info('Scraped %s: got %s documents of %s expected, with %s errors' % (url, len(docs), num_links, len(errors)))
     return (docs, errors)
+
+def get_count(browser, url=None, visit_first=True):
+    logger.info("Determining result count for listing %s" % url)
+    if visit_first:
+        browser.get(url)
+    
+    try:
+        count = get_elements(browser, '.largeOrangeText')[0]
+    except StillNotFound:
+        return False
+    
+    num = int(count.text.split(' ')[0])
+    return num

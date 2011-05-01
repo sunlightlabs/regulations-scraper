@@ -34,3 +34,6 @@ def pseudoqs_encode(qs_dict):
 def get_db():
     db_settings = getattr(settings, 'DB_SETTINGS', {})
     return Connection(**db_settings)[getattr(settings, 'DB_NAME', 'regulations')]
+
+def get_url_for_count(count):
+    return "http://%s/#!searchResults;so=ASC;sb=postedDate;%s;rpp=%s;po=%s" % (settings.TARGET_SERVER, pseudoqs_encode(settings.SEARCH), settings.PER_PAGE, count)

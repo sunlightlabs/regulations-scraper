@@ -3,6 +3,7 @@
 from regscrape_lib.processing import *
 from optparse import OptionParser
 from regscrape_lib.exceptions import *
+import sys
 
 DECODERS = {
     'xml': [
@@ -11,7 +12,8 @@ DECODERS = {
         
     'pdf': [
         binary_decoder('ps2ascii', error='Unrecoverable error'),
-        binary_decoder('pdftotext', error='PDF file is damaged')
+        binary_decoder('pdftotext', error='PDF file is damaged'),
+        pdf_ocr
     ],
     
     'msw8': [
@@ -51,8 +53,13 @@ def run(options, args):
             for decoder in DECODERS[ext]:
                 try:
                     output = decoder(result['value']['view']['File'])
-                except DecodeFailed:
-                    print 'Failed to decode %s using %s' % (result['value']['view']['URL'], decoder.__str__())
+                except DecodeFailed as failure:
+                    reason = failure.message
+                    print 'Failed to decode %s using %s%s' % (
+                        result['value']['view']['URL'],
+                        decoder.__str__(),
+                        ' %s' % reason if reason else ''
+                    )
                     continue
 
                 view = result['value']['view'].copy()

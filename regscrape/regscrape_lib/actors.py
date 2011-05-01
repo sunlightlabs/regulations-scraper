@@ -1,6 +1,6 @@
 from pykka.gevent import GeventActor
 from selenium import webdriver
-from listing import scrape_listing
+from listing import scrape_listing, get_count
 import sys
 import os
 import urllib2
@@ -10,8 +10,10 @@ from datetime import datetime, timedelta
 
 from regscrape_lib import logger
 from regscrape_lib.exceptions import Finished
-from regscrape_lib.util import pseudoqs_encode, get_db
+from regscrape_lib.util import pseudoqs_encode, get_db, get_url_for_count
 import settings
+
+import math
 
 class BaseActor(GeventActor):
     def on_receive(self, message):
@@ -33,6 +35,31 @@ class MasterActor(BaseActor):
         self.current = 0
         self.max = message.get('max')
         self.db = DbActor.start()
+        
+        # check to see if we need a count to build journal
+        if not self.max:
+            tmp_browser = getattr(webdriver, settings.BROWSER['driver'])(**(settings.BROWSER.get('kwargs', {})))
+            count = get_count(tmp_browser, get_url_for_count(0), visit_first=True)
+            tmp_browser.quit()
+            
+            if not count:
+                logger.error('Could not determine result count.')
+                os._exit(os.EX_OK)
+            self.count = count
+        else:
+            self.count = max
+        
+        # build journal
+        logger.info('Building journal to scrape %s results.' % self.count)
+        position = 0
+        last = int(math.floor(float(self.count - 1) / settings.PER_PAGE) * settings.PER_PAGE)
+        while position <= last:
+            print get_url_for_count(position)
+            position += settings.PER_PAGE
+        
+        os._exit(os.EX_OK)
+        
+        # start actors and being scraping
         for i in range(self.num_actors):
             actor = ScraperActor.start(self.actor_ref, self.db)
             self.actors.append(actor)
@@ -95,7 +122,7 @@ class MasterActor(BaseActor):
         if len(self.temporary_hopper) > 0:
             return self.temporary_hopper.pop(0)
         elif self.max == 0 or self.current <= self.max:
-            url = "http://%s/#!searchResults;so=ASC;sb=postedDate;%s;rpp=%s;po=%s" % (settings.TARGET_SERVER, pseudoqs_encode(settings.SEARCH), settings.PER_PAGE, self.current)
+            url = get_url_for_count(self.current)
             self.current += settings.PER_PAGE
             return url
         else:
