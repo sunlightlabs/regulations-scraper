@@ -1,4 +1,5 @@
 import re
+import csv
 from pymongo import Connection
 from BeautifulSoup import BeautifulSoup, Tag, NavigableString
 from clustering import NGramSpace, Clustering
@@ -59,6 +60,15 @@ def get_comment(doc):
     
     return ''
     
+
+def docs_2_csv(docs, filename):
+    writer = csv.writer(open(filename, 'w'))
+    
+    writer.writerow(['id', 'title', 'url', 'text'])
+    
+    for i in range(0, len(docs)):
+        writer.writerow([i, docs[i].title.encode('utf8', 'ignore'), docs[i].url, docs[i].comment.encode('utf8', 'ignore')])
+        
 
 def get_texts(ngrams):
     c = Connection()
