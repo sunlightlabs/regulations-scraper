@@ -4,7 +4,6 @@ import cPickle
 import csv
 
 from clustering import *
-from db import setup
 
 
 def format_stats(stats):
@@ -123,6 +122,7 @@ def main(filename):
         (clustering, docs) = cPickle.load(open(filename, 'rb'))
     else:
         print "Loading new clustering from database..."
+        from db import setup
         (clustering, docs) = setup()
     
     try:
