@@ -48,7 +48,10 @@ def overlap(x, y):
     
     c = 0
     
-    while i < len(x) and j < len(y):
+    len_x = len(x)
+    len_y = len(y)
+    
+    while i < len_x and j < len_y:
         if x[i] > y[j]:
             j += 1
         elif x[i] < y[j]:

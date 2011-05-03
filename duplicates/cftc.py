@@ -2,6 +2,8 @@
 import csv
 import re
 import os
+import sys
+import cPickle
 
 from clustering import Clustering
 from ngrams import NGramSpace 
@@ -59,3 +61,9 @@ def setup(source, pdf_path):
     clustering = Clustering([doc.parsed for doc in docs])
     return (clustering, docs)
 
+
+if __name__ == '__main__':
+    (clustering, docs) = setup(sys.argv[1], sys.argv[2])
+    print "\nWriting clustering to %s..." % sys.argv[3]
+    cPickle.dump((clustering, docs), open(sys.argv[3], 'wb'), cPickle.HIGHEST_PROTOCOL)
+    

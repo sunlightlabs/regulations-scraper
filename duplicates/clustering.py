@@ -48,11 +48,17 @@ class Clustering(object):
                 if count % 1000000 == 0:
                     print "Computed %d distances out of %d..." % (count, self.num_docs * self.num_docs / 2)
         
+        
+        for i in range(0, self.num_docs):
+            for j in range(0, i):
+                if self.distance[i, j] == 0 and self.assignments[i] != self.assignments[j]:
+                    self.merge(i, j)
+        
         # merge identical documents
-        (i, j) = self.min_link()
-        while self.distance[i, j] == 0:
-            self.merge(i, j)
-            (i, j) = self.min_link()
+        # (i, j) = self.min_link()
+        # while self.distance[i, j] == 0:
+        #     self.merge(i, j)
+        #     (i, j) = self.min_link()
         
     def min_link(self, seed=None):
         min_i = None
