@@ -179,30 +179,6 @@ class TestClustering(unittest.TestCase):
         c.merge(3,4)
         c.merge(3, 5)
         self.assertEqual((7,6), c.min_link())
-                
-    def test_seeded_clustering(self):
-        ngrams = NGramSpace(1)
-        docs = [ngrams.parse(raw) for raw in test_docs]
-        c = Clustering(docs)
-        
-        self.assertTrue(c.min_link(0) in ((0, 1), (1, 0)))
-        c.merge(0, 1)
-        self.assertTrue(c.min_link(0) in ((1, 2), (2, 1)))
-        c.merge(1, 2)
-        self.assertTrue(c.min_link(0) in ((1, 3), (3, 1)))
-        
-        self.assertTrue(c.min_link(3) in [(3, 4), (3, 5)])
-        c.merge(3, 4)
-        self.assertEqual((3, 5), c.min_link(3))
-        
-        # merge the rest so we can test single-cluster case
-        c.merge(3, 5)
-        c.merge(6, 7)
-        c.merge(0, 3)
-        c.merge(0, 6)
-    
-        self.assertEqual((None, None), c.min_link(7))
-        self.assertEqual((None, None), c.min_link())
     
     def test_pairs(self):
         ngrams = NGramSpace(1)

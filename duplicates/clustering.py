@@ -53,34 +53,22 @@ class Clustering(object):
             for j in range(0, i):
                 if self.distance[i, j] == 0 and self.assignments[i] != self.assignments[j]:
                     self.merge(i, j)
-        
-        # merge identical documents
-        # (i, j) = self.min_link()
-        # while self.distance[i, j] == 0:
-        #     self.merge(i, j)
-        #     (i, j) = self.min_link()
-        
-    def min_link(self, seed=None):
+
+    
+    def min_link(self):
         min_i = None
         min_j = None
         min_d = 1.0
         
-        candidates = list()
-        if seed is not None:
-            members = self.get_cluster(seed)
-            for i in members:
-                candidates += [(i, j) for j in range(0, self.num_docs) if j not in members]
-        else:
-            for i in range(0, self.num_docs):
-                candidates += [(i, j) for j in range(0, i)]
-        
-        for (i, j) in candidates:
-            if self.distance[i, j] <= min_d and self.assignments[i] != self.assignments[j]:
-                min_i = i
-                min_j = j
-                min_d = self.distance[i, j]
+        for i in range(0, self.num_docs):
+            for j in range(0, i):
+                if self.distance[i, j] <= min_d and self.assignments[i] != self.assignments[j]:
+                    min_i = i
+                    min_j = j
+                    min_d = self.distance[i, j]
         
         return (min_i, min_j)
+
 
     def closest_neighbor(self, seeds):
         min_i = None
