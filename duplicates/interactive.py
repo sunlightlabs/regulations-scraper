@@ -4,6 +4,8 @@ import cPickle
 import csv
 
 from clustering import *
+from cftc import CFTCDocument
+from db import RegsDocument
 
 
 def format_stats(stats):
@@ -111,7 +113,7 @@ def dump_to_csv(clustering, docs, filename):
     
     for i in range(0, len(clusters)):
         for d in clusters[i]:
-            writer.writerow([i, d, docs[d].url])
+            writer.writerow([i, d, docs[d].get_id()])
     
     return writer
     

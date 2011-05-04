@@ -7,7 +7,7 @@ from clustering import NGramSpace, Clustering
 
 DOCUMENT_URL = 'http://www.regulations.gov/#!documentDetail;D='
 
-class Document(object):
+class RegsDocument(object):
     
     def __init__(self, mongo_doc, ngrams):
         self.mongo_doc = mongo_doc
@@ -17,7 +17,11 @@ class Document(object):
         self.title = mongo_doc['Details'].get('Title', '') if 'Details' in mongo_doc else ''
     
     def __str__(self):
-        return "%s\n%s\n%s" % (self.title, self.url, self.comment) 
+        return "%s\n%s\n%s" % (self.title, self.url, self.comment)
+    
+    def get_id(self):
+        return self.url
+    
         
 def extract_html_comment(comment):
     soup = BeautifulSoup(comment)
@@ -73,7 +77,8 @@ def docs_2_csv(docs, filename):
 def get_texts(ngrams):
     c = Connection()
     docs = c.regulations.docs.find()
-    return [Document(d, ngrams) for d in docs]
+    return [RegsDocument(d, ngrams) for d in docs]
+
 
 def setup():
     ngrams = NGramSpace(4)

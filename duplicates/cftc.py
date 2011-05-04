@@ -17,7 +17,7 @@ def extract_row(row, pdf_path, ngrams):
         name = " ".join([row['First Name'], row['Last Name']])
     org = row['Organization']
     
-    return Document(name, org, date, text, ngrams)
+    return CFTCDocument(name, org, date, text, ngrams)
 
         
 def _get_text(row, pdf_path):
@@ -40,7 +40,7 @@ def _get_text(row, pdf_path):
             return ''
 
 
-class Document(object):
+class CFTCDocument(object):
     
     def __init__(self, name, org, date, text, ngrams):
         self.name = name
@@ -50,7 +50,10 @@ class Document(object):
         self.parsed = ngrams.parse(self.text)
         
     def __str__(self):
-        return "%s (%s)\n%s" % (self.name, self.org, self.text) 
+        return "%s (%s)\n%s" % (self.name, self.org, self.text)
+
+    def get_id(self):
+        return ''
 
 
 def setup(source, pdf_path):
