@@ -32,6 +32,25 @@ class SymmetricMatrix(object):
         return len(self.values)
 
 
+class PriorityQueue(object):
+    
+    def __init__(self, size):
+        self.size = size
+        self.data = list()
+        
+    def insert(self, value, priority):
+        i = len(self.data)
+        while i > 0 and self.data[i - 1][0] > priority:
+            i -= 1
+        
+        if i < self.size:
+            self.data.insert(i, (priority, value))
+            self.data = self.data[:self.size]
+    
+    def values(self):
+        return [value for (priority, value) in self.data]
+
+
 class Clustering(object):
     
     def __init__(self, docs):

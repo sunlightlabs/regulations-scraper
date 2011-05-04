@@ -2,7 +2,7 @@
 import unittest
 
 from ngrams import Sequencer, NGramSpace, overlap, jaccard
-from clustering import Clustering, SymmetricMatrix
+from clustering import Clustering, SymmetricMatrix, PriorityQueue
 from db import extract_comment
 
 
@@ -20,6 +20,32 @@ test_docs = [
     "Sea gulls fly over the water.",
 ]
 
+
+
+class TestHeap(unittest.TestCase):
+
+    def test_heap(self):
+        h = PriorityQueue(3)
+        
+        self.assertEqual([], h.values())
+        
+        h.insert('apple', 1)
+        
+        self.assertEqual(['apple'], h.values())
+
+        h.insert('banana', 0)
+        h.insert('coconut', 2)
+        
+        self.assertEqual(['banana', 'apple', 'coconut'], h.values())
+        
+        h.insert('pear', 1)
+        
+        self.assertEqual(['banana', 'apple', 'pear'], h.values())
+
+        h.insert('mango', -1)
+        h.insert('pineapple', 2)
+        
+        self.assertEqual(['mango', 'banana', 'apple'], h.values())
 
 
 class TestSymmetricMatrix(unittest.TestCase):

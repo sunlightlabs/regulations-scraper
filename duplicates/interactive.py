@@ -69,27 +69,6 @@ def exponential_loop(clustering, seed, docs):
                 break
             else:
                 step_size = 1
-                
-
-def automatic_merges(clustering, cluster, max_similarity_drop):
-    (_, avg_distance, _) = clustering.stats(cluster)
-    
-    new_cluster = list(cluster)
-    orig_similarity = 1 - avg_distance
-    new_similarity = orig_similarity
-    
-    while True:
-        (orig, next) = clustering.closest_neighbor(new_cluster)
-        next_cluster = clustering.get_cluster(next)
-        (_, next_avg_distance, _) = clustering.stats(new_cluster + next_cluster)
-        new_similarity = 1 - next_avg_distance
-        
-        if new_similarity / orig_similarity > max_similarity_drop:
-            new_cluster += next_cluster
-        else:
-            break
-    
-    return new_cluster
     
     
 def merge_multiple(clustering, cluster, n):
