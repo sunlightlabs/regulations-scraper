@@ -219,6 +219,22 @@ class TestClustering(unittest.TestCase):
         self.assertEqual((5, 4), c.farthest_pair([3, 4, 5]))
         self.assertEqual((7, 6), c.farthest_pair([6, 7]))        
         
+    def test_nearest_neighbors(self):
+        ngrams = NGramSpace(1)
+        docs = [ngrams.parse(raw) for raw in test_docs]
+        c = Clustering(docs)    
+
+        c.pp_distance(range(0, len(test_docs)))
+        
+        self.assertEqual([(0,1)], c.closest_neighbors([0], 1))
+        self.assertEqual([(0,1), (0,2)], c.closest_neighbors([0], 2))
+        self.assertEqual([(0,1), (0,2), (0,3)], c.closest_neighbors([0], 3))
+        self.assertEqual([(0,1), (0,2), (0,3), (0,5)], c.closest_neighbors([0], 4))
+        
+        self.assertEqual([(3,5)], c.closest_neighbors([3,4], 1))
+        self.assertEqual([(3,5), (4,5)], c.closest_neighbors([3,4], 2))
+        self.assertEqual([(3,5), (4,5), (3,1)], c.closest_neighbors([3,4], 3))
+        
         
 class TextExtractors(unittest.TestCase):
     def test_simple(self):

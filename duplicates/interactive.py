@@ -34,7 +34,7 @@ def exponential_loop(clustering, seed, docs):
     current_stats = clustering.stats(current_cluster)
     
     while True:
-        potential_reps = merge_multiple(clustering, current_cluster, step_size)
+        potential_reps = [unseeded for (seeded, unseeded) in clustering.closest_neighbors(current_cluster, step_size)]
         potential_cluster = reduce(lambda x, y: x + y, map(clustering.get_cluster, potential_reps))
         combined_stats = clustering.stats(current_cluster + potential_cluster)
         
@@ -69,19 +69,7 @@ def exponential_loop(clustering, seed, docs):
                 break
             else:
                 step_size = 1
-    
-    
-def merge_multiple(clustering, cluster, n):
-    new_cluster = list(cluster)
-    new_reps = list()
-    
-    for _ in range(0, n):
-        (orig, next) = clustering.closest_neighbor(new_cluster)
-        new_reps.append(next)
-        new_cluster += clustering.get_cluster(next)
-        
-    return new_reps
-    
+  
 
 def dump_to_csv(clustering, docs, filename):
     writer = csv.writer(open(filename, 'w'))
