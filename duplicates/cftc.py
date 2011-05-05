@@ -52,8 +52,12 @@ class CFTCDocument(object):
     def __str__(self):
         return "%s (%s)\n%s" % (self.name, self.org, self.text)
 
-    def get_id(self):
-        return ''
+    @classmethod
+    def get_output_headers(self):
+        return ['name', 'org', 'date', 'text']
+    
+    def get_output_values(self):
+        return [self.name, self.org, self.date, self.text]
 
 
 def setup(source, pdf_path):

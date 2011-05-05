@@ -8,9 +8,9 @@ from cftc import CFTCDocument
 from db import RegsDocument
 
 
-def format_stats(stats):
+def format_stats(size, stats):
     (min, avg, max) = ['{0:.3}'.format(s) for s in stats]
-    return "min/avg/max = %s / %s / %s" % (min, avg, max)
+    return "%s documents: min/avg/max = %s / %s / %s" % (size, min, avg, max)
     
 
 def cluster_loop(clustering, docs):
@@ -46,12 +46,11 @@ def exponential_loop(clustering, seed, docs):
             break        
         
         print "\n%s\n" % ('-' * 80)
-        print "Potential Clustering: %s with %s\n" % (current_cluster, potential_cluster)
         print "Sample doc to cluster:"
         print docs[potential_reps[-1]]
         print ""
-        print "Existing cluster has distances\t\t%s" % format_stats(current_stats)
-        print "Combined cluster would have distance\t%s" % format_stats(combined_stats)
+        print "Existing cluster\t%s" % format_stats(len(current_cluster), current_stats)
+        print "Combined cluster\t%s" % format_stats(len(current_cluster) + len(potential_cluster), combined_stats)
     
         while True:
             choice = raw_input("Cluster? [Y/n] ").lower()
@@ -74,14 +73,14 @@ def exponential_loop(clustering, seed, docs):
 
 def dump_to_csv(clustering, docs, filename):
     writer = csv.writer(open(filename, 'w'))
-    writer.writerow(['cluster number', 'document number', 'URL'])
+    writer.writerow(['cluster number', 'document number'] + docs[0].get_output_headers())
     
     clusters = [c for c in clustering.get_clusters().values() if len(c) > 1]
     clusters.sort(key=len, reverse=True)
     
     for i in range(0, len(clusters)):
         for d in clusters[i]:
-            writer.writerow([i, d, docs[d].get_id()])
+            writer.writerow([i, d] + docs[d].get_output_values())
     
     return writer
     
