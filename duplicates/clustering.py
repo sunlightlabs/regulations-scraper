@@ -90,15 +90,20 @@ class Clustering(object):
 
 
     def closest_neighbors(self, seeds, n=1):
-        mins = PriorityQueue(n)
-
-        others = [i for i in range(0, self.num_docs) if i not in seeds]
+        unseeded = [i for i in range(0, self.num_docs) if i not in seeds]
+        unseeded_distance = [1.0] * len(unseeded)
         
-        for i in seeds:
-            for j in others:
-                mins.insert((i, j), self.distance[i, j])
+        for seeded_index in range(0, len(seeds)):
+            for unseeded_index in range(0, len(unseeded)):
+                d = self.distance[seeds[seeded_index], unseeded[unseeded_index]]
+                if d < unseeded_distance[unseeded_index]:
+                    unseeded_distance[unseeded_index] = d
         
-        return mins.values()
+        neighbors = PriorityQueue(n)
+        for i in range(0, len(unseeded)):
+            neighbors.insert(unseeded[i], unseeded_distance[i])
+        
+        return neighbors.values()
 
 
     def merge(self, i, j):

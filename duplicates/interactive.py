@@ -34,8 +34,9 @@ def exponential_loop(clustering, seed, docs):
     current_stats = clustering.stats(current_cluster)
     
     while True:
-        potential_reps = [unseeded for (seeded, unseeded) in clustering.closest_neighbors(current_cluster, step_size)]
-        potential_cluster = reduce(lambda x, y: x + y, map(clustering.get_cluster, potential_reps))
+        potential_reps = clustering.closest_neighbors(current_cluster, step_size)
+        potential_cluster = list(set(reduce(lambda x, y: x + y, map(clustering.get_cluster, potential_reps))))
+        potential_cluster.sort()
         combined_stats = clustering.stats(current_cluster + potential_cluster)
         
         avg_sim_before = 1 - current_stats[1]
