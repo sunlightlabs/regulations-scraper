@@ -5,7 +5,7 @@ import csv
 
 from clustering import *
 from cftc import CFTCDocument
-from db import RegsDocument
+#from db import RegsDocument
 
 
 def format_stats(size, stats):
