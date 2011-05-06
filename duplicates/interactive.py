@@ -86,13 +86,8 @@ def dump_to_csv(clustering, docs, filename):
     
 
 def main(filename):
-    if os.path.exists(filename):
-        print "Reading existing clustering from %s..." % filename 
-        (clustering, docs) = cPickle.load(open(filename, 'rb'))
-    else:
-        print "Loading new clustering from database..."
-        from db import setup
-        (clustering, docs) = setup()
+    print "Reading existing clustering from %s..." % filename 
+    (clustering, docs) = cPickle.load(open(filename, 'rb'))
     
     try:
         cluster_loop(clustering, docs)
