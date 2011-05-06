@@ -21,7 +21,7 @@ class BaseActor(GeventActor):
         if command and not command.startswith('_'):
             method = getattr(self, command, None)
             if callable(method):
-                method(message)
+                return method(message)
 
 class MasterActor(BaseActor):
     def __init__(self, num_actors):
@@ -54,11 +54,10 @@ class MasterActor(BaseActor):
         position = 0
         last = int(math.floor(float(self.count - 1) / settings.PER_PAGE) * settings.PER_PAGE)
         while position <= last:
-            print get_url_for_count(position)
+            url = get_url_for_count(position)
+            self._write('journal', [{'url': url, 'state': 'NOT_STARTED'}])
             position += settings.PER_PAGE
-        
-        os._exit(os.EX_OK)
-        
+                
         # start actors and being scraping
         for i in range(self.num_actors):
             actor = ScraperActor.start(self.actor_ref, self.db)
@@ -121,12 +120,12 @@ class MasterActor(BaseActor):
     def _get_url(self):
         if len(self.temporary_hopper) > 0:
             return self.temporary_hopper.pop(0)
-        elif self.max == 0 or self.current <= self.max:
-            url = get_url_for_count(self.current)
-            self.current += settings.PER_PAGE
-            return url
         else:
-            return None
+            record = self._find_and_modify('journal', {'state': 'NOT_STARTED'}, {'$set': {'state': 'STARTED'}})
+            if record and 'url' in record:
+                return record['url']
+            else:
+                return None
     
     def _shutdown(self, actor, will_replace=False):
         actor.stop(block=False)
@@ -136,6 +135,12 @@ class MasterActor(BaseActor):
             logger.info('Done')
             time.sleep(5)
             os._exit(os.EX_OK)
+    
+    def _write(self, collection, records):
+        self.db.send_one_way({'command': 'write', 'collection': collection, 'records': records})
+    
+    def _find_and_modify(self, collection, search, record, parameters={}):
+        return self.db.send_request_reply({'command': 'find_and_modify', 'collection': collection, 'search': search, 'record': record, 'parameters': parameters})
 
 class ScraperActor(BaseActor):
     def __init__(self, master, db):
@@ -194,9 +199,15 @@ class DbActor(BaseActor):
         if settings.CLEAR_FIRST:
             self.db.docs.drop()
             self.db.errors.drop()
+            self.db.journal.drop()
     
     def write(self, message):
         try:
             self.db[message['collection']].insert(message['records'], safe=True)
         except:
             logger.error("Error writing to database: %s" % sys.exc_info()[0])
+    
+    def find_and_modify(self, message):
+        kwargs = message.get('parameters', {})
+        kwargs['upsert'] = False
+        return self.db[message['collection']].find_and_modify(message['search'], message['record'], **kwargs)
