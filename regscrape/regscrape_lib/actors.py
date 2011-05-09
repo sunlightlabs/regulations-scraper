@@ -37,26 +37,32 @@ class MasterActor(BaseActor):
         self.db = DbActor.start()
         
         # check to see if we need a count to build journal
-        if not self.max:
-            tmp_browser = getattr(webdriver, settings.BROWSER['driver'])(**(settings.BROWSER.get('kwargs', {})))
-            count = get_count(tmp_browser, get_url_for_count(0), visit_first=True)
-            tmp_browser.quit()
+        if settings.CLEAR_FIRST:
+            if not self.max:
+                tmp_browser = getattr(webdriver, settings.BROWSER['driver'])(**(settings.BROWSER.get('kwargs', {})))
+                count = get_count(tmp_browser, get_url_for_count(0), visit_first=True)
+                tmp_browser.quit()
+                
+                if not count:
+                    logger.error('Could not determine result count.')
+                    os._exit(os.EX_OK)
+                self.count = count
+            else:
+                self.count = max
             
-            if not count:
-                logger.error('Could not determine result count.')
-                os._exit(os.EX_OK)
-            self.count = count
+            # build journal
+            logger.info('Building journal to scrape %s results.' % self.count)
+            position = 0
+            last = int(math.floor(float(self.count - 1) / settings.PER_PAGE) * settings.PER_PAGE)
+            while position <= last:
+                url = get_url_for_count(position)
+                self._write('journal', [{'url': url, 'state': 'NOT_STARTED'}])
+                position += settings.PER_PAGE
         else:
-            self.count = max
-        
-        # build journal
-        logger.info('Building journal to scrape %s results.' % self.count)
-        position = 0
-        last = int(math.floor(float(self.count - 1) / settings.PER_PAGE) * settings.PER_PAGE)
-        while position <= last:
-            url = get_url_for_count(position)
-            self._write('journal', [{'url': url, 'state': 'NOT_STARTED'}])
-            position += settings.PER_PAGE
+            # reset 'STARTED' to 'NOT_STARTED'
+            logger.info('Resuming previous scrape...')
+            self._update('journal', {'state': 'STARTED'}, {'$set': {'state': 'NOT_STARTED'}}, parameters={'multi': True})
+            
                 
         # start actors and being scraping
         for i in range(self.num_actors):
@@ -66,6 +72,9 @@ class MasterActor(BaseActor):
     def ready(self, message):
         actor = message.get('actor')
         if actor.actor_urn in self.assignments:
+            # mark URL as finished
+            self._update('journal', {'url': self.assignments[actor.actor_urn]['url']}, {'$set': {'state': 'FINISHED'}})
+            
             del self.assignments[actor.actor_urn]
         
         if actor in self.actors:
@@ -141,6 +150,9 @@ class MasterActor(BaseActor):
     
     def _find_and_modify(self, collection, search, record, parameters={}):
         return self.db.send_request_reply({'command': 'find_and_modify', 'collection': collection, 'search': search, 'record': record, 'parameters': parameters})
+    
+    def _update(self, collection, spec, record, parameters={}):
+        self.db.send_one_way({'command': 'update', 'collection': collection, 'spec': spec, 'record': record, 'parameters': parameters})
 
 class ScraperActor(BaseActor):
     def __init__(self, master, db):
@@ -168,7 +180,7 @@ class ScraperActor(BaseActor):
                 pass
             logger.warn('Failed on first try scraping %s' % message.get('url'))
         if docs:
-            self._write('docs', docs)
+            self._upsert('docs', docs, match_on='Document ID')
             if errors:
                 self._write('errors', errors)
         else:
@@ -184,6 +196,9 @@ class ScraperActor(BaseActor):
     
     def _write(self, collection, records):
         self.db.send_one_way({'command': 'write', 'collection': collection, 'records': records})
+        
+    def _upsert(self, collection, records, match_on):
+        self.db.send_one_way({'command': 'upsert', 'collection': collection, 'records': records, 'match_on': match_on})
     
     def _send_ready(self):
         pid = None
@@ -206,6 +221,20 @@ class DbActor(BaseActor):
             self.db[message['collection']].insert(message['records'], safe=True)
         except:
             logger.error("Error writing to database: %s" % sys.exc_info()[0])
+    
+    def update(self, message):
+        kwargs = message.get('parameters', {})
+        try:
+            self.db[message['collection']].update(message['spec'], message['record'], safe=True, **kwargs)
+        except:
+            logger.error("Error writing to database: %s" % sys.exc_info()[0])
+    
+    def upsert(self, message):
+        for record in message['records']:
+            try:
+                self.db[message['collection']].update({message['match_on']: record[message['match_on']]}, record, upsert=True, safe=True)
+            except:
+                logger.error("Error writing to database: %s" % sys.exc_info()[0])
     
     def find_and_modify(self, message):
         kwargs = message.get('parameters', {})
