@@ -163,6 +163,10 @@ class ScraperActor(BaseActor):
         self._send_ready()
     
     def scrape_listing(self, message):
+        # blank browser first
+        self.browser.get('about:blank')
+        
+        # do scrape
         docs = None
         for i in range(2):
             try:
