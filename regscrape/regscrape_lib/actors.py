@@ -65,9 +65,12 @@ class MasterActor(BaseActor):
             
                 
         # start actors and being scraping
-        for i in range(self.num_actors):
-            actor = ScraperActor.start(self.actor_ref, self.db)
-            self.actors.append(actor)
+        while len(self.actors) < self.num_actors:
+            try:
+                actor = ScraperActor.start(self.actor_ref, self.db)
+                self.actors.append(actor)
+            except:
+                pass
 
     def ready(self, message):
         actor = message.get('actor')
@@ -122,7 +125,12 @@ class MasterActor(BaseActor):
         
         self.temporary_hopper.append(record['url'])
         
-        replacement = ScraperActor.start(self.actor_ref, self.db)
+        replacement = None
+        while replacement is None:
+            try:
+                replacement = ScraperActor.start(self.actor_ref, self.db)
+            except:
+                pass
         
         self.actors.append(replacement)
     
