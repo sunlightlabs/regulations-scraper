@@ -14,12 +14,18 @@ def format_stats(size, stats):
     
 
 def cluster_loop(clustering, docs):
+    previous_seed = None
+    
     while True:
         (seed, _) = clustering.min_link()
 
         if seed is None:
             print "All elements in single cluster."
             break
+        if seed == previous_seed:
+            print "Done clustering."
+            break
+        previous_seed = seed
         
         print "\n%s\n" % ('=' * 80)
         print "Initial document:\n"
@@ -35,6 +41,10 @@ def exponential_loop(clustering, seed, docs):
     
     while True:
         potential_reps = clustering.closest_neighbors(current_cluster, step_size)
+        if not potential_reps:
+            print "Nothing left to add to cluster."
+            break
+        
         potential_cluster = list(set(reduce(lambda x, y: x + y, map(clustering.get_cluster, potential_reps))))
         potential_cluster.sort()
         combined_stats = clustering.stats(current_cluster + potential_cluster)
