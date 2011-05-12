@@ -5,7 +5,7 @@ import sys
 import settings
 from regscrape_lib import logger
 
-def scrape_listing(browser, url=None, visit_first=True):
+def scrape_listing(browser, url=None, visit_first=True, ids_only=False):
     logger.info("Scraping listing %s" % url)
     if visit_first:
         browser.get(url)
@@ -14,16 +14,23 @@ def scrape_listing(browser, url=None, visit_first=True):
     errors = []
     
     try:
-        num_links = len(get_elements(browser, 'a[href*=documentDetail]', min_count=settings.PER_PAGE))
+        links = get_elements(browser, 'a[href*=documentDetail]', min_count=settings.PER_PAGE)
+        num_links = len(links)
     except StillNotFound:
         try:
-            num_links = len(get_elements(browser, 'a[href*=documentDetail]', error_selector='.x-grid-empty'))
+            links = get_elements(browser, 'a[href*=documentDetail]', error_selector='.x-grid-empty')
+            num_links = len(links)
         except StillNotFound:
             raise StillNotFound
         except FoundErrorElement:
             raise Finished
     except FoundErrorElement:
         raise Finished
+    
+    if ids_only:
+        for link in links:
+            docs.append(link.get_attribute('href').split('=')[1])
+        return (docs, errors)
     
     for num in range(num_links):
         doc = None
@@ -63,7 +70,7 @@ def get_count(browser, url=None, visit_first=True):
         browser.get(url)
     
     try:
-        count = get_elements(browser, '.largeOrangeText')[0]
+        count = get_elements(browser, '.largeOrangeText', check=lambda elements: len(elements) > 0 and str(elements[0].text.split(' ')[0]).isdigit())[0]
     except StillNotFound:
         return False
     
