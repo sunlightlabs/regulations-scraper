@@ -56,7 +56,8 @@ def scrape_listing(browser, url=None, visit_first=True, ids_only=False, check_fu
             except StillNotFound:
                 browser.get(url)
             except:
-                doc_error = {'type': 'document', 'reason': str(sys.exc_info()[0]), 'doc_id': id, 'listing': url, 'position': num}
+                exc = sys.exc_info()
+                doc_error = {'type': 'document', 'reason': '%s: %s' % (str(exc[0]), str(exc[1])), 'doc_id': id, 'listing': url, 'position': num}
                 break
         
         if doc:
