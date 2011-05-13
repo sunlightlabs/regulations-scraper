@@ -5,7 +5,7 @@ import sys
 import settings
 from regscrape_lib import logger
 
-def scrape_listing(browser, url=None, visit_first=True, ids_only=False):
+def scrape_listing(browser, url=None, visit_first=True, ids_only=False, check_func=None):
     logger.info("Scraping listing %s" % url)
     if visit_first:
         browser.get(url)
@@ -35,11 +35,19 @@ def scrape_listing(browser, url=None, visit_first=True, ids_only=False):
     for num in range(num_links):
         doc = None
         id = None
+        doc_error = None
+        skip = False
         for i in range(3):
             try:
                 link = get_elements(browser, 'a[href*=documentDetail]', min_count=num_links)[num]
                 href = link.get_attribute('href')
                 id = href.split('=')[1]
+                
+                if check_func:
+                    already_have = check_func(id)
+                    if already_have:
+                        skip = True
+                        break
                 
                 link.click()
                 
@@ -48,13 +56,16 @@ def scrape_listing(browser, url=None, visit_first=True, ids_only=False):
             except StillNotFound:
                 browser.get(url)
             except:
-                errors.append({'type': 'document', 'reason': str(sys.exc_info()[0]), 'doc_id': id, 'listing': url, 'position': num})
+                doc_error = {'type': 'document', 'reason': str(sys.exc_info()[0]), 'doc_id': id, 'listing': url, 'position': num}
                 break
         
         if doc:
             docs.append(doc)
-        else:
-            errors.append({'type': 'document', 'reason': 'scraping failed', 'doc_id': id, 'listing': url, 'position': num})
+        elif not skip:
+            doc_error = {'type': 'document', 'reason': 'scraping failed', 'doc_id': id, 'listing': url, 'position': num}
+        
+        if doc_error:
+            errors.append(doc_error)
         
         if browser.name == 'chrome':
             print "getting url"

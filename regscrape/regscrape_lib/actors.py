@@ -168,6 +168,13 @@ class ScraperActor(BaseActor):
         self.master = master
         self.db = db
         
+        if settings.CHECK_BEFORE_SCRAPE:
+            local_docs = get_db().docs
+            self._check_before_scrape = lambda id: local_docs.find({'Document ID': id}).count() > 0
+        else:
+            self._check_before_scrape = None
+            
+        
         self._send_ready()
     
     def scrape_listing(self, message):
@@ -178,7 +185,7 @@ class ScraperActor(BaseActor):
         docs = None
         for i in range(2):
             try:
-                docs, errors = scrape_listing(self.browser, message.get('url'))
+                docs, errors = scrape_listing(self.browser, message.get('url'), check_func=self._check_before_scrape)
                 break
             except Finished:
                 logger.info('Reached end of search results; terminating.')
@@ -195,7 +202,7 @@ class ScraperActor(BaseActor):
             self._upsert('docs', docs, match_on='Document ID')
             if errors:
                 self._write('errors', errors)
-        else:
+        elif errors:
             logger.error('Gave up on listing %s' % message['url'])
             self._write('errors', [{'type': 'listing', 'reason': 'Failed to scrape listing', 'url': message.get('url')}])
         self._send_ready()
@@ -224,9 +231,9 @@ class DbActor(BaseActor):
     def __init__(self):
         self.db = get_db()
         if settings.CLEAR_FIRST:
-            self.db.docs.drop()
-            self.db.errors.drop()
             self.db.journal.drop()
+        
+        self.db.docs.ensure_index('Document ID')
     
     def write(self, message):
         try:
