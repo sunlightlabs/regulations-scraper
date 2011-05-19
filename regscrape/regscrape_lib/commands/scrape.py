@@ -8,6 +8,7 @@ import sys
 arg_parser = OptionParser()
 arg_parser.add_option('-r', '--restart', action="store_true", dest="restart_scrape", default=False)
 arg_parser.add_option("-c", "--continue", action="store_true", dest="continue_scrape", default=False)
+arg_parser.add_option("-C", "--check", action="store_true", dest="check", default=False)
 
 def run(options, args):
     from gevent.monkey import patch_all
@@ -28,10 +29,9 @@ def run(options, args):
         from regscrape_lib.monkey import patch_selenium_chrome
         patch_selenium_chrome()
     
-    if options.continue_scrape:
-        settings.CLEAR_FIRST = False
-    else:
-        settings.CLEAR_FIRST = True
+    settings.CLEAR_FIRST = not options.continue_scrape
+    
+    settings.CHECK_BEFORE_SCRAPE = options.check
     
     master = MasterActor.start(settings.INSTANCES)
     master.send_request_reply({'command': 'scrape', 'max': settings.MAX_RECORDS})
