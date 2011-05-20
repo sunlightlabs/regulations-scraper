@@ -51,9 +51,10 @@ def exponential_loop(clustering, seed, docs):
         
         avg_sim_before = 1 - current_stats[1]
         avg_sim_after = 1 - combined_stats[1]
-        if avg_sim_after < .5 * avg_sim_before:
-            print "*** Average distance increased too much. Stopping clustering automatically. ***"
-            break        
+        # removed per Nancy's request
+#        if avg_sim_after < .5 * avg_sim_before:
+#            print "*** Average distance increased too much. Stopping clustering automatically. ***"
+#            break        
         
         print "\n%s\n" % ('-' * 80)
         print "Sample doc to cluster:"
