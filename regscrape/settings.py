@@ -8,7 +8,12 @@ MAX_WAIT = 600
 BROWSER = {'driver': 'Firefox'}
 DEBUG = True
 DB_NAME = 'regulations'
-DOWNLOAD_DIR = '/data/downloads'
+DATA_DIR = '/data'
+
+# settings for bulk API dumping
+DUMP_START = 0
+DUMP_END = 3500000
+DUMP_INCREMENT = 100000
 
 try:
     from local_settings import *

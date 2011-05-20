@@ -25,6 +25,9 @@ def run_command():
     if parser:
         parse_results = parser.parse_args(sys.argv[2:])
     
+    from regscrape_lib.util import bootstrap_settings
+    bootstrap_settings()
+    
     out = run(*parse_results)
     if out:
         print out

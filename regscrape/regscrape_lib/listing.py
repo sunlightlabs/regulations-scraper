@@ -42,10 +42,12 @@ def scrape_listing(browser, url=None, visit_first=True, ids_only=False, check_fu
                 link = get_elements(browser, 'a[href*=documentDetail]', min_count=num_links)[num]
                 href = link.get_attribute('href')
                 id = href.split('=')[1]
+                print link, href, id, num
                 
                 if check_func:
                     already_have = check_func(id)
                     if already_have:
+                        print "setting skip to true for ID %s" % id
                         skip = True
                         break
                 
@@ -57,12 +59,14 @@ def scrape_listing(browser, url=None, visit_first=True, ids_only=False, check_fu
                 browser.get(url)
             except:
                 exc = sys.exc_info()
+                print exc
                 doc_error = {'type': 'document', 'reason': '%s: %s' % (str(exc[0]), str(exc[1])), 'doc_id': id, 'listing': url, 'position': num}
                 break
         
         if doc:
             docs.append(doc)
         elif not skip:
+            print "printint error for ID %s on num %s" % (id, num)
             doc_error = {'type': 'document', 'reason': 'scraping failed', 'doc_id': id, 'listing': url, 'position': num}
         
         if doc_error:

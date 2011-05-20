@@ -3,6 +3,7 @@ from exceptions import StillNotFound, FoundErrorElement
 import xpath
 import settings
 from pymongo import Connection
+import os
 
 def get_elements(browser, selector, check=None, optional=False, min_count=1, error_selector=None):
     count = 0
@@ -37,3 +38,10 @@ def get_db():
 
 def get_url_for_count(count):
     return "http://%s/#!searchResults;so=ASC;sb=postedDate;%s;rpp=%s;po=%s" % (settings.TARGET_SERVER, pseudoqs_encode(settings.SEARCH), settings.PER_PAGE, count)
+
+def bootstrap_settings():
+    if not getattr(settings, 'DOWNLOAD_DIR', False):
+        settings.DOWNLOAD_DIR = os.path.join(settings.DATA_DIR, 'downloads')
+    
+    if not getattr(settings, 'DUMP_DIR', False):
+        settings.DUMP_DIR = os.path.join(settings.DATA_DIR, 'dumps')

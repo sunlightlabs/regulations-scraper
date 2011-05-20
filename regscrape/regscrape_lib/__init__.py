@@ -27,3 +27,10 @@ if settings.DEBUG:
         ext_logger = logging.getLogger(ext_logger_name)
         ext_logger.setLevel(logging.DEBUG)
         ext_logger.addHandler(ch)
+
+# add self to path
+import sys
+import os
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+if CURRENT_DIR not in sys.path:
+    sys.path.append(CURRENT_DIR)
