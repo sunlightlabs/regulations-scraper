@@ -52,7 +52,3 @@ def run():
         sys.stdout.write('done (got %s documents, of which %s were new)\n' % (len(docs), written))
     
     print 'Decoding complete: decoded %s documents, of which %s were new' % (num_docs, num_written)
-        
-    all_docs = set(all_docs)
-    print all_docs
-    print len(all_docs)
