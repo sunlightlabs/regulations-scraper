@@ -1,13 +1,18 @@
 #!/usr/bin/env python
 
-import urllib, urlparse, json
+import urllib, urlparse, json, re, datetime
 
 from regscrape_lib.util import get_elements
+from pytz import timezone
 
 from regscrape_lib import logger
 import settings
 
 FORMAT_OVERRIDES = {'html': 'xml', 'doc': 'msw8', 'crtxt': 'crtext'}
+
+NON_LETTERS = re.compile('[^\w]')
+
+DATE_FORMAT = re.compile('^(?P<month>\w+) (?P<day>\d{2}) (?P<year>\d{4}), at (?P<hour>\d{2}):(?P<minute>\d{2}) (?P<ampm>\w{2}) (?P<timezone>[\w ]+)$')
 
 def scrape_document(browser, id, visit_first=True):
     if visit_first:
@@ -16,29 +21,29 @@ def scrape_document(browser, id, visit_first=True):
     out = {}
     # document id
     doc_id = get_elements(browser, '#mainContentTop .Gsqk2cPB + .gwt-InlineLabel', lambda elements: len(elements) > 0 and elements[0].text == id)
-    out['Document ID'] = doc_id[0].text
+    out['document_id'] = doc_id[0].text
     
     # document type, etc.
     comment_on_type = get_elements(browser, '#mainContentTop .gwt-InlineHyperlink', optional=True)
     if comment_on_type:
         comment_on = {
-            'Type': comment_on_type[0].text,
-            'ID': comment_on_type[0].get_attribute('href').split('=')[1],
+            'type': comment_on_type[0].text,
+            'id': comment_on_type[0].get_attribute('href').split('=')[1],
         }
         comment_on_label = get_elements(browser, '#mainContentTop .gwt-InlineHyperlink + .gwt-InlineLabel')
-        comment_on['Title'] = comment_on_label[0].text
+        comment_on['title'] = comment_on_label[0].text
         
-        out['Comment On'] = comment_on
+        out['comment_on'] = comment_on
     
     # Docket info
     docket_id = get_elements(browser, '#mainContentTop .Gsqk2cBO a.gwt-Anchor')
-    out['Docket ID'] = docket_id[0].text
+    out['docket_id'] = docket_id[0].text
     
     topics = get_elements(browser, '#mainContentTop > span:last-child')
     if topics[0].get_attribute('class') == 'Gsqk2cDO':
-        out['Topics'] = []
+        out['topics'] = []
     else:
-        out['Topics'] = topics[0].text.split(', ')
+        out['topics'] = topics[0].text.split(', ')
     
     # Details
     get_elements(browser, '#mainContentBottom .gwt-DisclosurePanel a.header')[0].click()
@@ -46,14 +51,29 @@ def scrape_document(browser, id, visit_first=True):
     details = {}
     cells = get_elements(browser, '#mainContentBottom .gwt-DisclosurePanel table.Gsqk2cJC tr td')
     for idx in range(0, len(cells), 2):
-        title = cells[idx].text[:-1].replace('.', '')
-        content = cells[idx + 1].text
+        title = NON_LETTERS.sub('_', cells[idx].text[:-1].replace('.', '').lower())
+        content = cells[idx + 1].text.strip()
+        
+        # is it a date?
+        date_match = DATE_FORMAT.match(content)
+        if date_match:
+            fields = date_match.groupdict()
+            try:
+                tz = timezone('US/%s' % fields['timezone'].split(' ')[0])
+            except:
+                tz = timezone('US/Eastern')
+            
+            content = datetime.datetime.strptime(
+                '%s %s %s %s %s %s' % (fields['month'], fields['day'], fields['year'], fields['hour'], fields['minute'], fields['ampm']),
+                '%B %d %Y %I %M %p'
+            ).replace(tzinfo=tz)
+            
         details[title] = content
-    out['Details'] = details
+    out['details'] = details
     
     # Attachments
     preview_url = get_elements(browser, '#mainContentBottom .gwt-Frame')[0].get_attribute('src')
-    out['Preview URL'] = preview_url
+    out['preview_url'] = preview_url
     
     views = []
     
@@ -78,9 +98,9 @@ def scrape_document(browser, id, visit_first=True):
     if len(view_data) == len(view_buttons):
         for view in view_data:
             views.append({
-                'Type': view['d'],
-                'URL': 'http://www.regulations.gov/contentStreamer?objectId=%s&disposition=inline&contentType=%s' % (view['c'], view['d']),
-                'Downloaded': False
+                'type': view['d'],
+                'url': 'http://www.regulations.gov/contentStreamer?objectId=%s&disposition=inline&contentType=%s' % (view['c'], view['d']),
+                'downloaded': False
             })
     else:
         # fallback to old-style guessing with a warning
@@ -95,21 +115,21 @@ def scrape_document(browser, id, visit_first=True):
             
             qs['contentType'] = download_format    
             views.append({
-                'Type': download_format,
-                'URL': 'http://www.regulations.gov/contentStreamer?%s' % urllib.urlencode(qs),
-                'Downloaded': False
+                'type': download_format,
+                'url': 'http://www.regulations.gov/contentStreamer?%s' % urllib.urlencode(qs),
+                'downloaded': False
             })
     
-    out['Views'] = views
+    out['views'] = views
     
     attachment_links = get_elements(browser, '#mainContentBottom .Gsqk2cNN a.gwt-InlineHyperlink, #mainContentBottom .Gsqk2cNN img.gwt-Image', optional=True)
     if attachment_links:
         attachments = []
         for idx in range(0, len(attachment_links), 2):
             attachments.append({
-                'Document ID': attachment_links[idx].text,
-                'Type': attachment_links[idx + 1].get_attribute('title').split(' ')[-1]
+                'document_id': attachment_links[idx].text,
+                'type': attachment_links[idx + 1].get_attribute('title').split(' ')[-1]
             })
-        out['Attachments'] = attachments
+        out['attachments'] = attachments
     
     return out

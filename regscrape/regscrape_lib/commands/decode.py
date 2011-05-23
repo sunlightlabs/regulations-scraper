@@ -45,32 +45,32 @@ def run(options, args):
         print 'Warning: no records will be saved to the database during this run.'
     
     import subprocess, os, urlparse, json
-    view_cursor = find_views(Downloaded=True, Decoded=False, Type=options.type) if options.type else find_views(Downloaded=True, Decoded=False)
+    view_cursor = find_views(downloaded=True, decoded=False, type=options.type) if options.type else find_views(downloaded=True, decoded=False)
     
     for result in view_cursor.find():
-        ext = result['value']['view']['File'].split('.')[-1]
+        ext = result['value']['view']['file'].split('.')[-1]
         if ext in DECODERS:
             for decoder in DECODERS[ext]:
                 try:
-                    output = decoder(result['value']['view']['File'])
+                    output = decoder(result['value']['view']['file'])
                 except DecodeFailed as failure:
                     reason = failure.message
                     print 'Failed to decode %s using %s%s' % (
-                        result['value']['view']['URL'],
+                        result['value']['view']['url'],
                         decoder.__str__(),
                         ' %s' % reason if reason else ''
                     )
                     continue
 
                 view = result['value']['view'].copy()
-                view['Decoded'] = True
-                view['Text'] = unicode(remove_control_chars(output), 'utf-8', 'ignore')
+                view['decoded'] = True
+                view['text'] = unicode(remove_control_chars(output), 'utf-8', 'ignore')
                 if options.pretend:
-                    print 'Decoded %s using %s' % (view['URL'], decoder.__str__())
-                    print view['Text']
+                    print 'Decoded %s using %s' % (view['url'], decoder.__str__())
+                    print view['text']
                 else:
                     update_view(result['value']['doc'], view)
-                    print 'Decoded and saved %s using %s' % (view['URL'], decoder.__str__())
+                    print 'Decoded and saved %s using %s' % (view['url'], decoder.__str__())
                 break
 
 if __name__ == "__main__":

@@ -170,7 +170,7 @@ class ScraperActor(BaseActor):
         
         if settings.CHECK_BEFORE_SCRAPE:
             local_docs = get_db().docs
-            self._check_before_scrape = lambda id: local_docs.find({'Document ID': id}).count() > 0
+            self._check_before_scrape = lambda id: local_docs.find({'document_id': id}).count() > 0
         else:
             self._check_before_scrape = None
             
@@ -199,7 +199,7 @@ class ScraperActor(BaseActor):
                 pass
             logger.warn('Failed on first try scraping %s' % message.get('url'))
         if docs:
-            self._upsert('docs', docs, match_on='Document ID')
+            self._upsert('docs', docs, match_on='document_id')
             if errors:
                 self._write('errors', errors)
         elif errors:
@@ -233,7 +233,7 @@ class DbActor(BaseActor):
         if settings.CLEAR_FIRST:
             self.db.journal.drop()
         
-        self.db.docs.ensure_index('Document ID')
+        self.db.docs.ensure_index('document_id', unique=True)
     
     def write(self, message):
         try:

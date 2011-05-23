@@ -11,10 +11,10 @@ import cStringIO
 
 MAP = """
 function() {
-    if (this.Views) {
-        for (var i = 0; i < this.Views.length; i++) {
+    if (this.views) {
+        for (var i = 0; i < this.views.length; i++) {
             if (%s) {
-                emit(this.Views[i].URL, {doc: this._id, view: this.Views[i]})
+                emit(this.views[i].url, {doc: this._id, view: this.views[i]})
             }
         }
     }
@@ -30,7 +30,7 @@ function(key, values) {
 DB = get_db()
 
 def find_views(**params):
-    rule = " && ".join(['this.Views[i].%s == %s' % (item[0], json.dumps(item[1])) for item in params.items()])
+    rule = " && ".join(['this.views[i].%s == %s' % (item[0], json.dumps(item[1])) for item in params.items()])
     mapfunc = MAP % rule
     
     results = DB.docs.inline_map_reduce(Code(mapfunc), Code(REDUCE), full_response=True)
@@ -45,13 +45,13 @@ def update_view(id, view):
         '_id': oid
     },
     {
-        '$pull': { "Views": {"URL": view['URL']}}
+        '$pull': { "views": {"url": view['url']}}
     }, safe=True)
     DB.docs.update({
         '_id': oid
     },
     {
-        '$push': { "Views": view}
+        '$push': { "views": view}
     }, safe=True)
 
 # the following is from http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
