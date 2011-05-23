@@ -14,14 +14,13 @@ NON_LETTERS = re.compile('[^\w]')
 
 DATE_FORMAT = re.compile('^(?P<month>\w+) (?P<day>\d{2}) (?P<year>\d{4}), at (?P<hour>\d{2}):(?P<minute>\d{2}) (?P<ampm>\w{2}) (?P<timezone>[\w ]+)$')
 
-def scrape_document(browser, id, visit_first=True):
+def scrape_document(browser, id, visit_first=True, document={}):
     if visit_first:
         browser.get('http://%s/#!documentDetail;D=%s' % (settings.TARGET_SERVER, id))
     
-    out = {}
     # document id
     doc_id = get_elements(browser, '#mainContentTop .Gsqk2cPB + .gwt-InlineLabel', lambda elements: len(elements) > 0 and elements[0].text == id)
-    out['document_id'] = doc_id[0].text
+    document['document_id'] = doc_id[0].text
     
     # document type, etc.
     comment_on_type = get_elements(browser, '#mainContentTop .gwt-InlineHyperlink', optional=True)
@@ -33,17 +32,17 @@ def scrape_document(browser, id, visit_first=True):
         comment_on_label = get_elements(browser, '#mainContentTop .gwt-InlineHyperlink + .gwt-InlineLabel')
         comment_on['title'] = comment_on_label[0].text
         
-        out['comment_on'] = comment_on
+        document['comment_on'] = comment_on
     
     # Docket info
     docket_id = get_elements(browser, '#mainContentTop .Gsqk2cBO a.gwt-Anchor')
-    out['docket_id'] = docket_id[0].text
+    document['docket_id'] = docket_id[0].text
     
     topics = get_elements(browser, '#mainContentTop > span:last-child')
     if topics[0].get_attribute('class') == 'Gsqk2cDO':
-        out['topics'] = []
+        document['topics'] = []
     else:
-        out['topics'] = topics[0].text.split(', ')
+        document['topics'] = topics[0].text.split(', ')
     
     # Details
     get_elements(browser, '#mainContentBottom .gwt-DisclosurePanel a.header')[0].click()
@@ -69,11 +68,11 @@ def scrape_document(browser, id, visit_first=True):
             ).replace(tzinfo=tz)
             
         details[title] = content
-    out['details'] = details
+    document['details'] = details
     
     # Attachments
     preview_url = get_elements(browser, '#mainContentBottom .gwt-Frame')[0].get_attribute('src')
-    out['preview_url'] = preview_url
+    document['preview_url'] = preview_url
     
     views = []
     
@@ -81,46 +80,47 @@ def scrape_document(browser, id, visit_first=True):
     qs = dict(urlparse.parse_qsl(url.query))
     qs['disposition'] == 'attachment'
     
-    view_selector = '#mainContentBottom > div > .gwt-Image'
-    view_buttons = get_elements(browser, view_selector, optional=True)
-    view_data = []
-    try:
-        view_data = json.loads(browser.execute_script("""
-            return JSON.stringify(
-                Array.prototype.slice.call(document.querySelectorAll('%s')).map(function(el) {
-                    return el.__listener.Gc.e.b.e.slice(-1)[0][0].g.b[0]
-                })
-            )
-        """ % view_selector))
-    except:
-        pass
-    
-    if len(view_data) == len(view_buttons):
-        for view in view_data:
-            views.append({
-                'type': view['d'],
-                'url': 'http://www.regulations.gov/contentStreamer?objectId=%s&disposition=inline&contentType=%s' % (view['c'], view['d']),
-                'downloaded': False
-            })
-    else:
-        # fallback to old-style guessing with a warning
-        logger.warn("Falling back to old-style URL guessing on document %s" % id)
+    if 'views' not in document:
+        view_selector = '#mainContentBottom > div > .gwt-Image'
+        view_buttons = get_elements(browser, view_selector, optional=True)
+        view_data = []
+        try:
+            view_data = json.loads(browser.execute_script("""
+                return JSON.stringify(
+                    Array.prototype.slice.call(document.querySelectorAll('%s')).map(function(el) {
+                        return el.__listener.Gc.e.b.e.slice(-1)[0][0].g.b[0]
+                    })
+                )
+            """ % view_selector))
+        except:
+            pass
         
-        for button in view_buttons:
-            title = button.get_attribute('title')
-            format = title.split(' ')[-1]
-            download_format = format
-            if format in FORMAT_OVERRIDES:
-                download_format = FORMAT_OVERRIDES[format]
+        if len(view_data) == len(view_buttons):
+            for view in view_data:
+                views.append({
+                    'type': view['d'],
+                    'url': 'http://www.regulations.gov/contentStreamer?objectId=%s&disposition=inline&contentType=%s' % (view['c'], view['d']),
+                    'downloaded': False
+                })
+        else:
+            # fallback to old-style guessing with a warning
+            logger.warn("Falling back to old-style URL guessing on document %s" % id)
             
-            qs['contentType'] = download_format    
-            views.append({
-                'type': download_format,
-                'url': 'http://www.regulations.gov/contentStreamer?%s' % urllib.urlencode(qs),
-                'downloaded': False
-            })
-    
-    out['views'] = views
+            for button in view_buttons:
+                title = button.get_attribute('title')
+                format = title.split(' ')[-1]
+                download_format = format
+                if format in FORMAT_OVERRIDES:
+                    download_format = FORMAT_OVERRIDES[format]
+                
+                qs['contentType'] = download_format    
+                views.append({
+                    'type': download_format,
+                    'url': 'http://www.regulations.gov/contentStreamer?%s' % urllib.urlencode(qs),
+                    'downloaded': False
+                })
+        
+        document['views'] = views
     
     attachment_links = get_elements(browser, '#mainContentBottom .Gsqk2cNN a.gwt-InlineHyperlink, #mainContentBottom .Gsqk2cNN img.gwt-Image', optional=True)
     if attachment_links:
@@ -130,6 +130,8 @@ def scrape_document(browser, id, visit_first=True):
                 'document_id': attachment_links[idx].text,
                 'type': attachment_links[idx + 1].get_attribute('title').split(' ')[-1]
             })
-        out['attachments'] = attachments
+        document['attachments'] = attachments
     
-    return out
+    document['scraped'] = True
+    
+    return document
