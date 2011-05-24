@@ -144,5 +144,7 @@ def scrape_document(browser, id, visit_first=True, document={}):
         document['attachments'] = attachments
     
     document['scraped'] = True
+    if '_job_id' in document:
+        del document['_job_id']
     
     return document

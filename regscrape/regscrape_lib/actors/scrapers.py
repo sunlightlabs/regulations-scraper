@@ -146,6 +146,12 @@ class DocumentScraperActor(BaseScraperActor):
             
             if not doc_error and not doc:
                 errors.append({'type': 'document', 'reason': 'Failed to scrape document', 'job_id': message.get('job_id'), 'document_id': id, 'mongo_document_id': mongo_id})
+                
+                doc = in_doc
+                doc['scrape_failed'] = True
+                if '_job_id' in doc:
+                    del doc['_job_id']
+                docs.append(doc)
         
         if docs:
             self._upsert('docs', docs, match_on='document_id')
