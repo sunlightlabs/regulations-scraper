@@ -20,7 +20,7 @@ def run(options, args):
     import settings
     
     db = get_db()
-    if (not options.continue_scrape) and (not options.restart_scrape) and len(db.collection_names()) > 0:
+    if settings.MODE == 'search' and (not options.continue_scrape) and (not options.restart_scrape) and len(db.collection_names()) > 0:
         print 'This database already contains data; please run with either --restart or --continue to specify what you want to do with it.'
         sys.exit()
         
@@ -29,12 +29,15 @@ def run(options, args):
         from regscrape_lib.monkey import patch_selenium_chrome
         patch_selenium_chrome()
     
-    settings.CLEAR_FIRST = not options.continue_scrape
+    if settings.MODE == 'search':
+        settings.CLEAR_FIRST = not options.continue_scrape
+    else:
+        settings.CLEAR_FIRST = False
     
     settings.CHECK_BEFORE_SCRAPE = options.check
     
     master = MasterActor.start(settings.INSTANCES)
-    master.send_request_reply({'command': 'scrape', 'max': settings.MAX_RECORDS})
+    master.send_one_way({'command': 'scrape', 'max': settings.MAX_RECORDS})
     while True:
         time.sleep(60)
         master.send_one_way({'command': 'tick'})

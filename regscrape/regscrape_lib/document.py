@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 
-import urllib, urlparse, json, re, datetime
+import urllib, urlparse, json, re, datetime, sys
 
 from regscrape_lib.util import get_elements
 from pytz import timezone
 
 from regscrape_lib import logger
 import settings
+
+from regscrape_lib.exceptions import StillNotFound, DoesNotExist
 
 FORMAT_OVERRIDES = {'html': 'xml', 'doc': 'msw8', 'crtxt': 'crtext'}
 
@@ -19,7 +21,16 @@ def scrape_document(browser, id, visit_first=True, document={}):
         browser.get('http://%s/#!documentDetail;D=%s' % (settings.TARGET_SERVER, id))
     
     # document id
-    doc_id = get_elements(browser, '#mainContentTop .Gsqk2cPB + .gwt-InlineLabel', lambda elements: len(elements) > 0 and elements[0].text == id)
+    try:
+        doc_id = get_elements(browser, '#mainContentTop .Gsqk2cPB + .gwt-InlineLabel', lambda elements: len(elements) > 0 and elements[0].text == id)
+    except StillNotFound as s:
+        # maybe there's no such document?
+        title = get_elements(browser, '#mainContentTop > h4', lambda elements: len(elements) > 0 and elements[0].text.strip() == 'Document does not exist')
+        if title:
+            raise DoesNotExist
+        else:
+            raise s
+    
     document['document_id'] = doc_id[0].text
     
     # document type, etc.

@@ -9,3 +9,6 @@ class FoundErrorElement(Exception):
 
 class DecodeFailed(Exception):
     pass
+
+class DoesNotExist(Exception):
+    pass

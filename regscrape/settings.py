@@ -10,7 +10,9 @@ DATA_DIR = '/data'
 DUMP_START = 0
 DUMP_END = 3500000
 DUMP_INCREMENT = 100000
-MAX_WAIT = 60
+MAX_WAIT = 600
+CHUNK_SIZE = 10
+FILTER = {}
 
 # settings for browser-based search (mode 'search')
 SEARCH = {'dct': 'PS'}

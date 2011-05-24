@@ -4,6 +4,7 @@ import xpath
 import settings
 from pymongo import Connection
 import os
+from gevent_mongo import Mongo
 
 def get_elements(browser, selector, check=None, optional=False, min_count=1, error_selector=None):
     count = 0
@@ -34,7 +35,7 @@ def pseudoqs_encode(qs_dict):
 
 def get_db():
     db_settings = getattr(settings, 'DB_SETTINGS', {})
-    return Connection(**db_settings)[getattr(settings, 'DB_NAME', 'regulations')]
+    return Mongo(getattr(settings, 'DB_NAME', 'regulations'), 10, **db_settings).get_conn()
 
 def get_url_for_count(count):
     return "http://%s/#!searchResults;so=ASC;sb=postedDate;%s;rpp=%s;po=%s" % (settings.TARGET_SERVER, pseudoqs_encode(settings.SEARCH), settings.PER_PAGE, count)

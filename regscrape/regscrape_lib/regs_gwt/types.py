@@ -48,16 +48,18 @@ class DocumentType(object):
         return reader.read_int()
 
 class DocumentSummary(object):
-    def __init__(self, document_id, object_id, formats):
+    def __init__(self, document_id, object_id, formats, agency, docket_number):
         self.document_id = document_id
         self.object_id = object_id
         self.formats = formats
+        self.agency = agency
+        self.docket_number = docket_number
     
     @classmethod
     def gwt_deserialize(cls, reader):
         # Some stuff we don't care about
         reader.read_int()
-        reader.read_string() # agency_abbreviation
+        agency = reader.read_string() # agency_abbreviation
         
         reader.read_object() # allow comments
         
@@ -66,7 +68,7 @@ class DocumentSummary(object):
         reader.read_string()
         reader.read_object() # date 2
         reader.read_string()
-        reader.read_string() # docket_number
+        docket_number = reader.read_string() # docket_number
         reader.read_string() # document_title
         
         document_id = reader.read_string()
@@ -86,4 +88,4 @@ class DocumentSummary(object):
         reader.read_int() # seems to always be 1
         reader.read_object()
         
-        return cls(document_id, object_id, formats)
+        return cls(document_id, object_id, formats, agency, docket_number)

@@ -31,7 +31,7 @@ def run():
     
         written = 0
         for doc in docs:
-            db_doc = {'document_id': doc.document_id, 'views': []}
+            db_doc = {'document_id': doc.document_id, 'views': [], 'docket_id': doc.docket_number, 'agency': doc.agency, 'scraped': False}
             if doc.formats:
                 for format in doc.formats:
                     db_doc['views'].append({
