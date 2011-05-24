@@ -113,7 +113,7 @@ class DocumentScraperActor(BaseScraperActor):
             doc_error = None
             for i in range(3):
                 try:
-                    doc = scrape_document(self.browser, id, True)
+                    doc = scrape_document(self.browser, id, visit_first=True, document=in_doc)
                     break
                 except StillNotFound:
                     # re-blank the page
@@ -126,6 +126,8 @@ class DocumentScraperActor(BaseScraperActor):
                     # I guess there's no such document?
                     doc = in_doc
                     doc['scrape_failed'] = True
+                    if '_job_id' in doc:
+                        del doc['_job_id']
                     doc_error = {'type': 'document', 'reason': 'Document does not exist', 'job_id': message.get('job_id'), 'document_id': id, 'mongo_document_id': mongo_id}
                     break
                 except:
