@@ -35,7 +35,7 @@ def pseudoqs_encode(qs_dict):
 
 def get_db():
     db_settings = getattr(settings, 'DB_SETTINGS', {})
-    return Mongo(getattr(settings, 'DB_NAME', 'regulations'), 10, **db_settings).get_conn()
+    return Mongo(getattr(settings, 'DB_NAME', 'regulations'), settings.INSTANCES + 2, **db_settings).get_conn()
 
 def get_url_for_count(count):
     return "http://%s/#!searchResults;so=ASC;sb=postedDate;%s;rpp=%s;po=%s" % (settings.TARGET_SERVER, pseudoqs_encode(settings.SEARCH), settings.PER_PAGE, count)
