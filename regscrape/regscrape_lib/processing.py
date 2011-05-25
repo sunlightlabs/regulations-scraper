@@ -8,6 +8,7 @@ from exceptions import DecodeFailed
 import os
 import re
 import cStringIO
+import time
 
 MAP = """
 function() {
@@ -30,12 +31,19 @@ function(key, values) {
 DB = get_db()
 
 def find_views(**params):
+    # allow for using a pre-filter to speed up execution
+    kwargs = {}
+    if 'query' in params and params['query']:
+        kwargs['query'] = params['query']
+        del params['query']
+    
+    # create the actual map function
     rule = " && ".join(['this.views[i].%s == %s' % (item[0], json.dumps(item[1])) for item in params.items()])
     mapfunc = MAP % rule
     
-    results = DB.docs.inline_map_reduce(Code(mapfunc), Code(REDUCE), full_response=True)
+    results = DB.docs.map_reduce(Code(mapfunc), Code(REDUCE), '_tmp_%s' % int(time.time()), **kwargs)
     
-    return DB[results['result']]
+    return results
 
 def update_view(id, view):
     oid = ObjectId(id)

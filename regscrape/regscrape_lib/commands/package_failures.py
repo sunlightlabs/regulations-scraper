@@ -14,4 +14,5 @@ def run():
         failures.write(filename, arcname)
     
     failures.close()
+    view_cursor.drop()
     print 'Wrote zipfile to /data/downloads/failures.zip'

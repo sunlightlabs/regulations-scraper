@@ -72,6 +72,7 @@ def run(options, args):
                     update_view(result['value']['doc'], view)
                     print 'Decoded and saved %s using %s' % (view['url'], decoder.__str__())
                 break
+    view_cursor.drop()
 
 if __name__ == "__main__":
     run()

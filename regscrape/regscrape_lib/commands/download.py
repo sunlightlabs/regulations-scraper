@@ -9,7 +9,7 @@ def run():
     
     # initial database pass
     f = open(os.path.join(settings.DOWNLOAD_DIR, 'downloads.dat'), 'w')
-    view_cursor = find_views(downloaded=False)
+    view_cursor = find_views(downloaded=False, query=settings.FILTER)
     for result in view_cursor.find():
         f.write(result['value']['view']['url'])
         f.write('\n')
@@ -42,6 +42,7 @@ def run():
     
     # cleanup
     os.unlink(os.path.join(settings.DOWNLOAD_DIR, 'downloads.dat'))
+    view_cursor.drop()
 
 if __name__ == "__main__":
     run()
