@@ -9,8 +9,7 @@ def run():
     
     # initial database pass
     f = open(os.path.join(settings.DOWNLOAD_DIR, 'downloads.dat'), 'w')
-    view_cursor = find_views(downloaded=False, query=settings.FILTER)
-    for result in view_cursor.find():
+    for result in find_views(downloaded=False, query=settings.FILTER):
         f.write(result['value']['view']['url'])
         f.write('\n')
     f.close()
@@ -20,7 +19,7 @@ def run():
     proc.wait()
     
     # database check pass
-    for result in view_cursor.find():
+    for result in find_views(downloaded=False, query=settings.FILTER):
         filename = result['value']['view']['url'].split('/')[-1]
         fullpath = os.path.join(settings.DOWNLOAD_DIR, filename)
         
@@ -42,7 +41,6 @@ def run():
     
     # cleanup
     os.unlink(os.path.join(settings.DOWNLOAD_DIR, 'downloads.dat'))
-    view_cursor.drop()
 
 if __name__ == "__main__":
     run()

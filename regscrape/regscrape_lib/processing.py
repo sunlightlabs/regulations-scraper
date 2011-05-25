@@ -9,24 +9,7 @@ import os
 import re
 import cStringIO
 import time
-
-MAP = """
-function() {
-    if (this.views) {
-        for (var i = 0; i < this.views.length; i++) {
-            if (%s) {
-                emit(this.views[i].url, {doc: this._id, view: this.views[i]})
-            }
-        }
-    }
-}
-"""
-
-REDUCE = """
-function(key, values) {
-    return values[0];
-}
-"""
+import itertools
 
 DB = get_db()
 
@@ -34,14 +17,19 @@ def find_views(**params):
     # allow for using a pre-filter to speed up execution
     kwargs = {}
     if 'query' in params and params['query']:
-        kwargs['query'] = params['query']
+        query = params['query']
         del params['query']
     
     # create the actual map function
-    rule = " && ".join(['this.views[i].%s == %s' % (item[0], json.dumps(item[1])) for item in params.items()])
-    mapfunc = MAP % rule
+    conditions = dict([('views.%s' % item[0], item[1]) for item in params.items()])
+    conditions.update(query)
     
-    results = DB.docs.map_reduce(Code(mapfunc), Code(REDUCE), '_tmp_%s' % int(time.time()), **kwargs)
+    results = itertools.chain.from_iterable(
+        itertools.imap(
+            lambda doc: [view for view in doc['views'] if all(view[item[0]] == item[1] for item in params.items())],
+            DB.docs.find(conditions)
+        )
+    )
     
     return results
 

@@ -45,9 +45,8 @@ def run(options, args):
         print 'Warning: no records will be saved to the database during this run.'
     
     import subprocess, os, urlparse, json
-    view_cursor = find_views(downloaded=True, decoded=False, type=options.type) if options.type else find_views(downloaded=True, decoded=False)
     
-    for result in view_cursor.find():
+    for result in find_views(downloaded=True, decoded=False, type=options.type) if options.type else find_views(downloaded=True, decoded=False):
         ext = result['value']['view']['file'].split('.')[-1]
         if ext in DECODERS:
             for decoder in DECODERS[ext]:
@@ -72,7 +71,6 @@ def run(options, args):
                     update_view(result['value']['doc'], view)
                     print 'Decoded and saved %s using %s' % (view['url'], decoder.__str__())
                 break
-    view_cursor.drop()
 
 if __name__ == "__main__":
     run()
