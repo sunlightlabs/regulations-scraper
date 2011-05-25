@@ -10,12 +10,15 @@ import re
 import cStringIO
 import time
 import itertools
-
-DB = get_db()
+import sys
+import regscrape_lib
 
 def find_views(**params):
+    db = get_db()
+    
     # allow for using a pre-filter to speed up execution
     kwargs = {}
+    query = {}
     if 'query' in params and params['query']:
         query = params['query']
         del params['query']
@@ -26,8 +29,8 @@ def find_views(**params):
     
     results = itertools.chain.from_iterable(
         itertools.imap(
-            lambda doc: [view for view in doc['views'] if all(view[item[0]] == item[1] for item in params.items())],
-            DB.docs.find(conditions)
+            lambda doc: [{'view': view, 'doc': doc['_id']} for view in doc['views'] if all(view[item[0]] == item[1] for item in params.items())],
+            db.docs.find(conditions)
         )
     )
     
@@ -36,19 +39,25 @@ def find_views(**params):
 def update_view(id, view):
     oid = ObjectId(id)
     
+    # use db object from thread pool
+    db = get_db()
+    
     # can't figure out a way to do this atomically because of bug SERVER-1050
-    DB.docs.update({
+    db.docs.update({
         '_id': oid
     },
     {
         '$pull': { "views": {"url": view['url']}}
     }, safe=True)
-    DB.docs.update({
+    db.docs.update({
         '_id': oid
     },
     {
         '$push': { "views": view}
     }, safe=True)
+    
+    # return it to the pool
+    del db
 
 # the following is from http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
 def which(program):
@@ -79,10 +88,12 @@ def remove_control_chars(s):
     return control_char_re.sub('', s)
 
 # decoders
-def binary_decoder(binary, error=None):
+def binary_decoder(binary, error=None, append=[]):
+    if not type(binary) == list:
+        binary = [binary]
     def decoder(filename):
-        interpreter = subprocess.Popen([binary, filename], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        output, run_error = interpreter.communicate()
+        interpreter = subprocess.Popen(binary + [filename] + append, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        output, run_error = interpreter.communicate('')
         
         if not output.strip() or (error and error in output):
             raise DecodeFailed()
@@ -90,6 +101,14 @@ def binary_decoder(binary, error=None):
             return output
     
     decoder.__str__ = lambda: binary
+    
+    return decoder
+
+def script_decoder(script, error=None):
+    script_path = os.path.join(os.path.dirname(os.path.abspath(regscrape_lib.__file__)), 'scripts', script)
+    
+    decoder = binary_decoder([sys.executable, script_path], error=error)
+    decoder.__str__ = lambda: script
     
     return decoder
 
@@ -164,3 +183,4 @@ def pdf_ocr(filename):
     
     return ocr_scrub(out.getvalue())
 pdf_ocr.__str__ = lambda: 'tesseract'
+pdf_ocr.ocr = True

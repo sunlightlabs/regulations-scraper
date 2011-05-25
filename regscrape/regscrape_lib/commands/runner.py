@@ -3,6 +3,9 @@
 import sys
 
 def run_command():
+    from gevent.monkey import patch_all
+    patch_all()
+    
     if len(sys.argv) < 2:
         print 'Usage: ./run.py <command>'
         sys.exit()

@@ -11,9 +11,6 @@ arg_parser.add_option("-c", "--continue", action="store_true", dest="continue_sc
 arg_parser.add_option("-C", "--check", action="store_true", dest="check", default=False)
 
 def run(options, args):
-    from gevent.monkey import patch_all
-    patch_all()
-    
     from regscrape_lib.actors import MasterActor
     import time
     

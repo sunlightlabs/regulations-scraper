@@ -3,3 +3,4 @@ gevent
 pytz
 -e git+https://github.com/jodal/pykka.git@v0.12#egg=pykka
 -e git+https://github.com/mongodb/mongo-python-driver.git#egg=pymongo
+-e git+https://github.com/mikemaccana/python-docx.git#egg=docx

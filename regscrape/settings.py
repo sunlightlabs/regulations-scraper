@@ -5,6 +5,7 @@ BROWSER = {'driver': 'Firefox'}
 DEBUG = True
 DB_NAME = 'regulations'
 DATA_DIR = '/data'
+DECODERS = 2
 
 # settings for bulk API dumping (mode 'prepopulate')
 DUMP_START = 0

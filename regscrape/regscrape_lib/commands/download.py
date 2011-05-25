@@ -20,7 +20,7 @@ def run():
     
     # database check pass
     for result in find_views(downloaded=False, query=settings.FILTER):
-        filename = result['value']['view']['url'].split('/')[-1]
+        filename = result['view']['url'].split('/')[-1]
         fullpath = os.path.join(settings.DOWNLOAD_DIR, filename)
         
         qs = dict(urlparse.parse_qsl(filename.split('?')[-1]))
@@ -33,11 +33,11 @@ def run():
         
         if os.path.exists(newfullpath):
             # update database record to point to file
-            view = result['value']['view'].copy()
+            view = result['view'].copy()
             view['downloaded'] = True
             view['file'] = newfullpath
             view['decoded'] = False
-            update_view(result['value']['doc'], view)
+            update_view(result['doc'], view)
     
     # cleanup
     os.unlink(os.path.join(settings.DOWNLOAD_DIR, 'downloads.dat'))

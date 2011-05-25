@@ -3,7 +3,11 @@
 from regscrape_lib.processing import *
 from optparse import OptionParser
 from regscrape_lib.exceptions import *
+from gevent.pool import Pool
 import sys
+import settings
+import subprocess, os, urlparse, json
+import regscrape_lib
 
 DECODERS = {
     'xml': [
@@ -11,9 +15,9 @@ DECODERS = {
     ],
         
     'pdf': [
+        binary_decoder('pdftotext', append=['-'], error='PDF file is damaged'),
         binary_decoder('ps2ascii', error='Unrecoverable error'),
-        binary_decoder('pdftotext', error='PDF file is damaged'),
-        pdf_ocr
+#        pdf_ocr
     ],
     
     'msw8': [
@@ -28,6 +32,10 @@ DECODERS = {
     'txt': [
         binary_decoder('cat', error='The document does not have a content file of type') # not really an error, as above
     ],
+    
+    'msw12': [
+        script_decoder('extract_docx.py', error='Failed to decode file')
+    ]
 }
 
 DECODERS['crtext'] = DECODERS['xml']
@@ -39,38 +47,55 @@ arg_parser = OptionParser()
 arg_parser.add_option("-p", "--pretend", action="store_true", dest="pretend", default=False)
 arg_parser.add_option("-t", "--type", action="store", dest="type", default=None)
 
-# runner
-def run(options, args):
-    if options.pretend:
-        print 'Warning: no records will be saved to the database during this run.'
-    
-    import subprocess, os, urlparse, json
-    
-    for result in find_views(downloaded=True, decoded=False, type=options.type) if options.type else find_views(downloaded=True, decoded=False):
-        ext = result['value']['view']['file'].split('.')[-1]
+# decoder factory
+def get_decoder(result, options):
+    def decode():
+        ext = result['view']['file'].split('.')[-1]
         if ext in DECODERS:
             for decoder in DECODERS[ext]:
                 try:
-                    output = decoder(result['value']['view']['file'])
+                    output = decoder(result['view']['file'])
                 except DecodeFailed as failure:
                     reason = failure.message
                     print 'Failed to decode %s using %s%s' % (
-                        result['value']['view']['url'],
+                        result['view']['url'],
                         decoder.__str__(),
                         ' %s' % reason if reason else ''
                     )
                     continue
 
-                view = result['value']['view'].copy()
+                view = result['view'].copy()
                 view['decoded'] = True
                 view['text'] = unicode(remove_control_chars(output), 'utf-8', 'ignore')
+                view['ocr'] = getattr(decoder, 'ocr', False)
                 if options.pretend:
                     print 'Decoded %s using %s' % (view['url'], decoder.__str__())
-                    print view['text']
+                    #print view['text']
                 else:
-                    update_view(result['value']['doc'], view)
+                    update_view(result['doc'], view)
                     print 'Decoded and saved %s using %s' % (view['url'], decoder.__str__())
                 break
+    return decode
+
+# runner
+def run(options, args):
+    if options.pretend:
+        print 'Warning: no records will be saved to the database during this run.'
+    
+    views = find_views(downloaded=True, decoded=False, type=options.type, query=settings.FILTER) if options.type else find_views(downloaded=True, decoded=False, query=settings.FILTER)
+    workers = Pool(settings.DECODERS)
+    
+    # keep the decoders busy with tasks as long as there are more results
+    while True:
+        try:
+            result = views.next()
+        except StopIteration:
+            break
+        
+        workers.spawn(get_decoder(result, options))
+        workers.wait_available()
+    workers.join()
+    print 'Done.'
 
 if __name__ == "__main__":
     run()
