@@ -100,7 +100,7 @@ def binary_decoder(binary, error=None, append=[]):
         else:
             return output
     
-    decoder.__str__ = lambda: binary
+    decoder.__str__ = lambda: binary[0]
     
     return decoder
 
