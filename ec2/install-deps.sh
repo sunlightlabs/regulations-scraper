@@ -1,6 +1,6 @@
 #!/bin/bash
 apt-get update
-apt-get install -y xvfb libgtk2.0-0 libasound2 build-essential python-dev libevent-dev mongodb git python-pip python-virtualenv virtualenvwrapper puf openbox
+apt-get install -y xvfb libgtk2.0-0 libasound2 build-essential python-dev libevent-dev mongodb git python-pip python-virtualenv virtualenvwrapper puf openbox libxslt1-dev libxml2-dev html2text poppler-utils ghostscript antiword catdoc libjpeg8-dev
 
 cd /opt
 wget http://releases.mozilla.org/pub/mozilla.org/firefox/releases/4.0/linux-x86_64/en-US/firefox-4.0.tar.bz2 -O - | tar xvfj -
