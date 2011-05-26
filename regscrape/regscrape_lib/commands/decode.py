@@ -35,7 +35,11 @@ DECODERS = {
     
     'msw12': [
         script_decoder('extract_docx.py', error='Failed to decode file')
-    ]
+    ],
+    
+    'wp8': [
+        binary_decoder('wpd2text', error='ERROR')
+    ],
 }
 
 DECODERS['crtext'] = DECODERS['xml']
