@@ -2,11 +2,12 @@
 
 from regscrape_lib.util import get_db
 import operator
+import settings
 
 def run():
     db = get_db()
     
-    data = list(db.docs.find())
+    data = list(db.docs.find(settings.FILTER))
     doc_count = len(data)
     print 'Total document count: %s' % doc_count
     

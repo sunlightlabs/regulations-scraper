@@ -8,9 +8,9 @@ def run():
     
     failures = zipfile.ZipFile(os.path.join(settings.DOWNLOAD_DIR, 'failures.zip'), 'w')
     for result in find_views(downloaded=True, decoded=False, query=settings.FILTER):
-        filename = result['value']['view']['file']
+        filename = result['view']['file']
         arcname = os.path.join('failures', filename.split('/')[-1])
         failures.write(filename, arcname)
     
     failures.close()
-    print 'Wrote zipfile to /data/downloads/failures.zip'
+    print 'Wrote zipfile to %s' % os.path.join(settings.DOWNLOAD_DIR, 'failures.zip')

@@ -39,6 +39,7 @@ DECODERS = {
 }
 
 DECODERS['crtext'] = DECODERS['xml']
+DECODERS['html'] = DECODERS['xml']
 DECODERS['msw6'] = DECODERS['msw8']
 DECODERS['msw'] = DECODERS['msw8']
 
@@ -56,7 +57,7 @@ def get_decoder(result, options):
                 try:
                     output = decoder(result['view']['file'])
                 except DecodeFailed as failure:
-                    reason = failure.message
+                    reason = str(failure)
                     print 'Failed to decode %s using %s%s' % (
                         result['view']['url'],
                         decoder.__str__(),
