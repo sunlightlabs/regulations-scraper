@@ -53,12 +53,12 @@ def strip_tags(node):
     else:
         return ''.join(map(strip_tags, node.contents))
 
-
+# todo: update with other types, fallback for unknown types
 VIEW_PREFERENCE = ['crtext', 'msw8', 'pdf']
 
 def get_comment(doc):
     for label in VIEW_PREFERENCE:
-        views = [v.get('Text', '') for v in doc.get('Views', []) if v.get('Type', '') == label and v.get('Decoded')]
+        views = [v.get('text', '') for v in doc.get('views', []) if v.get('type', '') == label and v.get('decoded')]
         if views:
             return extract_comment(views[0])
     
