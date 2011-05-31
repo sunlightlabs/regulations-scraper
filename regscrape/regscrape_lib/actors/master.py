@@ -109,23 +109,29 @@ class MasterActor(BaseActor):
             del self.assignments[actor.actor_urn]
         
         if actor in self.actors:
-            new_job_id = '%s/%s' % (actor.actor_urn, int(time.time()))
+            reusing_id = False
+            if len(self.temporary_hopper) > 0:
+                new_job_id = self.temporary_hopper.pop(0)
+                reusing_id = True
+                ids = []
+            else:
+                new_job_id = '%s/%s' % (actor.actor_urn, int(time.time()))
+                
+                # there's no way to do an update with a limit, so do a weird-ass server-side eval thing instead
+                conditions = {'scraped': False, '_job_id': {'$exists': False}, 'scrape_failed': {'$exists': False}}
+                conditions.update(getattr(settings, 'FILTER', {}))
+                
+                ids = self.db.eval(Code("""
+                    function() {
+                        return db.docs.find(%s).limit(%s).map(function(obj) {
+                            obj._job_id = '%s';
+                            db.docs.save(obj);
+                            return obj._id;
+                        })
+                    }
+                """ % (json.dumps(conditions), settings.CHUNK_SIZE, new_job_id)))
             
-            # there's no way to do an update with a limit, so do a weird-ass server-side eval thing instead
-            conditions = {'scraped': False, '_job_id': {'$exists': False}, 'scrape_failed': {'$exists': False}}
-            conditions.update(getattr(settings, 'FILTER', {}))
-            
-            ids = self.db.eval(Code("""
-                function() {
-                    return db.docs.find(%s).limit(%s).map(function(obj) {
-                        obj._job_id = '%s';
-                        db.docs.save(obj);
-                        return obj._id;
-                    })
-                }
-            """ % (json.dumps(conditions), settings.CHUNK_SIZE, new_job_id)))
-            
-            if len(ids) > 0:
+            if reusing_id or len(ids) > 0:
                 actor.send_one_way({'command': 'scrape', 'job_id': new_job_id})
                 self.assignments[actor.actor_urn] = {'actor': actor, 'job_id': new_job_id, 'assigned': datetime.now(), 'pid': message['pid']}
             else:
@@ -143,7 +149,7 @@ class MasterActor(BaseActor):
         diff = timedelta(seconds=settings.MAX_WAIT)
         for urn, record in self.assignments.items():
             if now - record['assigned'] > diff:
-                logger.warn("Actor %s has been working on its assigned URL for longer than the maximum-allowed time; resetting browser and reassigning %s." % (urn, record['url']))
+                logger.warn("Actor %s has been working on its assigned URL for longer than the maximum-allowed time; resetting browser and reassigning %s." % (urn, record['url'] if 'url' in record else record['job_id']))
                 self._handle_dead_scraper(urn, record)
                 
                 # if the actor is doing something, it won't stop until it finishes, which may never happen, so wait a second and nuke its browser from orbit
@@ -160,14 +166,14 @@ class MasterActor(BaseActor):
             # a browser died and we didn't kill it
             urn = actor.actor_urn
             record = self.assignments[urn]
-            logger.warn('Actor %s had its browser die while working on %s.' % (urn, record['url']))
+            logger.warn('Actor %s had its browser die while working on %s.' % (urn, record['url'] if 'url' in record else record['job_id']))
             self._handle_dead_scraper(urn, record)
     
     def _handle_dead_scraper(self, urn, record):
         self._shutdown(record['actor'], True)
         del self.assignments[urn]
         
-        self.temporary_hopper.append(record['url'])
+        self.temporary_hopper.append(record['url'] if 'url' in record else record['job_id'])
         
         replacement = None
         while replacement is None:
