@@ -138,13 +138,12 @@ def scrape_document(browser, id, visit_first=True, document={}):
         
         document['views'] = views
     
-    attachment_links = get_elements(browser, '#mainContentBottom .Gsqk2cNN a.gwt-InlineHyperlink, #mainContentBottom .Gsqk2cNN img.gwt-Image', optional=True)
+    attachment_links = get_elements(browser, '#mainContentBottom .Gsqk2cNN a.gwt-InlineHyperlink', optional=True)
     if attachment_links:
         attachments = []
-        for idx in range(0, len(attachment_links), 2):
+        for idx in range(len(attachment_links)):
             attachments.append({
-                'document_id': attachment_links[idx].text,
-                'type': attachment_links[idx + 1].get_attribute('title').split(' ')[-1]
+                'document_id': attachment_links[idx].text
             })
         document['attachments'] = attachments
     
