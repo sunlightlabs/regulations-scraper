@@ -6,6 +6,7 @@ from regscrape_lib.util import pseudoqs_encode, get_db
 from listing import scrape_listing, get_count
 from document import scrape_document
 import settings
+import traceback
 
 import urllib2, sys
 
@@ -133,6 +134,7 @@ class DocumentScraperActor(BaseScraperActor):
                 except:
                     exc = sys.exc_info()
                     print exc
+                    traceback.print_tb(exc[2])
                     doc = in_doc
                     doc['scrape_failed'] = True
                     if '_job_id' in doc:
