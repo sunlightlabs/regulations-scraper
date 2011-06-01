@@ -14,7 +14,6 @@ class BaseScraperActor(BaseActor):
     def __init__(self, master):
         self.browser = getattr(webdriver, settings.BROWSER['driver'])(**(settings.BROWSER.get('kwargs', {})))
         self.master = master
-        self.db = get_db()
         
         self._pre_ready()
         
@@ -30,12 +29,16 @@ class BaseScraperActor(BaseActor):
         pass
     
     def _write(self, collection, records):
-        self.db[collection].insert(records, safe=True)
+        db = get_db()
+        db[collection].insert(records, safe=True)
+        del db
         
     def _upsert(self, collection, records, match_on):
         for record in records:
             try:
-                self.db[collection].update({match_on: record[match_on]}, record, upsert=True, safe=True)
+                db = get_db()
+                db[collection].update({match_on: record[match_on]}, record, upsert=True, safe=True)
+                del db
             except:
                 logger.error("Error writing to database: %s" % sys.exc_info()[0])
     
@@ -88,7 +91,11 @@ class ListingScraperActor(BaseScraperActor):
 class DocumentScraperActor(BaseScraperActor):    
     def scrape(self, message):
         # get docs to work on
-        starting_docs = list(self.db.docs.find({'scraped': False, '_job_id': message['job_id']}))
+        db = get_db()
+        
+        starting_docs = list(db.docs.find({'scraped': False, '_job_id': message['job_id']}))
+        
+        del db
         
         if len(starting_docs) == 0:
             logger.info('No more new documents; terminating.')
@@ -164,3 +171,10 @@ class DocumentScraperActor(BaseScraperActor):
         logger.info('Scraped job ID %s: got %s documents of %s expected, with %s errors' % (message['job_id'], len(docs), len(starting_docs), len(errors)))
         
         self._send_ready()
+
+# use the right kind of scrapers depending on settings
+if settings.MODE == 'search':
+    self.prep_journal()
+    ScraperActor = ListingScraperActor
+else:
+    ScraperActor = DocumentScraperActor

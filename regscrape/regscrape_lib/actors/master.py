@@ -37,13 +37,6 @@ class MasterActor(BaseActor):
         self.db.docs.ensure_index('agency')
         self.db.docs.ensure_index('_job_id', sparse=True)
         self.db.docs.ensure_index('scraped')
-        
-        # start the right kind of scrapers
-        if settings.MODE == 'search':
-            self.prep_journal()
-            ScraperActor = ListingScraperActor
-        else:
-            ScraperActor = DocumentScraperActor
                 
         # start actors and being scraping
         while len(self.actors) < self.num_actors:
