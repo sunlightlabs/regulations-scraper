@@ -1,5 +1,6 @@
 import sys
 import csv
+from datetime import datetime
 from collections import namedtuple
 from pymongo import Connection
 
@@ -11,12 +12,22 @@ QUERY = {}
 
 FIELDS = [
     # (mongo field, CSV field, tranform)
-    F('document_id', lambda d: d.get('document_id')),
-    F('docket_id', lambda d: d.get('docket_id')),
-    F('agency', lambda d: d.get('agency')),
-    F('date', lambda d: str(d['details'].get('date_posted')) if 'details' in d else None),
+    F('document_id', lambda d: d.get('document_id', '')),
+    F('docket_id', lambda d: d.get('docket_id', '')),
+    F('agency', lambda d: d.get('agency', '')),
+    F('date', lambda d: d['details'].get('date_posted', None) if 'details' in d else None),
     F('text', get_comment)
 ]
+
+
+def filter_for_postgres(v):
+    if v is None:
+        return 'None'
+    
+    if isinstance(v, datetime):
+        return str(v)
+
+    return v.encode('utf8').replace("\.", ".")
 
 
 def dump_cursor(c, fields, outfile):
@@ -24,8 +35,11 @@ def dump_cursor(c, fields, outfile):
     writer.writerow([f.csv_column for f in fields])
     
     for doc in c:
-        writer.writerow([f.transform(doc).encode('utf8') for f in fields])
-
+        row = [filter_for_postgres(f.transform(doc)) for f in fields]
+        if len(row[4]) > 130000:
+            print("Skipping long row.")
+        else:
+            writer.writerow(row)
 
 
 if __name__ == '__main__':
