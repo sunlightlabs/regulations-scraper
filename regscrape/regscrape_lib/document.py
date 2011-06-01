@@ -82,14 +82,16 @@ def scrape_document(browser, id, visit_first=True, document={}):
     document['details'] = details
     
     # Attachments
-    preview_url = get_elements(browser, '#mainContentBottom .gwt-Frame')[0].get_attribute('src')
-    document['preview_url'] = preview_url
+    preview_frame = get_elements(browser, '#mainContentBottom .gwt-Frame', optional=True)
+    if preview_frame:
+        preview_url = preview_frame[0].get_attribute('src')
+        document['preview_url'] = preview_url
+        
+        url = urlparse.urlparse(preview_url)
+        qs = dict(urlparse.parse_qsl(url.query))
+        qs['disposition'] == 'attachment'
     
     views = []
-    
-    url = urlparse.urlparse(preview_url)
-    qs = dict(urlparse.parse_qsl(url.query))
-    qs['disposition'] == 'attachment'
     
     if 'views' not in document:
         view_selector = '#mainContentBottom > div > .gwt-Image'
@@ -113,7 +115,7 @@ def scrape_document(browser, id, visit_first=True, document={}):
                     'url': 'http://www.regulations.gov/contentStreamer?objectId=%s&disposition=inline&contentType=%s' % (view['c'], view['d']),
                     'downloaded': False
                 })
-        else:
+        elif preview_frame:
             # fallback to old-style guessing with a warning
             logger.warn("Falling back to old-style URL guessing on document %s" % id)
             
@@ -130,16 +132,18 @@ def scrape_document(browser, id, visit_first=True, document={}):
                     'url': 'http://www.regulations.gov/contentStreamer?%s' % urllib.urlencode(qs),
                     'downloaded': False
                 })
+        else:
+            # without a preview frame, we can't guess
+            logger.warn("Unable to retrieve views for document %s" % id)
         
         document['views'] = views
     
-    attachment_links = get_elements(browser, '#mainContentBottom .Gsqk2cNN a.gwt-InlineHyperlink, #mainContentBottom .Gsqk2cNN img.gwt-Image', optional=True)
+    attachment_links = get_elements(browser, '#mainContentBottom .Gsqk2cNN a.gwt-InlineHyperlink', optional=True)
     if attachment_links:
         attachments = []
-        for idx in range(0, len(attachment_links), 2):
+        for idx in range(len(attachment_links)):
             attachments.append({
-                'document_id': attachment_links[idx].text,
-                'type': attachment_links[idx + 1].get_attribute('title').split(' ')[-1]
+                'document_id': attachment_links[idx].text
             })
         document['attachments'] = attachments
     
