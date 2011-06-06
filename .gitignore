@@ -4,3 +4,8 @@
 *.pickle
 nohup.out
 local_settings.py
+*.6
+*.a
+_obj
+_test
+_test*

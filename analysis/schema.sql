@@ -6,3 +6,9 @@ CREATE TABLE regulations_comments (
     date date,
     text text NOT NULL
 );
+
+
+CREATE TABLE regulations_matches (
+    document_id varchar(32) NOT NULL,
+    entity_id uuid NOT NULL
+);
