@@ -26,6 +26,10 @@ def run(options, args):
         from regscrape_lib.monkey import patch_selenium_chrome
         patch_selenium_chrome()
     
+    if getattr(settings, 'TEMP_DIR', False):
+        import tempfile
+        tempfile.tempdir = settings.TEMP_DIR
+    
     if settings.MODE == 'search':
         settings.CLEAR_FIRST = not options.continue_scrape
     else:
