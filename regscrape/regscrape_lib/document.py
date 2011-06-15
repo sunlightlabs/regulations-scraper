@@ -25,11 +25,11 @@ def scrape_document(browser, id, visit_first=True, document={}):
         doc_id = get_elements(browser, '#mainContentTop .Gsqk2cPB + .gwt-InlineLabel', lambda elements: len(elements) > 0 and elements[0].text == id)
     except StillNotFound as s:
         # maybe there's no such document?
-        title = get_elements(browser, '#mainContentTop > h4', lambda elements: len(elements) > 0 and elements[0].text.strip() == 'Document does not exist')
+        title = get_elements(browser, '#mainContentTop > h4', lambda elements: len(elements) > 0 and elements[0].text.strip() == 'Document does not exist', optional=True)
         if title:
             raise DoesNotExist
         else:
-            raise s
+            raise
     
     document['document_id'] = doc_id[0].text
     
