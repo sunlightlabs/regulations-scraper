@@ -47,6 +47,11 @@ class DocumentType(object):
     def gwt_deserialize(cls, reader):
         return reader.read_int()
 
+class DocketType(object):
+    @classmethod
+    def gwt_deserialize(cls, reader):
+        reader.read_int()
+
 class DocumentSummary(object):
     def __init__(self, document_id, object_id, formats, agency, docket_number):
         self.document_id = document_id
@@ -55,37 +60,49 @@ class DocumentSummary(object):
         self.agency = agency
         self.docket_number = docket_number
     
+    def __str__(self):
+        return '%s %s %s %s %s' % (self.document_id, self.object_id, self.formats, self.agency, self.docket_number)
+    
     @classmethod
     def gwt_deserialize(cls, reader):
         # Some stuff we don't care about
         reader.read_int()
         agency = reader.read_string() # agency_abbreviation
+        reader.read_object()
+        reader.read_int()
         
-        reader.read_object() # allow comments
+        allow_comments = reader.read_object() # allow comments
         
         # More stuff we don't care about
-        reader.read_object() # date 1
+        reader.read_object()
+        comment_due = reader.read_string()
         reader.read_string()
-        reader.read_object() # date 2
+        reader.read_int()
         reader.read_string()
-        docket_number = reader.read_string() # docket_number
-        reader.read_string() # document_title
+        reader.read_string()
+        docket_number = reader.read_string()
+        rule_title = reader.read_string()
+        reader.read_object()
         
         document_id = reader.read_string()
         
         # Some stuff we don't care about after the document id
         reader.read_object()
-        reader.read_object()
+        reader.read_object() # maybe related to type?
         formats = reader.read_object() # formats
         reader.read_object() # boolean
+        reader.read_object()
+        reader.read_object()
+        reader.read_object()
         object_id = reader.read_string() # old_internal_id
         reader.read_string()
         reader.read_object() # date 3
-        reader.read_string()
+        date_posted = reader.read_string()
+        reader.read_int()
         reader.read_string() # context
         reader.read_string()
-        reader.read_int() # seems to always be 0
-        reader.read_int() # seems to always be 1
-        reader.read_object()
+        title = reader.read_string()
+        reader.read_string()
+        reader.read_object() # sort info
         
         return cls(document_id, object_id, formats, agency, docket_number)

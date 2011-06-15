@@ -3,6 +3,9 @@ from pygwt.types import *
 class Client(object):
     procedures = []
     class_map =[]
+    domain = None
+    js_url = None
+    gwt_permutation = None
     
     def __init__(self):
         self.class_map = {

@@ -5,6 +5,7 @@ import re
 class Reader(object):
     def __init__(self, client, json_body):
         self.client = client
+
 #        parsed = cjson.decode(json_body)
         parsed = json.loads(json_body)
         

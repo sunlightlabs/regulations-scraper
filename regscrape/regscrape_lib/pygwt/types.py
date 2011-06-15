@@ -18,7 +18,6 @@ from datetime import datetime
 class GwtDate(datetime):
     @classmethod
     def gwt_deserialize(cls, reader):
-        reader.read_int() # don't know what this is
         return reader.read_int() # this looks like a timestamp in milliseconds
 
 class GwtInt(int):
@@ -29,9 +28,8 @@ class GwtInt(int):
 class GwtFloat(float):
     @classmethod
     def gwt_deserialize(cls, reader):
-        ret = cls(reader.read_int())
-        reader.read_int() # Ruby version ignores this?
-        return ret
+#        return cls(reader.read_int())
+        return reader.read_int()
 
 class GwtDict(dict):
     @classmethod
