@@ -57,16 +57,6 @@ class DocketType(object):
         return reader.read_int()
 
 class DocumentSummary(object):
-    def __init__(self, document_id, object_id, formats, agency, docket_number):
-        self.document_id = document_id
-        self.object_id = object_id
-        self.formats = formats
-        self.agency = agency
-        self.docket_number = docket_number
-    
-    def __str__(self):
-        return '%s %s %s %s %s' % (self.document_id, self.object_id, self.formats, self.agency, self.docket_number)
-    
     @classmethod
     def gwt_deserialize(cls, reader):
         # Some stuff we don't care about
@@ -89,7 +79,7 @@ class DocumentSummary(object):
         reader.read_string()
         reader.read_string()
         
-        docket_number = reader.read_string()
+        docket_id = reader.read_string()
         rule_title = reader.read_string()
         
         reader.read_object()
@@ -123,7 +113,7 @@ class DocumentSummary(object):
         reader.read_string()
         reader.read_object() # sort info
         
-        return cls(document_id, object_id, formats, agency, docket_number)
+        return exclude(locals(), ['cls', 'reader'])
 
 class DocumentDetailPackage(object):
     @classmethod
