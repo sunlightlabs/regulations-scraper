@@ -4,3 +4,4 @@
 *.pickle
 nohup.out
 local_settings.py
+_test*
