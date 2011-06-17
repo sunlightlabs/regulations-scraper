@@ -61,7 +61,7 @@ def scrape_document(id, client):
             'downloaded': False,
             'extracted': False,
             'ocr': False
-        } for format in raw['formats']]
+        } for format in raw['formats']] if raw['formats'] else []
     }
     
     # conditional fields
@@ -82,7 +82,7 @@ def scrape_document(id, client):
                 'downloaded': False,
                 'extracted': False,
                 'ocr': False
-            } for format in attachment['formats']]
+            } for format in attachment['formats']] if attachment['formats'] else []
         } for attachment in raw['attachments']]
     
     if 'rin' in raw and raw['rin']:
