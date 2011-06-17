@@ -1,0 +1,1 @@
+This branch is the result of the first attempt at building the scraper, build on selenium.  Since, moving forward, the scraper will be rewritten solely using GWT-RPC parsing, this branch is preserved for posterity.
