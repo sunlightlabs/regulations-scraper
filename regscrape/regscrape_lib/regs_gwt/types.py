@@ -123,7 +123,7 @@ class DocumentDetailPackage(object):
 class DocumentDetail(object):
     @classmethod
     def gwt_deserialize(cls, reader):
-        reader.read_object() # seems to always be an empty array
+        attachments = reader.read_object()
         reader.read_int()
         
         comment_on = reader.read_object()
@@ -134,7 +134,7 @@ class DocumentDetail(object):
         reader.read_object()
         metadata = reader.read_object() # metadata array
         
-        content_types = reader.read_object() # content types
+        formats = reader.read_object() # content types
         
         reader.read_string() # another type?
         reader.read_int()
@@ -215,7 +215,7 @@ class Attachment(object):
         reader.read_string() # seems to always be empty
         reader.read_int()
         
-        types = reader.read_object() # types
+        formats = reader.read_object() # content types
         object_id = reader.read_string() # object ID
         
         reader.read_object() # posting restriction?

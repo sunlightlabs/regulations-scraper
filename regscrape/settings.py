@@ -11,6 +11,9 @@ MAX_WAIT = 600
 CHUNK_SIZE = 10
 FILTER = {}
 
+SCRAPER_INSTANCES = 2
+THREADS_PER_INSTANCE = 2
+
 try:
     from local_settings import *
 except:
