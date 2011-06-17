@@ -1,4 +1,3 @@
-selenium
 gevent
 pytz
 lxml
