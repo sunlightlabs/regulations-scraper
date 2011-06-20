@@ -52,7 +52,7 @@ def scrape_document(id, client):
         # details
         'details': dict(
             [(meta['short_label'], check_date(meta['value'])) for meta in raw['metadata']]
-        ),
+        ) if raw['metadata'] else {},
         
         # views
         'views': [{

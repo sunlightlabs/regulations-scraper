@@ -53,7 +53,7 @@ class GwtMultipartString(list):
             a.append(reader.read_string())
         return a
 
-class GwtString(str):
+class GwtString(unicode):
     @classmethod
     def gwt_deserialize(cls, reader):
         return cls(reader.read_string())
