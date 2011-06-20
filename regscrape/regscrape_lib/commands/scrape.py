@@ -4,6 +4,7 @@ from regscrape_lib.document import scrape_document
 import urllib2
 import sys
 import os
+import traceback
 
 def run_child():
     print 'Starting child %s...' % os.getpid()
@@ -33,14 +34,19 @@ def run_child():
             except:
                 print 'Warning: scrape failed on try %s' % i
                 error = sys.exc_info()
+                print traceback.print_tb(error[2])
         
         if error or not doc:
             doc = record
             doc['scrape_failed'] = True
             if error:
+                print 'Scrape of %s failed because of %s' % (doc['document_id'], str(error))
                 doc['failure_reason'] = str(error)
         
-        db.docs.save(doc)
+        try:
+            db.docs.save(doc, safe=True)
+        except:
+            print "Warning: database save failed on document %s (scraped based on original doc ID %s)." % (doc['document_id'], record['document_id'])
 
 def run():
     is_master = True
