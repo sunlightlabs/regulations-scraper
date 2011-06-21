@@ -109,3 +109,8 @@ class GxtSortInfo(object):
         reader.read_int()
         reader.read_int()
         return cls(None, direction)
+
+class ActionException(Exception):
+    @classmethod
+    def gwt_deserialize(cls, reader):
+        return cls(reader.read_string())

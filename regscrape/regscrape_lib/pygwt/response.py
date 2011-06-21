@@ -17,3 +17,7 @@ class Response(object):
         if data[:4] == '//OK':
             data = data[4:]
             self.reader = Reader(client, data)
+        elif data[:4] == '//EX':
+            data = data[4:]
+            self.reader = Reader(client, data)
+            raise self.reader.read_object()

@@ -1,6 +1,7 @@
 import settings
 from regscrape_lib.regs_gwt.regs_client import RegsClient
 from regscrape_lib.document import scrape_document
+from pygwt.types import ActionException
 import urllib2
 import sys
 import os
@@ -24,11 +25,23 @@ def run_child():
         
         for i in range(3):
             error = None
+            remove_document = False
             try:
                 doc = scrape_document(record['document_id'], client)
                 doc['_id'] = record['_id']
                 print '[%s] Scraped doc %s...' % (os.getpid(), doc['document_id'])
                 break
+            except ActionException:
+                error = sys.exc_info()
+                if 'failed to load document data' in str(error[1]):
+                    # this document got deleted
+                    print "Document %s appears to have been deleted; removing from database." % record['_id']
+                    remove_document = True
+                    break
+                else:
+                    # treat like any other error
+                    print 'Warning: scrape failed on try %s with server exception: %s' % (i, error[1])
+                    print traceback.print_tb(error[2])
             except KeyboardInterrupt:
                 raise
             except:
@@ -37,15 +50,18 @@ def run_child():
                 print traceback.print_tb(error[2])
         
         # catch renames of documents
-        if doc and (not error) and doc['document_id'] != record['document_id']:
+        if doc and (not error) and (not remove_document) and doc['document_id'] != record['document_id']:
             renamed_to = doc['document_id']
             doc = record
             doc['views'] = []
             doc['scraped'] = True
             doc['renamed_to'] = renamed_to
         
-        # catch errors
-        if error or not doc:
+        # catch errors and removes
+        if remove_document:
+            db.docs.remove({'_id': record['_id']}, safe=True)
+            continue
+        elif error or not doc:
             doc = record
             doc['scrape_failed'] = True
             if error:

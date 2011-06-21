@@ -20,7 +20,8 @@ class Client(object):
             "com.extjs.gxt.ui.client.data.RpcMap":  GxtDict,
             "com.extjs.gxt.ui.client.Style$SortDir":  GxtSortDir,
             "com.extjs.gxt.ui.client.data.SortInfo":  GxtSortInfo,
-            "com.extjs.gxt.ui.client.data.BasePagingLoadResult": GxtPaginatedResultset
+            "com.extjs.gxt.ui.client.data.BasePagingLoadResult": GxtPaginatedResultset,
+            "com.gwtplatform.dispatch.shared.ActionException": ActionException,
         }
     
     def python_class_to_java(self, py_class):
