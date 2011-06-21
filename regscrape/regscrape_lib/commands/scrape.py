@@ -36,6 +36,15 @@ def run_child():
                 error = sys.exc_info()
                 print traceback.print_tb(error[2])
         
+        # catch renames of documents
+        if doc and (not error) and doc['document_id'] != record['document_id']:
+            renamed_to = doc['document_id']
+            doc = record
+            doc['views'] = []
+            doc['scraped'] = True
+            doc['renamed_to'] = renamed_to
+        
+        # catch errors
         if error or not doc:
             doc = record
             doc['scrape_failed'] = True
