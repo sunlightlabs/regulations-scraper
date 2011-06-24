@@ -8,21 +8,38 @@ from duplicates.db import get_comment
 
 F = namedtuple('F', ['csv_column', 'transform'])
 
-QUERY = {}
+def deep_get(key, dict, default=None):
+    if '.' in key:
+        first, rest = key.split('.', 1)
+        return deep_get(rest, dict.get(first, {}), default)
+    else:
+        return dict.get(key, default)
 
-FIELDS = [
-    # (mongo field, CSV field, tranform)
-    F('document_id', lambda d: d.get('document_id', '')),
-    F('docket_id', lambda d: d.get('docket_id', '')),
-    F('agency', lambda d: d.get('agency', '')),
-    F('date', lambda d: d['details'].get('date_posted', None) if 'details' in d else None),
+def getter(key, default=''):
+    return lambda d: deep_get(key, d, default)
+
+
+DOCS_QUERY = {}
+
+DOCS_FIELDS = [
+    F('document_id', getter('document_id')),
+    F('docket_id', getter('docket_id')),
+    F('agency', getter('agency')),
+    F('date_posted', getter('details.date_posted', None)),
+    F('date_due', getter('details.comments_due', None)),
+    F('title', getter('details.title')),
+    F('type', getter('details.document_type')),
+    F('org_name', getter('details.organization_name')),
+    F('on_type', getter('comment_on.type')),
+    F('on_id', getter('comment_on.id')),
+    F('on_title', getter('comment_on.title')),
     F('text', get_comment)
 ]
 
 
 def filter_for_postgres(v):
     if v is None:
-        return 'None'
+        return '\N'
     
     if isinstance(v, datetime):
         return str(v)
@@ -36,16 +53,19 @@ def dump_cursor(c, fields, outfile):
     
     for doc in c:
         row = [filter_for_postgres(f.transform(doc)) for f in fields]
-        if len(row[4]) > 130000:
+        if len(row[-1]) > 130000:
             print("Skipping long row.")
         else:
             writer.writerow(row)
-
+    
 
 if __name__ == '__main__':
-    dbname = sys.argv[1]
-    outfile = open(sys.argv[2], 'w')
+    host = sys.argv[1]
+    dbname = sys.argv[2]
+    outfile = open(sys.argv[3], 'w')
     
-    cursor = Connection()[dbname].docs.find(QUERY)
+    cursor = Connection(host=host)[dbname].docs.find(DOCS_QUERY)
+    dump_cursor(cursor, DOCS_FIELDS, outfile)
+
     
-    dump_cursor(cursor, FIELDS, outfile)
+    
