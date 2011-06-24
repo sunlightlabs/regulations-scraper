@@ -7,6 +7,7 @@ class RegsClient(Client):
         
         self.domain = 'www.regulations.gov'
         self.js_url = 'http://www.regulations.gov/Regs/'
+        self.gwt_permutation = '96ED140EA002EA7F0224967DBF229721'
         
         self.class_map.update({
             'gov.egov.erule.regs.shared.action.LoadSearchResultsResult': SearchResultPackage,
@@ -16,5 +17,20 @@ class RegsClient(Client):
             'gov.egov.erule.regs.shared.models.CommentPeriod': CommentPeriod,
             'gov.egov.erule.regs.shared.models.DocumentSummaryModel': DocumentSummary,
             'gov.egov.erule.regs.shared.resources.SharedConstants$DOCUMENT_STATUS': DocumentStatus,
-            'gov.egov.erule.regs.shared.models.DocumentType': DocumentType
+            'gov.egov.erule.regs.shared.models.DocumentType': DocumentType,
+            'gov.egov.erule.regs.shared.models.DocketType': DocketType,
+            'gov.egov.erule.regs.shared.action.LoadDocumentDetailResult': DocumentDetailPackage,
+            'gov.egov.erule.regs.shared.models.DocumentDetailModel': DocumentDetail,
+            'gov.egov.erule.regs.shared.models.MetadataValueModel': MetadataValue,
+            'gov.egov.erule.regs.shared.models.MetadataModel': Metadata,
+            'gov.egov.erule.regs.shared.models.MetadataModel$UiControlType': MetadataUIControlType,
+            'gov.egov.erule.regs.shared.models.DocumentBase': DocumentBase,
+            'gov.egov.erule.regs.shared.models.AttachmentModel': Attachment,
+            'gov.egov.erule.regs.shared.resources.SharedConstants$POSTING_RESTRICTION': PostingRestriction,
         })
+        
+        self.headers = {
+            'Content-Type': "text/x-gwt-rpc; charset=utf-8",
+            'X-GWT-Module-Base': self.js_url,
+            'X-GWT-Permutation': self.gwt_permutation,
+        }

@@ -2,15 +2,18 @@
 
 import sys
 
-def run_command():
-    from gevent.monkey import patch_all
-    patch_all()
-    
+NO_GEVENT = ['scrape']
+
+def run_command():    
     if len(sys.argv) < 2:
         print 'Usage: ./run.py <command>'
         sys.exit()
     command = sys.argv[1]
-
+    
+    if command not in NO_GEVENT:
+        from gevent.monkey import patch_all
+        patch_all()
+    
     try:
         parent_mod = __import__('regscrape_lib.commands', fromlist=[command])
         mod = getattr(parent_mod, command)

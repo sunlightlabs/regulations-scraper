@@ -7,7 +7,7 @@ import pymongo
 import sys
 
 def parse(file, client):
-    data = open(os.path.join(settings.DUMP_DIR, file))
+    data = open(file)
     
     response = Response(client, data)
     return response.reader.read_object()
@@ -31,12 +31,12 @@ def run():
     
         written = 0
         for doc in docs:
-            db_doc = {'document_id': doc.document_id, 'views': [], 'docket_id': doc.docket_number, 'agency': doc.agency, 'scraped': False}
-            if doc.formats:
-                for format in doc.formats:
+            db_doc = {'document_id': doc['document_id'], 'views': [], 'docket_id': doc['docket_id'], 'agency': doc['agency'], 'scraped': False}
+            if doc['formats']:
+                for format in doc['formats']:
                     db_doc['views'].append({
                         'type': format,
-                        'url': 'http://www.regulations.gov/contentStreamer?objectId=%s&disposition=inline&contentType=%s' % (doc.object_id, format),
+                        'url': 'http://www.regulations.gov/contentStreamer?objectId=%s&disposition=inline&contentType=%s' % (doc['object_id'], format),
                         'downloaded': False
                     })
             

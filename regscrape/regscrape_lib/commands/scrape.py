@@ -1,40 +1,89 @@
-#!/usr/bin/env python
-
-from optparse import OptionParser
-from regscrape_lib.util import get_db
+import settings
+from regscrape_lib.regs_gwt.regs_client import RegsClient
+from regscrape_lib.document import scrape_document
+from pygwt.types import ActionException
+import urllib2
 import sys
+import os
+import traceback
 
-# arguments
-arg_parser = OptionParser()
-arg_parser.add_option('-r', '--restart', action="store_true", dest="restart_scrape", default=False)
-arg_parser.add_option("-c", "--continue", action="store_true", dest="continue_scrape", default=False)
-arg_parser.add_option("-C", "--check", action="store_true", dest="check", default=False)
-
-def run(options, args):
-    from regscrape_lib.actors import MasterActor
-    import time
+def run_child():
+    print 'Starting child %s...' % os.getpid()
+    from pymongo import Connection
     
-    import settings
+    client = RegsClient()
+    db = Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
+    print 'Child %s has a connection...' % os.getpid()
     
-    db = get_db()
-    if settings.MODE == 'search' and (not options.continue_scrape) and (not options.restart_scrape) and len(db.collection_names()) > 0:
-        print 'This database already contains data; please run with either --restart or --continue to specify what you want to do with it.'
-        sys.exit()
-        
-    
-    if settings.BROWSER['driver'] == 'Chrome':
-        from regscrape_lib.monkey import patch_selenium_chrome
-        patch_selenium_chrome()
-    
-    if settings.MODE == 'search':
-        settings.CLEAR_FIRST = not options.continue_scrape
-    else:
-        settings.CLEAR_FIRST = False
-    
-    settings.CHECK_BEFORE_SCRAPE = options.check
-    
-    master = MasterActor.start(settings.INSTANCES)
-    master.send_one_way({'command': 'scrape', 'max': settings.MAX_RECORDS})
     while True:
-        time.sleep(60)
-        master.send_one_way({'command': 'tick'})
+        record = db.docs.find_and_modify({'scraped': False, '_scraping':{'$exists': False}, 'scrape_failed': {'$exists': False}}, {'$set': {'_scraping': True}})
+        
+        if record is None:
+            return
+        
+        doc = None
+        
+        for i in range(3):
+            error = None
+            remove_document = False
+            try:
+                doc = scrape_document(record['document_id'], client)
+                doc['_id'] = record['_id']
+                print '[%s] Scraped doc %s...' % (os.getpid(), doc['document_id'])
+                break
+            except ActionException:
+                error = sys.exc_info()
+                if 'failed to load document data' in str(error[1]):
+                    # this document got deleted
+                    print "Document %s appears to have been deleted; removing from database." % record['_id']
+                    remove_document = True
+                    break
+                else:
+                    # treat like any other error
+                    print 'Warning: scrape failed on try %s with server exception: %s' % (i, error[1])
+                    print traceback.print_tb(error[2])
+            except KeyboardInterrupt:
+                raise
+            except:
+                print 'Warning: scrape failed on try %s' % i
+                error = sys.exc_info()
+                print traceback.print_tb(error[2])
+        
+        # catch renames of documents
+        if doc and (not error) and (not remove_document) and doc['document_id'] != record['document_id']:
+            renamed_to = doc['document_id']
+            doc = record
+            doc['views'] = []
+            doc['scraped'] = True
+            doc['renamed_to'] = renamed_to
+        
+        # catch errors and removes
+        if remove_document:
+            db.docs.remove({'_id': record['_id']}, safe=True)
+            continue
+        elif error or not doc:
+            doc = record
+            doc['scrape_failed'] = True
+            if error:
+                print 'Scrape of %s failed because of %s' % (doc['document_id'], str(error))
+                doc['failure_reason'] = str(error)
+        
+        try:
+            db.docs.save(doc, safe=True)
+        except:
+            print "Warning: database save failed on document %s (scraped based on original doc ID %s)." % (doc['document_id'], record['document_id'])
+
+def run():
+    is_master = True
+    for i in range(settings.INSTANCES):
+        if is_master:
+            pid = os.fork()
+            if pid == 0:
+                is_master = False
+                break
+    
+    if is_master:
+        os.waitpid(-1, 0)
+    
+    else:
+        run_child()
