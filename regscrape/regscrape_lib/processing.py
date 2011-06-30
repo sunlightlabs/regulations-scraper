@@ -12,6 +12,7 @@ import time
 import itertools
 import sys
 import regscrape_lib
+import operator
 
 def find_views(**params):
     db = get_db()
@@ -19,7 +20,7 @@ def find_views(**params):
     # allow for using a pre-filter to speed up execution
     kwargs = {}
     query = {}
-    if 'query' in params and params['query']:
+    if 'query' in params:
         query = params['query']
         del params['query']
     
@@ -36,8 +37,36 @@ def find_views(**params):
     
     return results
 
-def update_view(id, view):
-    oid = ObjectId(id)
+def find_attachment_views(**params):
+    db = get_db()
+
+    # allow for using a pre-filter to speed up execution
+    kwargs = {}
+    query = {}
+    if 'query' in params:
+        query = params['query']
+        del params['query']
+
+    # create the actual map function
+    conditions = dict([('attachments.views.%s' % item[0], item[1]) for item in params.items()])
+    conditions.update(query)
+
+    results = itertools.chain.from_iterable(
+        itertools.imap(
+            lambda doc: reduce(operator.add, [
+                [
+                    {'view': view, 'doc': doc['_id'], 'attachment': attachment['object_id']}
+                    for view in attachment['views'] if all(view[item[0]] == item[1] for item in params.items())
+                ] for attachment in doc['attachments']
+            ] if 'attachments' in doc else [], []),
+            db.docs.find(conditions)
+        )
+    )
+
+    return results
+
+def update_view(doc, view):
+    oid = ObjectId(doc)
     
     # use db object from thread pool
     db = get_db()
@@ -57,6 +86,29 @@ def update_view(id, view):
     }, safe=True)
     
     # return it to the pool
+    del db
+
+def update_attachment_view(doc, attachment, view):
+    oid = ObjectId(doc)
+    
+    db = get_db()
+    
+    # two-stage push/pull as above
+    db.docs.update({
+        '_id': oid,
+        'attachments.object_id': attachment
+    },
+    {
+        '$pull': {'attachments.$.views': {'url': view['url']}}
+    }, safe=True)
+    db.docs.update({
+        '_id': oid,
+        'attachments.object_id': attachment
+    },
+    {
+        '$push': {'attachments.$.views': view}
+    }, safe=True)
+    
     del db
 
 # the following is from http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
