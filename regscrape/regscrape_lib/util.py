@@ -17,16 +17,19 @@ def bootstrap_settings():
         settings.DUMP_DIR = os.path.join(settings.DATA_DIR, 'dumps')
 
 def pump(input, output, chunk_size):
+    size = 0
     while True:
         chunk = input.read(chunk_size)
         if not chunk: break
         output.write(chunk)
+        size += len(chunk)
+    return size
 
 def download(url, output_file, post_data=None, headers=None):
     transfer = urllib2.urlopen(urllib2.Request(url, post_data, headers))
     
     out = open(output_file, 'wb')
-    
-    pump(transfer, out, 16 * 1024)
-    
+    size = pump(transfer, out, 16 * 1024)
     out.close()
+    
+    return size
