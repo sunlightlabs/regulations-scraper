@@ -30,7 +30,7 @@ def get_downloader(result):
         except:
             pass
         
-        if download_succeded and size >= MIN_SIZE:
+        if download_succeeded and size >= MIN_SIZE:
             # update database record to point to file
             result['view']['downloaded'] = True
             result['view']['file'] = newfullpath
@@ -52,7 +52,7 @@ def run_for_view_type(view_label, find_func, update_func):
         except StopIteration:
             break
         
-        workers.spawn(get_downloader(result, options))
+        workers.spawn(get_downloader(result))
         workers.wait_available()
     
     workers.join()
