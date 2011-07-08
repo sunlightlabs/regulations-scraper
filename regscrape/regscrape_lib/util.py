@@ -3,6 +3,7 @@ import settings
 from pymongo import Connection
 import os
 from gevent_mongo import Mongo
+import urllib2
 
 def get_db():
     db_settings = getattr(settings, 'DB_SETTINGS', {})
@@ -14,3 +15,18 @@ def bootstrap_settings():
     
     if not getattr(settings, 'DUMP_DIR', False):
         settings.DUMP_DIR = os.path.join(settings.DATA_DIR, 'dumps')
+
+def pump(input, output, chunk_size):
+    while True:
+        chunk = input.read(chunk_size)
+        if not chunk: break
+        output.write(chunk)
+
+def download(url, output_file, post_data=None, headers=None):
+    transfer = urllib2.urlopen(urllib2.Request(url, post_data, headers))
+    
+    out = open(output_file, 'wb')
+    
+    pump(transfer, out, 16 * 1024)
+    
+    out.close()
