@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 from regscrape_lib.processing import *
-import os
+from regscrape_lib.util import download
 import settings
-import subprocess, os, urlparse
+import subprocess, os, urlparse, sys, traceback, datetime
 from gevent.pool import Pool
 
 MIN_SIZE = getattr(settings, 'MIN_DOWNLOAD_SIZE', 1024)
@@ -12,7 +12,7 @@ def run():
     run_for_view_type('document views', find_views, update_view)
     run_for_view_type('attachment views', find_attachment_views, update_attachment_view)
 
-def get_downloader(result):
+def get_downloader(result, update_func):
     def download_view():
         print 'Downloading %s...' % result['view']['url']
         filename = result['view']['url'].split('/')[-1]
@@ -25,12 +25,19 @@ def get_downloader(result):
         download_succeeded = False
         size = 0
         try:
+            start = datetime.datetime.now()
             size = download(result['view']['url'], newfullpath)
             download_succeeded = True
+            elapsed = datetime.datetime.now() - start
         except:
-            pass
+            exc = sys.exc_info()
+            print traceback.print_tb(exc[2])
         
         if download_succeeded and size >= MIN_SIZE:
+            # print status
+            ksize = int(round(size/1024.0))
+            print 'Downloaded %s: %sk in %s seconds (%sk/sec)' % (result['view']['url'], ksize, elapsed.seconds, round(float(ksize)/elapsed.seconds * 10)/10)
+            
             # update database record to point to file
             result['view']['downloaded'] = True
             result['view']['file'] = newfullpath
@@ -52,7 +59,7 @@ def run_for_view_type(view_label, find_func, update_func):
         except StopIteration:
             break
         
-        workers.spawn(get_downloader(result))
+        workers.spawn(get_downloader(result, update_func))
         workers.wait_available()
     
     workers.join()

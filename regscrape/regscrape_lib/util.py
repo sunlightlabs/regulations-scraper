@@ -26,7 +26,7 @@ def pump(input, output, chunk_size):
     return size
 
 def download(url, output_file, post_data=None, headers=None):
-    transfer = urllib2.urlopen(urllib2.Request(url, post_data, headers))
+    transfer = urllib2.urlopen(urllib2.Request(url, post_data, headers if headers else {}))
     
     out = open(output_file, 'wb')
     size = pump(transfer, out, 16 * 1024)
