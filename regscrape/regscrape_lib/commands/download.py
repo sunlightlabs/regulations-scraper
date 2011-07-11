@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from regscrape_lib.processing import *
-from regscrape_lib.util import download
+from regscrape_lib.util import download, download_wget
 import settings
 import subprocess, os, urlparse, sys, traceback, datetime
 from gevent.pool import Pool
@@ -26,7 +26,7 @@ def get_downloader(result, update_func):
         size = 0
         try:
             start = datetime.datetime.now()
-            size = download(result['view']['url'], newfullpath)
+            size = download_wget(result['view']['url'], newfullpath)
             download_succeeded = True
             elapsed = datetime.datetime.now() - start
         except:
@@ -36,7 +36,7 @@ def get_downloader(result, update_func):
         if download_succeeded and size >= MIN_SIZE:
             # print status
             ksize = int(round(size/1024.0))
-            print 'Downloaded %s: %sk in %s seconds (%sk/sec)' % (result['view']['url'], ksize, elapsed.seconds, round(float(ksize)/elapsed.seconds * 10)/10)
+            print 'Downloaded %s: %sk in %s seconds (%sk/sec)' % (result['view']['url'], ksize, elapsed.seconds, round(float(ksize)/elapsed.seconds * 10)/10 if elapsed.seconds > 0 else '--')
             
             # update database record to point to file
             result['view']['downloaded'] = True
@@ -50,7 +50,7 @@ def run_for_view_type(view_label, find_func, update_func):
     print 'Preparing download of %s.' % view_label
     
     views = find_func(downloaded=False, query=settings.FILTER)
-    workers = Pool(getattr(settings, 'DOWNLOADERS', 20))
+    workers = Pool(getattr(settings, 'DOWNLOADERS', 5))
     
     # keep the decoders busy with tasks as long as there are more results
     while True:
@@ -60,7 +60,6 @@ def run_for_view_type(view_label, find_func, update_func):
             break
         
         workers.spawn(get_downloader(result, update_func))
-        workers.wait_available()
     
     workers.join()
     print 'Done with %s.' % view_label
