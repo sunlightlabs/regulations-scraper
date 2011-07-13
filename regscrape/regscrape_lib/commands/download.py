@@ -6,6 +6,7 @@ import settings
 import subprocess, os, urlparse, sys, traceback, datetime
 from gevent.pool import Pool
 import urllib2
+import pymongo
 
 MIN_SIZE = getattr(settings, 'MIN_DOWNLOAD_SIZE', 1024)
 
