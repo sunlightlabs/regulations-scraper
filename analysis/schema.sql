@@ -9,16 +9,17 @@ CREATE TABLE regulations_comments (
 
 DROP TABLE IF EXISTS regulations_comments_full;
 CREATE TABLE regulations_comments_full (
-    document_id varchar(32) PRIMARY KEY NOT NULL,
-    docket_id varchar(32) NOT NULL,
+    document_id varchar(64) PRIMARY KEY NOT NULL,
+    docket_id varchar(64) NOT NULL,
     agency varchar(8) NOT NULL,
     date_posted date,
     date_due date,
     title varchar(512) NOT NULL,
-    type varchar(32) NOT NULL,
+    type varchar(32),
     org_name varchar(255) NOT NULL,
-    on_type varchar(32) NOT NULL,
-    on_id varchar(32) NOT NULL,
+    submitter_name varchar(255) NOT NULL,
+    on_type varchar(32),
+    on_id varchar(64) NOT NULL,
     on_title varchar(512) NOT NULL,
     text text NOT NULL
 );
