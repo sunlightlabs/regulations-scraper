@@ -5,6 +5,8 @@ from regscrape_lib.util import download, download_wget
 import settings
 import subprocess, os, urlparse, sys, traceback, datetime
 from gevent.pool import Pool
+import urllib2
+import pymongo
 
 MIN_SIZE = getattr(settings, 'MIN_DOWNLOAD_SIZE', 1024)
 
@@ -29,6 +31,11 @@ def get_downloader(result, update_func):
             size = download_wget(result['view']['url'], newfullpath)
             download_succeeded = True
             elapsed = datetime.datetime.now() - start
+        except urllib2.HTTPError as e:
+            print 'Download of %s failed due to error %s.' % (result['view']['url'], e.code)
+            result['view']['downloaded'] = "failed"
+            result['view']['failure_reason'] = e.code
+            update_func(**result)
         except:
             exc = sys.exc_info()
             print traceback.print_tb(exc[2])
@@ -56,6 +63,10 @@ def run_for_view_type(view_label, find_func, update_func):
     while True:
         try:
             result = views.next()
+        except pymongo.errors.OperationFailure:
+            # occasionally pymongo seems to lose track of the cursor for some reason, so reset the query
+            views = find_func(downloaded=False, query=settings.FILTER)
+            continue
         except StopIteration:
             break
         
