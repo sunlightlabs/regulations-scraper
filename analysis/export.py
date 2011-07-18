@@ -4,7 +4,7 @@ from datetime import datetime
 from collections import namedtuple
 from pymongo import Connection
 
-from duplicates.db import get_comment
+#from duplicates.db import get_comment
 
 F = namedtuple('F', ['csv_column', 'transform'])
 
@@ -13,7 +13,8 @@ def deep_get(key, dict, default=None):
         first, rest = key.split('.', 1)
         return deep_get(rest, dict.get(first, {}), default)
     else:
-        return dict.get(key, default)
+        out = dict.get(key, default)
+        return out if out else default
 
 def getter(key, default=''):
     return lambda d: deep_get(key, d, default)
@@ -25,15 +26,16 @@ DOCS_FIELDS = [
     F('document_id', getter('document_id')),
     F('docket_id', getter('docket_id')),
     F('agency', getter('agency')),
-    F('date_posted', getter('details.date_posted', None)),
-    F('date_due', getter('details.comments_due', None)),
-    F('title', getter('details.title')),
-    F('type', getter('details.document_type')),
-    F('org_name', getter('details.organization_name')),
+    F('date_posted', getter('details.receive_date', None)),
+    F('date_due', getter('details.comment_end_date', None)),
+    F('title', getter('title')),
+    F('type', getter('type')),
+    F('org_name', getter('details.organization')),
+    F('submitter_name', lambda d: ' '.join(filter(bool, [deep_get('details.first_name', d, None), deep_get('details.mid_initial', d, None), deep_get('details.last_name', d, None)]))),
     F('on_type', getter('comment_on.type')),
     F('on_id', getter('comment_on.id')),
     F('on_title', getter('comment_on.title')),
-    F('text', get_comment)
+    F('text', lambda d: '')
 ]
 
 
