@@ -40,15 +40,20 @@ def get_downloader(result, update_func):
             exc = sys.exc_info()
             print traceback.print_tb(exc[2])
         
-        if download_succeeded and size >= MIN_SIZE:
-            # print status
-            ksize = int(round(size/1024.0))
-            print 'Downloaded %s: %sk in %s seconds (%sk/sec)' % (result['view']['url'], ksize, elapsed.seconds, round(float(ksize)/elapsed.seconds * 10)/10 if elapsed.seconds > 0 else '--')
-            
-            # update database record to point to file
-            result['view']['downloaded'] = True
-            result['view']['file'] = newfullpath
-            result['view']['decoded'] = False
+        if download_succeeded:
+            if size >= MIN_SIZE:
+                # print status
+                ksize = int(round(size/1024.0))
+                print 'Downloaded %s: %sk in %s seconds (%sk/sec)' % (result['view']['url'], ksize, elapsed.seconds, round(float(ksize)/elapsed.seconds * 10)/10 if elapsed.seconds > 0 else '--')
+                
+                # update database record to point to file
+                result['view']['downloaded'] = True
+                result['view']['file'] = newfullpath
+                result['view']['decoded'] = False
+            else:
+                print 'Download of %s failed because the resulting file was too small.' % result['view']['url']
+                result['view']['file'] = newfullpath
+                result['view']['downloaded'] = "too_small"
             update_func(**result)
     
     return download_view
