@@ -1,15 +1,11 @@
 #!/bin/bash
 apt-get update
-apt-get install -y xvfb libgtk2.0-0 libasound2 build-essential python-dev libevent-dev mongodb git python-pip python-virtualenv virtualenvwrapper puf openbox libxslt1-dev libxml2-dev html2text poppler-utils ghostscript antiword catdoc libjpeg8-dev libwpd-tools
-
-cd /opt
-wget http://releases.mozilla.org/pub/mozilla.org/firefox/releases/4.0/linux-x86_64/en-US/firefox-4.0.tar.bz2 -O - | tar xvfj -
-ln -s /opt/firefox/firefox /usr/bin/firefox
+apt-get install -y build-essential python2.7-dev libevent-dev git python-pip python-virtualenv virtualenvwrapper puf openbox libxslt1-dev libxml2-dev html2text poppler-utils ghostscript antiword catdoc libjpeg8-dev libwpd-tools
 
 mkdir /tmp/tesseract
 cd /tmp/tesseract
-wget http://ppa.launchpad.net/alex-p/notesalexp/ubuntu/pool/main/t/tesseract/tesseract-ocr_3.0.0+svn581-1ppa1~maverick1_i386.deb
-wget http://ppa.launchpad.net/alex-p/notesalexp/ubuntu/pool/main/t/tesseract/tesseract-ocr-eng_3.0.0+svn581-1ppa1~maverick1_all.deb
+wget http://ppa.launchpad.net/alex-p/notesalexp/ubuntu/pool/main/t/tesseract/tesseract-ocr_3.0.0+svn590-2ppa1~maverick1_amd64.deb
+wget http://ppa.launchpad.net/alex-p/notesalexp/ubuntu/pool/main/t/tesseract/tesseract-ocr-eng_3.0.0+svn590-2ppa1~maverick1_all.deb
 dpkg -i *.deb
 cd
 rm -rf /tmp/tesseract
