@@ -53,7 +53,7 @@ arg_parser.add_option("-p", "--pretend", action="store_true", dest="pretend", de
 arg_parser.add_option("-t", "--type", action="store", dest="type", default=None)
 
 # decoder factory
-def get_decoder(result, options):
+def get_decoder(result, options, update_func):
     def decode():
         ext = result['view']['file'].split('.')[-1]
         if ext in DECODERS:
@@ -68,39 +68,60 @@ def get_decoder(result, options):
                         ' %s' % reason if reason else ''
                     )
                     continue
-
-                view = result['view'].copy()
-                view['decoded'] = True
-                view['text'] = unicode(remove_control_chars(output), 'utf-8', 'ignore')
-                view['ocr'] = getattr(decoder, 'ocr', False)
+                
+                result['view']['decoded'] = True
+                result['view']['text'] = unicode(remove_control_chars(output), 'utf-8', 'ignore')
+                result['view']['ocr'] = getattr(decoder, 'ocr', False)
                 if options.pretend:
-                    print 'Decoded %s using %s' % (view['url'], decoder.__str__())
-                    #print view['text']
+                    print 'Decoded %s using %s' % (result['view']['file'], decoder.__str__())
                 else:
-                    update_view(result['doc'], view)
-                    print 'Decoded and saved %s using %s' % (view['url'], decoder.__str__())
+                    update_func(**result)
+                    print 'Decoded and saved %s using %s' % (result['view']['file'], decoder.__str__())
                 break
+        if not result['view'].get('decoded', False):
+            result['view']['decoded'] = 'failed'
+            if not options.pretend:
+                update_func(**result)
+                print 'Saved failure to decode %s' % result['view']['file']
     return decode
 
 # runner
 def run(options, args):
+    run_for_view_type('document views', find_views, update_view, options)
+    run_for_view_type('attachment views', find_attachment_views, update_attachment_view, options)
+
+def run_for_view_type(view_label, find_func, update_func, options):
     if options.pretend:
         print 'Warning: no records will be saved to the database during this run.'
     
-    views = find_views(downloaded=True, decoded=False, type=options.type, query=settings.FILTER) if options.type else find_views(downloaded=True, decoded=False, query=settings.FILTER)
+    print 'Preparing text extraction of %s.' % view_label
+    
+    find_conditions = {
+        'downloaded': True,
+        'decoded': False,
+        'query': settings.FILTER
+    }
+    if options.type:
+        find_conditions['type'] = options.type
+    
+    views = find_func(**find_conditions)
     workers = Pool(settings.DECODERS)
     
     # keep the decoders busy with tasks as long as there are more results
     while True:
         try:
             result = views.next()
+        except pymongo.errors.OperationFailure:
+            # occasionally pymongo seems to lose track of the cursor for some reason, so reset the query
+            views = find_func(**find_conditions)
+            continue
         except StopIteration:
             break
         
-        workers.spawn(get_decoder(result, options))
-        workers.wait_available()
+        workers.spawn(get_decoder(result, options, update_func))
     workers.join()
-    print 'Done.'
+    
+    print 'Done with %s.' % view_label
 
 if __name__ == "__main__":
     run()
