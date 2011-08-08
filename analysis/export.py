@@ -149,8 +149,8 @@ def process_worker(todo_queue, done_queue):
         todo_queue.task_done()
     
 def dump_cursor_multi(c, fields, filename, num_workers):
-    todo_queue = multiprocessing.JoinableQueue(num_workers * 2)
-    done_queue = multiprocessing.JoinableQueue(num_workers * 2)
+    todo_queue = multiprocessing.JoinableQueue(num_workers * 3)
+    done_queue = multiprocessing.JoinableQueue(num_workers * 3)
     
     for i in range(num_workers):
         proc = multiprocessing.Process(target=process_worker, args=(todo_queue, done_queue))
@@ -179,7 +179,10 @@ if __name__ == '__main__':
     prefix = args[2]
     
     # do request and analysis
-    cursor = Connection(host=host)[dbname].docs.find(DOCS_QUERY, limit=options.limit)
+    if options.limit:
+        cursor = Connection(host=host)[dbname].docs.find(DOCS_QUERY, limit=options.limit)
+    else:
+        cursor = Connection(host=host)[dbname].docs.find(DOCS_QUERY)
     
     run_start = time.time()
     print '[%s] Starting analysis...' % pid
