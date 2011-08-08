@@ -8,6 +8,7 @@ import sys
 import settings
 import subprocess, os, urlparse, json
 import regscrape_lib
+import pymongo
 
 DECODERS = {
     'xml': [
