@@ -20,8 +20,7 @@ CREATE TABLE regulations_comments_full (
     submitter_name varchar(255) NOT NULL,
     on_type varchar(32),
     on_id varchar(64) NOT NULL,
-    on_title varchar(512) NOT NULL,
-    text text NOT NULL
+    on_title varchar(512) NOT NULL
 );
 
 
@@ -33,11 +32,14 @@ CREATE TABLE regulations_dockets (
     date date
 );
 
-CREATE TABLE regulations_matches (
-    document_id varchar(32),
+CREATE TABLE regulations_text_matches (
+    document_id varchar(64),
     entity_id uuid
 );
 
-
+CREATE TABLE regulations_submitter_matches (
+    document_id varchar(64),
+    entity_id uuid
+);
 
 
