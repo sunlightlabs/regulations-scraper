@@ -1,10 +1,22 @@
+#!/usr/bin/env python
+
 import sys
+import os
 import csv
+import time
+import multiprocessing
+from Queue import Empty
 from datetime import datetime
 from collections import namedtuple
 from pymongo import Connection
+import StringIO
 
-#from duplicates.db import get_comment
+pid = os.getpid()
+
+import_start = time.time()
+print '[%s] Loading trie...' % pid
+from oxtail.matching import match
+print '[%s] Loaded trie in %s seconds.' % (pid, time.time() - import_start)
 
 F = namedtuple('F', ['csv_column', 'transform'])
 
@@ -35,7 +47,6 @@ DOCS_FIELDS = [
     F('on_type', getter('comment_on.type')),
     F('on_id', getter('comment_on.id')),
     F('on_title', getter('comment_on.title')),
-    F('text', lambda d: '')
 ]
 
 
@@ -48,26 +59,134 @@ def filter_for_postgres(v):
 
     return v.encode('utf8').replace("\.", ".")
 
-
-def dump_cursor(c, fields, outfile):
-    writer = csv.writer(outfile)
-    writer.writerow([f.csv_column for f in fields])
+def process_doc(doc, fields=DOCS_FIELDS):
+    # field extraction
+    output = {
+        'metadata': [filter_for_postgres(f.transform(doc)) for f in fields],
+        'matches': [],
+        'submitter_matches': []
+    }
+    
+    # entity extraction
+    buffer = StringIO.StringIO()
+    buffer.write(u'')
+    if 'views' in doc and doc['views']:
+        for view in doc['views']:
+            if 'decoded' in view and view['decoded'] == True:
+                buffer.write(view['text'])
+                buffer.write('\n')
+    if 'attachments' in doc and doc['attachments']:
+        for attachment in doc['attachments']:
+            if 'views' in attachment and attachment['views']:
+                for view in attachment['views']:
+                    if 'decoded' in view and view['decoded'] == True:
+                        buffer.write(view['text'])
+                        buffer.write('\n')
+    for entity_id in match(buffer.getvalue()).keys():
+        output['matches'].append([doc['document_id'], entity_id])
+    
+    # submitter matches
+    for entity_id in match('\n'.join([output['metadata'][7], output['metadata'][8]])).keys():
+        output['submitter_matches'].append([doc['document_id'], entity_id])
+    
+    return output
+    
+# single-core version
+def dump_cursor(c, fields, filename):
+    metadata_writer = csv.writer(open(sys.argv[3] + '_meta.csv', 'w'))
+    metadata_writer.writerow([f.csv_column for f in fields])
+    
+    match_writer = csv.writer(open(sys.argv[3] + '_text_matches.csv', 'w'))
+    match_writer.writerow(['document_id', 'entity_id'])
+    
+    submitter_writer = csv.writer(open(sys.argv[3] + '_submitter_matches.csv', 'w'))
+    submitter_writer.writerow(['document_id', 'entity_id'])
     
     for doc in c:
-        row = [filter_for_postgres(f.transform(doc)) for f in fields]
-        if len(row[-1]) > 130000:
-            print("Skipping long row.")
-        else:
-            writer.writerow(row)
+        doc_data = process_doc(doc)
+        metadata_writer.writerow(doc_data['metadata'])
+        match_writer.writerows(doc_data['matches'])
+        submitter_writer.writerows(doc_data['submitter_matches'])
+
+# multi-core version and helpers
+def write_worker(done_queue, filename, fields=DOCS_FIELDS):
+    print '[%s] Writer started.' % os.getpid()
     
+    metadata_writer = csv.writer(open(sys.argv[3] + '_meta.csv', 'w'))
+    metadata_writer.writerow([f.csv_column for f in fields])
+    
+    match_writer = csv.writer(open(sys.argv[3] + '_text_matches.csv', 'w'))
+    match_writer.writerow(['document_id', 'entity_id'])
+    
+    submitter_writer = csv.writer(open(sys.argv[3] + '_submitter_matches.csv', 'w'))
+    submitter_writer.writerow(['document_id', 'entity_id'])
+    
+    while True:
+        try:
+            doc_data = done_queue.get(timeout=5)
+        except Empty:
+            print '[%s] CSV writes complete.' % os.getpid()
+            return
+        
+        metadata_writer.writerow(doc_data['metadata'])
+        match_writer.writerows(doc_data['matches'])
+        submitter_writer.writerows(doc_data['submitter_matches'])
+        
+        done_queue.task_done()
+
+def process_worker(todo_queue, done_queue):
+    print '[%s] Worker started.' % os.getpid()
+    while True:
+        try:
+            doc = todo_queue.get(timeout=5)
+        except Empty:
+            print '[%s] Processing complete.' % os.getpid()
+            return
+        
+        doc_data = process_doc(doc)
+        done_queue.put(doc_data)
+        
+        todo_queue.task_done()
+    
+def dump_cursor_multi(c, fields, filename, num_workers):
+    todo_queue = multiprocessing.JoinableQueue(num_workers * 2)
+    done_queue = multiprocessing.JoinableQueue(num_workers * 2)
+    
+    for i in range(num_workers):
+        proc = multiprocessing.Process(target=process_worker, args=(todo_queue, done_queue))
+        proc.start()
+    proc = multiprocessing.Process(target=write_worker, args=(done_queue, filename))
+    proc.start()
+    
+    for doc in c:
+        todo_queue.put(doc)
+    
+    todo_queue.join()
+    done_queue.join()
 
 if __name__ == '__main__':
-    host = sys.argv[1]
-    dbname = sys.argv[2]
-    outfile = open(sys.argv[3], 'w')
+    # set up options
+    from optparse import OptionParser
+    parser = OptionParser(usage="usage: %prog [options] host dbname file_prefix")
+    parser.add_option("-l", "--limit", dest="limit", action="store", type="int", default=None, help="Limit number of records for testing.")
+    parser.add_option("-m", "--multi", dest="multi", action="store", type="int", default=None, help="Set number of worker processes.  Single-process model used if not specified.")
     
-    cursor = Connection(host=host)[dbname].docs.find(DOCS_QUERY)
-    dump_cursor(cursor, DOCS_FIELDS, outfile)
-
+    (options, args) = parser.parse_args()
     
+    # fetch options, args
+    host = args[0]
+    dbname = args[1]
+    prefix = args[2]
     
+    # do request and analysis
+    cursor = Connection(host=host)[dbname].docs.find(DOCS_QUERY, limit=options.limit)
+    
+    run_start = time.time()
+    print '[%s] Starting analysis...' % pid
+    
+    if options.multi:
+        dump_cursor_multi(cursor, DOCS_FIELDS, prefix, options.multi)
+    else:
+        dump_cursor(cursor, DOCS_FIELDS, prefix)
+    
+    print '[%s] Completed analysis in %s seconds.' % (pid, time.time() - run_start)
