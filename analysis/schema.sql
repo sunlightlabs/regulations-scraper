@@ -22,7 +22,7 @@ CREATE TABLE regulations_comments_full (
     on_id varchar(64) NOT NULL,
     on_title varchar(512) NOT NULL
 );
-
+CREATE INDEX regulations_comments_full_docket_id ON regulations_comments_full ( docket_id );
 
 -- this should replace some fields on the comment
 CREATE TABLE regulations_dockets (
