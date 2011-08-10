@@ -26,8 +26,8 @@ CREATE INDEX regulations_comments_full_docket_id ON regulations_comments_full ( 
 
 -- this should replace some fields on the comment
 CREATE TABLE regulations_dockets (
-    docket_id varchar(32) PRIMARY KEY NOT NULL,
-    title varchar(255) NOT NULL,
+    docket_id varchar(64) PRIMARY KEY NOT NULL,
+    title varchar(512) NOT NULL,
     agency varchar(8) NOT NULL,
     date date
 );
