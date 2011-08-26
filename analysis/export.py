@@ -68,22 +68,18 @@ def process_doc(doc, fields=DOCS_FIELDS):
     }
     
     # entity extraction
-    buffer = StringIO.StringIO()
-    buffer.write(u'')
     if 'views' in doc and doc['views']:
         for view in doc['views']:
             if 'decoded' in view and view['decoded'] == True:
-                buffer.write(view['text'])
-                buffer.write('\n')
+                for entity_id in match(view['text']).keys():
+                    output['matches'].append([doc['document_id'], doc['object_id'], view['type'], 'view', entity_id])
     if 'attachments' in doc and doc['attachments']:
         for attachment in doc['attachments']:
             if 'views' in attachment and attachment['views']:
                 for view in attachment['views']:
                     if 'decoded' in view and view['decoded'] == True:
-                        buffer.write(view['text'])
-                        buffer.write('\n')
-    for entity_id in match(buffer.getvalue()).keys():
-        output['matches'].append([doc['document_id'], entity_id])
+                        for entity_id in match(view['text']).keys():
+                            output['matches'].append([doc['document_id'], attachment['object_id'], view['type'], 'attachment', entity_id])
     
     # submitter matches
     for entity_id in match('\n'.join([output['metadata'][7], output['metadata'][8]])).keys():
@@ -97,7 +93,7 @@ def dump_cursor(c, fields, filename):
     metadata_writer.writerow([f.csv_column for f in fields])
     
     match_writer = csv.writer(open(sys.argv[3] + '_text_matches.csv', 'w'))
-    match_writer.writerow(['document_id', 'entity_id'])
+    match_writer.writerow(['document_id', 'object_id', 'file_type', 'view_type', 'entity_id'])
     
     submitter_writer = csv.writer(open(sys.argv[3] + '_submitter_matches.csv', 'w'))
     submitter_writer.writerow(['document_id', 'entity_id'])
@@ -116,7 +112,7 @@ def write_worker(done_queue, filename, fields=DOCS_FIELDS):
     metadata_writer.writerow([f.csv_column for f in fields])
     
     match_writer = csv.writer(open(sys.argv[3] + '_text_matches.csv', 'w'))
-    match_writer.writerow(['document_id', 'entity_id'])
+    match_writer.writerow(['document_id', 'object_id', 'file_type', 'view_type', 'entity_id'])
     
     submitter_writer = csv.writer(open(sys.argv[3] + '_submitter_matches.csv', 'w'))
     submitter_writer.writerow(['document_id', 'entity_id'])

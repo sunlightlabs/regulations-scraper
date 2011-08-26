@@ -34,6 +34,9 @@ CREATE TABLE regulations_dockets (
 
 CREATE TABLE regulations_text_matches (
     document_id varchar(64),
+    object_id varchar(32),
+    file_type varchar(16),
+    view_type varchar(16),
     entity_id uuid
 );
 
@@ -41,5 +44,3 @@ CREATE TABLE regulations_submitter_matches (
     document_id varchar(64),
     entity_id uuid
 );
-
-
