@@ -72,7 +72,9 @@ def process_doc(doc, fields=DOCS_FIELDS):
         for view in doc['views']:
             if 'decoded' in view and view['decoded'] == True:
                 for entity_id in match(view['text']).keys():
-                    output['matches'].append([doc['document_id'], doc['object_id'], view['type'], 'view', entity_id])
+                    # hack to deal with documents whose scrapes failed but still got decoded
+                    object_id = doc['object_id'] if 'object_id' in doc else view['file'].split('/')[-1].split('.')[0]
+                    output['matches'].append([doc['document_id'], object_id, view['type'], 'view', entity_id])
     if 'attachments' in doc and doc['attachments']:
         for attachment in doc['attachments']:
             if 'views' in attachment and attachment['views']:
