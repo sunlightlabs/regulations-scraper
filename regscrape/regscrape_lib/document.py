@@ -5,7 +5,7 @@ from pytz import timezone
 import datetime
 
 DATE_FORMAT = re.compile('^(?P<month>\w+) (?P<day>\d{2}) (?P<year>\d{4}), at (?P<hour>\d{2}):(?P<minute>\d{2}) (?P<ampm>\w{2}) (?P<timezone>[\w ]+)$')
-REQUEST_URL = "7|0|9|http://www.regulations.gov/Regs/|AE99DC4BDDCC371389782BAA86C49040|com.gwtplatform.dispatch.client.DispatchService|execute|java.lang.String/2004016611|com.gwtplatform.dispatch.shared.Action|f276d5f6bd77b059abc606a82c31430fd324d2ef986444f64c38d06ec992a5cd.e38Sb3aKaN8Oe34Pby0|gov.egov.erule.regs.shared.action.LoadDocumentDetailAction/1648650509|%s|1|2|3|4|2|5|6|7|8|9|"
+REQUEST_URL = "7|0|9|http://www.regulations.gov/Regs/|EE162F2711190E6CD0518A2E3BCBE3B7|com.gwtplatform.dispatch.shared.DispatchService|execute|java.lang.String/2004016611|com.gwtplatform.dispatch.shared.Action|ff10867777b6f75719206038823d99b6746cca2d2be51d662fc95f3ae0092516.e38Sc3uTa3qQe3aRby0|gov.egov.erule.regs.shared.action.LoadDocumentDetailAction/1648650509|%s|1|2|3|4|2|5|6|7|8|9|"
 
 def check_date(value):
     # is it a date?
