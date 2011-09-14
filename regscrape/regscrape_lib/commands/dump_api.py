@@ -6,6 +6,10 @@ from regscrape_lib.util import download
 from regscrape_lib.search import search
 
 def run():
+    # delete old dumps
+    [os.unlink(file) for file in os.listdir(settings.DUMP_DIR) if file.endswith('.gwt')]
+    
+    # start new dumps
     client = RegsClient()
     position = settings.DUMP_START
     num_digits = len(str(settings.DUMP_END))
