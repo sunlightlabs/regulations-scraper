@@ -68,7 +68,7 @@ def run():
             
             try:
                 db.docs.save(db_doc, safe=True)
-                if db_doc['_id']:
+                if '_id' in db_doc:
                     updated += 1
                 else:
                     written += 1
