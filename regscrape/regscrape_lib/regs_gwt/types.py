@@ -64,7 +64,7 @@ class DocumentSummary(object):
         
         agency = reader.read_string() # agency_abbreviation
         
-        reader.read_object()
+        has_attachments = reader.read_object()
         reader.read_int()
         
         allow_comments = reader.read_object() # allow comments

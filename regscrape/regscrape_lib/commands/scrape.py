@@ -16,7 +16,7 @@ def run_child():
     print 'Child %s has a connection...' % os.getpid()
     
     while True:
-        record = db.docs.find_and_modify({'scraped': False, '_scraping':{'$exists': False}, 'scrape_failed': {'$exists': False}}, {'$set': {'_scraping': True}})
+        record = db.docs.find_and_modify({'scraped': False, '_scraping':{'$exists': False}, {'$set': {'_scraping': True}})
         
         if record is None:
             return
@@ -63,7 +63,7 @@ def run_child():
             continue
         elif error or not doc:
             doc = record
-            doc['scrape_failed'] = True
+            doc['scraped'] = 'failed'
             if error:
                 print 'Scrape of %s failed because of %s' % (doc['document_id'], str(error))
                 doc['failure_reason'] = str(error)
