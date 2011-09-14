@@ -45,6 +45,8 @@ def run():
             if current_docs:
                 # we already have this doc, so repair it and update its last-seen
                 current = current_docs[0]
+                print 'old version'
+                print current
                 
                 if current['scraped'] == 'failed':
                     current['scraped'] = False
@@ -67,11 +69,15 @@ def run():
                         db_doc['views'].append(make_view(format, doc['object_id']))
             
             try:
-                db.docs.save(db_doc, safe=True)
+ #               db.docs.save(db_doc, safe=True)
                 if '_id' in db_doc:
                     updated += 1
+                    print 'updated version'
+                    print db_doc
                 else:
                     written += 1
+                    print 'first version'
+                    print db_doc
             except pymongo.errors.DuplicateKeyError:
                 # this shouldn't happen unless there's another process or thread working on the same data at the same time
                 pass
@@ -83,5 +89,5 @@ def run():
     print 'Decoding complete: decoded %s documents, of which %s were new and %s were updated' % (num_docs, num_written, num_updated)
     
     sys.stdout.write('Flagging deletions...')
-    db.docs.update({'last_seen': {'$lt': now}}, {'$set': {'deleted': True}})
+#    db.docs.update({'last_seen': {'$lt': now}}, {'$set': {'deleted': True}})
     sys.stdout.write(' done.\n')

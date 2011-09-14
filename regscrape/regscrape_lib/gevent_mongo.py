@@ -1,7 +1,7 @@
 __author__ = "Andrey Nikishaev"
 __email__ = "creotiv@gmail.com"
  
-import pymongo
+import pymongo, sys
 from gevent.queue import Queue
  
 class GeventMongoPool(object):
