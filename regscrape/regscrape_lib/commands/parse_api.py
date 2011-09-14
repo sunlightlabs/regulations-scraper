@@ -98,10 +98,12 @@ def worker(todo_queue, done_queue, now):
         
         sys.stdout.write('[%s] Parsing file %s...\n' % (pid, file))
         sys.stdout.flush()
+        start = datetime.datetime.now()
         
         stats = process(file, client, db, now)
         
-        sys.stdout.write('[%s] Done with %s (got %s documents, of which %s were new and %s were updated)\n' % (pid, file, stats['docs'], stats['written'], stats['updated']))
+        elapsed = datetime.datetime.now() - start
+        sys.stdout.write('[%s] Done with %s in %s minutes (got %s documents, of which %s were new and %s were updated)\n' % (pid, file, round(elapsed.total_seconds() / 60.0), stats['docs'], stats['written'], stats['updated']))
         sys.stdout.flush()
         
         done_queue.put(stats)
