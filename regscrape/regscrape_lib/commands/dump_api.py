@@ -7,7 +7,7 @@ from regscrape_lib.search import search
 
 def run():
     # delete old dumps
-    [os.unlink(file) for file in os.listdir(settings.DUMP_DIR) if file.endswith('.gwt')]
+    [os.unlink(os.path.join(settings.DUMP_DIR, file)) for file in os.listdir(settings.DUMP_DIR) if file.endswith('.gwt')]
     
     # start new dumps
     client = RegsClient()
