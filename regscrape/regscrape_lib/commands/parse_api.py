@@ -10,6 +10,7 @@ import datetime
 import multiprocessing
 from Queue import Empty
 
+from optparse import OptionParser
 arg_parser = OptionParser()
 arg_parser.add_option("-m", "--multi", dest="multi", action="store", type="int", default=multiprocessing.cpu_count(), help="Set number of worker processes.  Defaults to number of cores if not specified.")
 
@@ -95,7 +96,7 @@ def worker(todo_queue, done_queue, now):
             print '[%s] Processing complete.' % os.getpid()
             return
         
-        sys.stdout.write('[%s] Parsing file %s... ' % (pid, file))
+        sys.stdout.write('[%s] Parsing file %s...\n' % (pid, file))
         sys.stdout.flush()
         
         stats = process(file, client, db, now)
@@ -108,7 +109,7 @@ def worker(todo_queue, done_queue, now):
         todo_queue.task_done()
     
 def run(options, args):
-    sys.stdout.write('Starting decoding...')
+    sys.stdout.write('Starting decoding...\n')
     sys.stdout.flush()
     
     # database prep
