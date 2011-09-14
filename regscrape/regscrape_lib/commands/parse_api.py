@@ -42,25 +42,35 @@ def run():
         updated = 0
         for doc in docs:
             current_docs = db.docs.find({'document_id': doc['document_id']})
-            if current_docs:
+            if current_docs.count():
                 # we already have this doc, so repair it and update its last-seen
-                current = current_docs[0]
-                print 'old version'
-                print current
+                db_doc = current_docs[0]
                 
-                if current['scraped'] == 'failed':
-                    current['scraped'] = False
+                if db_doc['scraped'] == 'failed':
+                    db_doc['scraped'] = False
                 
+                # rebuild views
                 if doc['formats']:
                     for format in doc['formats']:
-                        already_exists = [view for view in current['views'] if view['format'] == format]
+                        already_exists = [view for view in db_doc['views'] if view['type'] == format]
                         if not already_exists:
-                            current['views'].append(make_view(format, doc['object_id']))
+                            db_doc['views'].append(make_view(format, doc['object_id']))
                         elif already_exists and already_exists[0]['downloaded'] == 'failed':
-                            already_has_format[0]['downloaded'] = False
+                            already_exists[0]['downloaded'] = False
+                            if 'failure_reason' in already_exists[0]:
+                                del already_exists[0]['failure_reason']
+                
+                # while we're here, reset attachment download status (can't do a full rebuild without rescrape, but I can live with that for now)
+                if 'attachments' in db_doc:
+                    for attachment in db_doc['attachments']:
+                        for view in attachment['views']:
+                            if view['downloaded'] == 'failed':
+                                view['downloaded'] = False
+                                if 'failure_reason' in view:
+                                    del view['failure_reason']
                 
                 # update the last-seen date
-                current['last_seen'] = now
+                db_doc['last_seen'] = now
             else:
                 # we need to create this document
                 db_doc = {'document_id': doc['document_id'], 'views': [], 'docket_id': doc['docket_id'], 'agency': doc['agency'], 'scraped': False, 'object_id': doc['object_id']}
@@ -72,12 +82,8 @@ def run():
  #               db.docs.save(db_doc, safe=True)
                 if '_id' in db_doc:
                     updated += 1
-                    print 'updated version'
-                    print db_doc
                 else:
                     written += 1
-                    print 'first version'
-                    print db_doc
             except pymongo.errors.DuplicateKeyError:
                 # this shouldn't happen unless there's another process or thread working on the same data at the same time
                 pass
