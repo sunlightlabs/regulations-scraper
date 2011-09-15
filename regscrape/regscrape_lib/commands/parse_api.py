@@ -1,7 +1,6 @@
 from regs_gwt.regs_client import RegsClient
 import os
 import settings
-import pymongo
 import sys
 from search import parse
 import pytz
@@ -24,6 +23,7 @@ def make_view(format, object_id):
     }
 
 def get_db():
+    import pymongo
     return pymongo.Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
     
 def process(file, client, db, now):    
@@ -78,6 +78,8 @@ def process(file, client, db, now):
         except pymongo.errors.DuplicateKeyError:
             # this shouldn't happen unless there's another process or thread working on the same data at the same time
             pass
+        if (updated + written) % 1000 == 0:
+            print '[%s] %s completed so far.' % (os.getpid(), updated + written)
     
     return {'docs': len(docs), 'updated': updated, 'written': written}
 
@@ -113,11 +115,6 @@ def worker(todo_queue, done_queue, now):
 def run(options, args):
     sys.stdout.write('Starting decoding...\n')
     sys.stdout.flush()
-    
-    # database prep
-    db = get_db()
-    db.docs.ensure_index('document_id', unique=True)
-    db.docs.ensure_index('last_seen')
     
     # get workers going
     now = datetime.datetime.now(tz=pytz.utc)
@@ -155,5 +152,5 @@ def run(options, args):
     print 'Decoding complete: decoded %s documents, of which %s were new and %s were updated' % (num_docs, num_written, num_updated)
     
     sys.stdout.write('Flagging deletions...')
-#    db.docs.update({'last_seen': {'$lt': now}}, {'$set': {'deleted': True}})
+#    get_db().docs.update({'last_seen': {'$lt': now}}, {'$set': {'deleted': True}})
     sys.stdout.write(' done.\n')
