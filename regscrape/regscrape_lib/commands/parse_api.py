@@ -5,6 +5,7 @@ import sys
 from search import parse
 import pytz
 import datetime
+import operator
 
 import multiprocessing
 from Queue import Empty
@@ -40,9 +41,9 @@ def process(file, client, db, now):
             # do we need to fix anything?
             doc_subset = current_subset[0]
             statuses = [view['downloaded'] for view in doc_subset['views']] + reduce(operator.add, [[view['downloaded'] for view in attachment['views']] for attachment in doc_subset.get('attachments', [])], [])
-            types = [view['type'] for view in d['views']]
+            types = [view['type'] for view in doc_subset['views']]
             
-            if 'failed' in statuses or sorted(doc['formats']) != sorted(types):
+            if 'failed' in statuses or sorted(doc['formats'] or []) != sorted(types):
                 # needs a repair; grab the full document
             
                 current_docs = db.docs.find({'_id': doc_subset['_id']})
