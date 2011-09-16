@@ -76,7 +76,7 @@ def process(file, client, db, now):
                 db_doc['last_seen'] = now
                 
                 # do save
-                db.doc.save(db_doc, safe=True)
+#                db.doc.save(db_doc, safe=True)
                 repaired += 1
             else:
                 # we don't need a full repair, so just do an update on the date
