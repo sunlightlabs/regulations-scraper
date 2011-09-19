@@ -77,11 +77,11 @@ def process(file, client, db, now):
                 db_doc['last_seen'] = now
                 
                 # do save
-#                db.doc.save(db_doc, safe=True)
+                db.doc.save(db_doc, safe=True)
                 repaired += 1
             else:
                 # we don't need a full repair, so just do an update on the date
-#                   db.docs.update({'_id': doc_subset['_id']}, {'$set': {'last_seen': now}}, safe=True)
+                db.docs.update({'_id': doc_subset['_id']}, {'$set': {'last_seen': now}}, safe=True)
                 updated += 1
         else:
             # we need to create this document
@@ -91,7 +91,7 @@ def process(file, client, db, now):
                     db_doc['views'].append(make_view(format, doc['object_id']))
         
             try:
-#               db.docs.save(db_doc, safe=True)
+                db.docs.save(db_doc, safe=True)
                 written += 1
             except pymongo.errors.DuplicateKeyError:
                 # this shouldn't happen unless there's another process or thread working on the same data at the same time
@@ -172,5 +172,5 @@ def run(options, args):
     print 'Decoding complete: decoded %s documents, of which %s were new and %s were updated' % (num_docs, num_written, num_updated, num_repaired)
     
     sys.stdout.write('Flagging deletions...')
-#    get_db().docs.update({'last_seen': {'$lt': now}}, {'$set': {'deleted': True}}, multi=True)
+    get_db().docs.update({'last_seen': {'$lt': now}}, {'$set': {'deleted': True}}, multi=True)
     sys.stdout.write(' done.\n')
