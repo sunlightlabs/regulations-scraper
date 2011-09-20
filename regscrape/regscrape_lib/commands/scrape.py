@@ -16,7 +16,7 @@ def run_child():
     print 'Child %s has a connection...' % os.getpid()
     
     while True:
-        record = db.docs.find_and_modify({'scraped': False, '_scraping':{'$exists': False}, {'$set': {'_scraping': True}})
+        record = db.docs.find_and_modify({'scraped': False, '_scraping':{'$exists': False}}, {'$set': {'_scraping': True}})
         
         if record is None:
             return
