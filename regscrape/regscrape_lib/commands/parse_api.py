@@ -85,7 +85,7 @@ def process(file, client, db, now):
                 updated += 1
         else:
             # we need to create this document
-            db_doc = {'document_id': doc['document_id'], 'views': [], 'docket_id': doc['docket_id'], 'agency': doc['agency'], 'scraped': False, 'object_id': doc['object_id']}
+            db_doc = {'document_id': doc['document_id'], 'views': [], 'docket_id': doc['docket_id'], 'agency': doc['agency'], 'scraped': False, 'object_id': doc['object_id'], 'last_seen': now}
             if doc['formats']:
                 for format in doc['formats']:
                     db_doc['views'].append(make_view(format, doc['object_id']))
