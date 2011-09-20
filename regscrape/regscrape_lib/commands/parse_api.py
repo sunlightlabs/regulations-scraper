@@ -169,7 +169,7 @@ def run(options, args):
         except Empty:
             break
     
-    print 'Decoding complete: decoded %s documents, of which %s were new and %s were updated' % (num_docs, num_written, num_updated, num_repaired)
+    print 'Decoding complete: decoded %s documents, of which %s were new, %s were updated, and %s were repaired.' % (num_docs, num_written, num_updated, num_repaired)
     
     sys.stdout.write('Flagging deletions...')
     get_db().docs.update({'last_seen': {'$lt': now}}, {'$set': {'deleted': True}}, multi=True)
