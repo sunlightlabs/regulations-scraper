@@ -48,7 +48,7 @@ def process_record(record, client, db):
             print traceback.print_tb(error[2])
     
     # catch renames of documents
-    if doc and (not error) and (not remove_document) and doc['document_id'] != record['document_id']:
+    if doc and (not error) and (not removed) and doc['document_id'] != record['document_id']:
         renamed_to = doc['document_id']
         doc = db.docs.find({'_id': record['_id']})[0]
         doc['views'] = []
@@ -105,7 +105,7 @@ def run(options, args):
         proc.start()
     
     import pymongo
-    db = Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
+    db = pymongo.Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
     
     conditions = {'scraped': False, 'deleted': False}
     fields = {'document_id': 1, 'last_seen': 1}
