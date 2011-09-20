@@ -48,6 +48,7 @@ def scrape_document(id, client):
         'topics': raw['topics'] if any(raw['topics']) else [],
         'object_id': raw['object_id'],
         'scraped': True,
+        'deleted': False,
         
         # details
         'details': dict(
