@@ -231,3 +231,35 @@ class PostingRestriction(object):
     @classmethod
     def gwt_deserialize(cls, reader):
         return reader.read_int()
+
+class DocketFolderMetadataPackage(object):
+    @classmethod
+    def gwt_deserialize(cls, reader):
+        return reader.read_object()
+
+class DocketDetail(object):
+    @classmethod
+    def gwt_deserialize(cls, reader):
+        reader.read_string() # agency
+        
+        reader.read_int() # always 0
+        reader.read_int() # always 0
+        reader.read_string() # always blank
+        reader.read_string() # always blank
+        reader.read_string() # always blank
+        
+        docket_id = reader.read_string() # docket ID
+        
+        reader.read_string() # always blank
+        
+        metadata = reader.read_object() # metadata dict
+        
+        reader.read_int() # always 0
+        reader.read_int() # always 0
+        reader.read_int() # always 0
+        
+        reader.read_string() # some kind of object ID?
+        rin = reader.read_string() # rin
+        title = reader.read_string() # title
+        
+        return exclude(locals(), ['cls', 'reader'])
