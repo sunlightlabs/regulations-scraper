@@ -30,7 +30,7 @@ def find_views(**params):
     
     results = itertools.chain.from_iterable(
         itertools.imap(
-            lambda doc: [{'view': view, 'doc': doc['_id']} for view in doc['views'] if all(view[item[0]] == item[1] for item in params.items())],
+            lambda doc: [{'view': view, 'doc': doc['_id']} for view in doc['views'] if all(item[0] in view and view[item[0]] == item[1] for item in params.items())],
             db.docs.find(conditions)
         )
     )
@@ -56,7 +56,7 @@ def find_attachment_views(**params):
             lambda doc: reduce(operator.add, [
                 [
                     {'view': view, 'doc': doc['_id'], 'attachment': attachment['object_id']}
-                    for view in attachment['views'] if all(view[item[0]] == item[1] for item in params.items())
+                    for view in attachment['views'] if all(item[0] in view and view[item[0]] == item[1] for item in params.items())
                 ] for attachment in doc['attachments']
             ] if 'attachments' in doc else [], []),
             db.docs.find(conditions)
