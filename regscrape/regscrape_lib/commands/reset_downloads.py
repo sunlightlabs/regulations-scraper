@@ -12,11 +12,10 @@ def run():
 
 def run_for_view_type(view_label, find_func, update_func):
     print 'Resetting %s.' % view_label
-    views = find_func(query=settings.FILTER)
+    views = find_func(downloaded='failed', query={'deleted': False})
     
     for result in views:
         result['view']['downloaded'] = False
-        result['view']['decoded'] = False
         update_func(**result)
     
     print 'Done with %s.' % view_label
