@@ -61,7 +61,7 @@ def get_downloader(result, update_func):
 def run_for_view_type(view_label, find_func, update_func):
     print 'Preparing download of %s.' % view_label
     
-    views = find_func(downloaded=False, query=settings.FILTER)
+    views = find_func(downloaded=False, query={'deleted': False})
     workers = Pool(getattr(settings, 'DOWNLOADERS', 5))
     
     # keep the decoders busy with tasks as long as there are more results
