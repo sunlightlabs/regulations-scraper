@@ -32,7 +32,7 @@ def getter(key, default=''):
     return lambda d: deep_get(key, d, default)
 
 
-DOCS_QUERY = {}
+DOCS_QUERY = {'deleted': false}
 
 DOCS_FIELDS = [
     F('document_id', getter('document_id')),
