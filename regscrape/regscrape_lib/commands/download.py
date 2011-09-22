@@ -49,7 +49,7 @@ def get_downloader(result, update_func):
                 # update database record to point to file
                 result['view']['downloaded'] = True
                 result['view']['file'] = newfullpath
-                result['view']['decoded'] = False
+                result['view']['extracted'] = False
             else:
                 print 'Download of %s failed because the resulting file was too small.' % result['view']['url']
                 result['view']['file'] = newfullpath

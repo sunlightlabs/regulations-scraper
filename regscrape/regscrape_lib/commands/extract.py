@@ -70,7 +70,7 @@ def get_decoder(result, options, update_func):
                     )
                     continue
                 
-                result['view']['decoded'] = True
+                result['view']['extracted'] = True
                 result['view']['text'] = unicode(remove_control_chars(output), 'utf-8', 'ignore')
                 result['view']['ocr'] = getattr(decoder, 'ocr', False)
                 if options.pretend:
@@ -79,8 +79,8 @@ def get_decoder(result, options, update_func):
                     update_func(**result)
                     print 'Decoded and saved %s using %s' % (result['view']['file'], decoder.__str__())
                 break
-        if not result['view'].get('decoded', False):
-            result['view']['decoded'] = 'failed'
+        if not result['view'].get('extracted', False):
+            result['view']['extracted'] = 'failed'
             if not options.pretend:
                 update_func(**result)
                 print 'Saved failure to decode %s' % result['view']['file']
@@ -99,7 +99,7 @@ def run_for_view_type(view_label, find_func, update_func, options):
     
     find_conditions = {
         'downloaded': True,
-        'decoded': False,
+        'extracted': False,
         'query': settings.FILTER
     }
     if options.type:
