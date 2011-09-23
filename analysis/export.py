@@ -70,16 +70,16 @@ def process_doc(doc, fields=DOCS_FIELDS):
     # entity extraction
     if 'views' in doc and doc['views']:
         for view in doc['views']:
-            if 'decoded' in view and view['decoded'] == True:
+            if 'extracted' in view and view['extracted'] == True:
                 for entity_id in match(view['text']).keys():
-                    # hack to deal with documents whose scrapes failed but still got decoded
+                    # hack to deal with documents whose scrapes failed but still got extracted
                     object_id = doc['object_id'] if 'object_id' in doc else view['file'].split('/')[-1].split('.')[0]
                     output['matches'].append([doc['document_id'], object_id, view['type'], 'view', entity_id])
     if 'attachments' in doc and doc['attachments']:
         for attachment in doc['attachments']:
             if 'views' in attachment and attachment['views']:
                 for view in attachment['views']:
-                    if 'decoded' in view and view['decoded'] == True:
+                    if 'extracted' in view and view['extracted'] == True:
                         for entity_id in match(view['text']).keys():
                             output['matches'].append([doc['document_id'], attachment['object_id'], view['type'], 'attachment', entity_id])
     
@@ -121,7 +121,7 @@ def write_worker(done_queue, filename, fields=DOCS_FIELDS):
     
     while True:
         try:
-            doc_data = done_queue.get(timeout=5)
+            doc_data = done_queue.get(timeout=20)
         except Empty:
             print '[%s] CSV writes complete.' % os.getpid()
             return
@@ -136,7 +136,7 @@ def process_worker(todo_queue, done_queue):
     print '[%s] Worker started.' % os.getpid()
     while True:
         try:
-            doc = todo_queue.get(timeout=5)
+            doc = todo_queue.get(timeout=20)
         except Empty:
             print '[%s] Processing complete.' % os.getpid()
             return
