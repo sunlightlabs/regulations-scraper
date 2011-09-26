@@ -128,7 +128,7 @@ def scrape_docket(id, client):
     if year_match and year_match.groups():
         out['year'] = int(year_match.groups()[0])
     else:
-        out['year'] = 1900
+        out['year'] = None
         print 'Couldn\'t determine a date for docket %s' % id
     
     return out
