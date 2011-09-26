@@ -240,7 +240,7 @@ class DocketFolderMetadataPackage(object):
 class DocketDetail(object):
     @classmethod
     def gwt_deserialize(cls, reader):
-        reader.read_string() # agency
+        agency = reader.read_string() # agency
         
         reader.read_int() # always 0
         reader.read_int() # always 0

@@ -5,7 +5,7 @@ from pytz import timezone
 import datetime
 
 DATE_FORMAT = re.compile('^(?P<month>\w+) (?P<day>\d{2}) (?P<year>\d{4}), at (?P<hour>\d{2}):(?P<minute>\d{2}) (?P<ampm>\w{2}) (?P<timezone>[\w ]+)$')
-REQUEST_URL = "7|0|9|http://www.regulations.gov/Regs/|EE162F2711190E6CD0518A2E3BCBE3B7|com.gwtplatform.dispatch.shared.DispatchService|execute|java.lang.String/2004016611|com.gwtplatform.dispatch.shared.Action|ff10867777b6f75719206038823d99b6746cca2d2be51d662fc95f3ae0092516.e38Sc3uTa3qQe3aRby0|gov.egov.erule.regs.shared.action.LoadDocumentDetailAction/1648650509|%s|1|2|3|4|2|5|6|7|8|9|"
+DOCUMENT_REQUEST_URL = "7|0|9|http://www.regulations.gov/Regs/|EE162F2711190E6CD0518A2E3BCBE3B7|com.gwtplatform.dispatch.shared.DispatchService|execute|java.lang.String/2004016611|com.gwtplatform.dispatch.shared.Action|ff10867777b6f75719206038823d99b6746cca2d2be51d662fc95f3ae0092516.e38Sc3uTa3qQe3aRby0|gov.egov.erule.regs.shared.action.LoadDocumentDetailAction/1648650509|%s|1|2|3|4|2|5|6|7|8|9|"
 
 def check_date(value):
     # is it a date?
@@ -27,7 +27,7 @@ def check_date(value):
 def scrape_document(id, client):
     download = urllib2.urlopen(urllib2.Request(
         'http://www.regulations.gov/dispatch/LoadDocumentDetailAction',
-        REQUEST_URL % id,
+        DOCUMENT_REQUEST_URL % id,
         {
             'Content-Type': "text/x-gwt-rpc; charset=utf-8",
             'X-GWT-Module-Base': client.js_url,
@@ -88,5 +88,47 @@ def scrape_document(id, client):
     
     if 'rin' in raw and raw['rin']:
         out['rin'] = raw['rin']
+    
+    return out
+
+DOCKET_REQUEST_URL = "7|0|9|http://www.regulations.gov/Regs/|EE162F2711190E6CD0518A2E3BCBE3B7|com.gwtplatform.dispatch.shared.DispatchService|execute|java.lang.String/2004016611|com.gwtplatform.dispatch.shared.Action|976a61706fed919a77958bbcdf404f77d1e21fbc96bff4a351928c5438ae2e40.e38Sb3aKaN8Oe34Na40|gov.egov.erule.regs.shared.action.LoadDocketFolderMetadataAction/386901167|%s|1|2|3|4|2|5|6|7|8|9|"
+DOCKET_YEAR_FINDER = re.compile("[_-](\d{4})[_-]")
+
+def scrape_docket(id, client):
+    download = urllib2.urlopen(urllib2.Request(
+        'http://www.regulations.gov/dispatch/LoadDocumentDetailAction',
+        DOCKET_REQUEST_URL % id,
+        {
+            'Content-Type': "text/x-gwt-rpc; charset=utf-8",
+            'X-GWT-Module-Base': client.js_url,
+            'X-GWT-Permutation': '534129813C1882BA14066C262A32047D',
+        }
+    ))
+
+    response = Response(client, download)
+    raw = response.reader.read_object()
+    
+    out = {
+        'docket_id': raw['docket_id'],
+        'agency': raw['agency'],
+        'title': raw['title'],
+        
+        # details
+        'details': dict(
+            [(meta['short_label'], check_date(meta['value'])) for meta in raw['metadata']]
+        ) if raw['metadata'] else {},
+        
+        'scraped': True,
+    }
+    
+    if 'rin' in raw and raw['rin']:
+        out['rin'] = raw['rin']
+    
+    year_match = DOCKET_YEAR_FINDER.search(id)
+    if year_match and year_match.groups():
+        out['year'] = int(year_match.groups()[0])
+    else:
+        out['year'] = 1900
+        print 'Couldn\'t determine a date for docket %s' % id
     
     return out
