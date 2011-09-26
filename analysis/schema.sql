@@ -29,7 +29,7 @@ CREATE TABLE regulations_dockets (
     docket_id varchar(64) PRIMARY KEY NOT NULL,
     title varchar(512) NOT NULL,
     agency varchar(8) NOT NULL,
-    date date
+    year smallint
 );
 
 CREATE TABLE regulations_text_matches (
