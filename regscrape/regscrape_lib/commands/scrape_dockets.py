@@ -38,17 +38,17 @@ def process_record(record, client, db):
             print 'Warning: scrape failed on try %s' % i
     
     # catch errors
-    if error or not doc:
+    if error or not docket:
         docket = record
         docket['scraped'] = 'failed'
         if error:
-            print 'Scrape of %s failed because of %s' % (doc['document_id'], str(error))
+            print 'Scrape of %s failed because of %s' % (docket['docket_id'], str(error))
             docket['failure_reason'] = str(error)
     
     try:
         db.dockets.save(docket, safe=True)
     except:
-        print "Warning: database save failed on document %s (scraped based on original doc ID %s)." % (doc['document_id'], record['document_id'])
+        print "Warning: database save failed on document %s (scraped based on original doc ID %s)." % (docket['docket_id'], record['docket_id'])
 
 def worker(todo_queue):
     pid = os.getpid()
@@ -93,7 +93,7 @@ def run(options, args):
     while True:
         try:
             record = to_scrape.next()
-        except pymongo.OperationFailure:
+        except pymongo.errors.OperationFailure:
             to_scrape = db.dockets.find(conditions)
             continue
         except StopIteration:

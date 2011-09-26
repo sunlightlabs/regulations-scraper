@@ -114,7 +114,7 @@ def run(options, args):
     while True:
         try:
             record = to_scrape.next()
-        except pymongo.OperationFailure:
+        except pymongo.errors.OperationFailure:
             to_scrape = db.docs.find(conditions, fields)
             continue
         except StopIteration:

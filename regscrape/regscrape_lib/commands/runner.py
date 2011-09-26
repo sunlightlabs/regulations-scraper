@@ -2,7 +2,7 @@
 
 import sys
 
-NO_GEVENT = ['scrape', 'parse_api']
+NO_GEVENT = ['scrape', 'scrape_dockets', 'parse_api']
 
 def run_command():    
     if len(sys.argv) < 2:
