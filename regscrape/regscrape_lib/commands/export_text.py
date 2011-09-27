@@ -51,7 +51,7 @@ def run(options, args):
             print 'Starting docket %s...' % docket
             zip_path = os.path.join(agency_dir, '%s.zip' % docket)
             
-            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED, True) as docket_zip:
+            with zipfile.ZipFile(zip_path, 'a', zipfile.ZIP_DEFLATED, True) as docket_zip:
                 docket_record = list(db.dockets.find({'docket_id': docket}))
                 
                 if docket_record:
