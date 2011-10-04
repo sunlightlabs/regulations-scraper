@@ -14,6 +14,14 @@ DOCKETS_QUERY = {'scraped': True}
 
 DOCKET_FIELDS = ['docket_id', 'title', 'agency', 'year']
 
+def filter_for_postgres(v):
+    if v is None:
+        return '\N'
+    
+    if isinstance(v, datetime):
+        return str(v)
+    
+    return unicode(v).encode('utf8').replace("\.", ".")
 
 if __name__ == '__main__':
     # set up options
@@ -30,12 +38,12 @@ if __name__ == '__main__':
     writer = csv.writer(open(sys.argv[3] + '_dockets.csv', 'w'))
     writer.writerow(DOCKET_FIELDS)
     
-    cursor = Connection(host=host)[dbname].docs.find(DOCS_QUERY)
+    cursor = Connection(host=host)[dbname].dockets.find(DOCKETS_QUERY)
     
     run_start = time.time()
     print '[%s] Starting export...' % pid
     
     for row in cursor:
-        csv.writerow([row[field] for field in DOCKET_FIELDS])
+        writer.writerow([filter_for_postgres(row[field]) for field in DOCKET_FIELDS])
     
     print '[%s] Completed export in %s seconds.' % (pid, time.time() - run_start)
