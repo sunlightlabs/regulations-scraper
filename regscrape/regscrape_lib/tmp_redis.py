@@ -40,7 +40,8 @@ class TmpRedis(object):
         
         class PickleRedis(Redis):
             def get(self, key):
-                return cPickle.loads(super(PickleRedis, self).get(key))
+                data = super(PickleRedis, self).get(key)
+                return cPickle.loads(data) if data else data
             
             def set(self, key, value):
                 return super(PickleRedis, self).set(key, cPickle.dumps(value, -1))
