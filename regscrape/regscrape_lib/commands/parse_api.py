@@ -6,13 +6,20 @@ from search import parse
 import pytz
 import datetime
 import operator
+import time
+from regscrape_lib.tmp_redis import TmpRedis
+from regscrape_lib.mp_types import Counter
+
 
 import multiprocessing
 from Queue import Empty
 
 from optparse import OptionParser
 arg_parser = OptionParser()
-arg_parser.add_option("-m", "--multi", dest="multi", action="store", type="int", default=multiprocessing.cpu_count(), help="Set number of worker processes.  Defaults to number of cores if not specified.")
+arg_parser.add_option("-m", "--multi", dest="multi", action="store", type="int", default=multiprocessing.cpu_count(), help="Set number of worker processes. Defaults to number of cores if not specified.")
+arg_parser.add_option("-k", "--keep-cache", dest="keep_cache", action="store_true", default=False, help="Prevents the cache from being deleted at the end of processing to make testing faster.")
+arg_parser.add_option("-u", "--use-cache", dest="use_cache", action="store", default=None, help="Use pre-existing cache to make testing faster.")
+arg_parser.add_option("-a", "--add-only", dest="add_only", action="store_true", default=False, help="Skip reconciliation, assume that all records are new, and go straight to the add step.")
 
 def make_view(format, object_id):
     return {
@@ -23,113 +30,221 @@ def make_view(format, object_id):
         'ocr': False
     }
 
-def get_db():
-    import pymongo
-    return pymongo.Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
-    
-def process(file, client, db, now):    
-    docs = parse(os.path.join(settings.DUMP_DIR, file), client)
-    print '[%s] Done with GWT decode.'
-    
-    written = 0
-    updated = 0
-    repaired = 0
-    for doc in docs:
-        # check and see if we already have this doc and, if so, whether or not it needs fixing
-        current_subset = db.docs.find({'document_id': doc['document_id']}, {'views.downloaded': 1, 'views.type': 1, 'attachments.views.downloaded': 1, 'attachments.views.type': 1})
-        if current_subset.count():
-            # do we need to fix anything?
-            doc_subset = current_subset[0]
-            statuses = [view['downloaded'] for view in doc_subset['views']] + reduce(operator.add, [[view['downloaded'] for view in attachment['views']] for attachment in doc_subset.get('attachments', [])], [])
-            types = [view['type'] for view in doc_subset['views']]
-            
-            if 'failed' in statuses or sorted(doc['formats'] or []) != sorted(types):
-                # needs a repair; grab the full document
-            
-                current_docs = db.docs.find({'_id': doc_subset['_id']})
-                
-                db_doc = current_docs[0]
-                
-                if db_doc['scraped'] == 'failed':
-                    db_doc['scraped'] = False
-                
-                # rebuild views
-                if doc['formats']:
-                    for format in doc['formats']:
-                        already_exists = [view for view in db_doc['views'] if view['type'] == format]
-                        if not already_exists:
-                            db_doc['views'].append(make_view(format, doc['object_id']))
-                        elif already_exists and already_exists[0]['downloaded'] == 'failed':
-                            already_exists[0]['downloaded'] = False
-                            if 'failure_reason' in already_exists[0]:
-                                del already_exists[0]['failure_reason']
-            
-                # while we're here, reset attachment download status (can't do a full rebuild without rescrape, but I can live with that for now)
-                if 'attachments' in db_doc:
-                    for attachment in db_doc['attachments']:
-                        for view in attachment['views']:
-                            if view['downloaded'] == 'failed':
-                                view['downloaded'] = False
-                                if 'failure_reason' in view:
-                                    del view['failure_reason']
-                
-                # update the last-seen date
-                db_doc['last_seen'] = now
-                
-                # do save
-                db.doc.save(db_doc, safe=True)
-                repaired += 1
-            else:
-                # we don't need a full repair, so just do an update on the date
-                db.docs.update({'_id': doc_subset['_id']}, {'$set': {'last_seen': now}}, safe=True)
-                updated += 1
-        else:
-            # we need to create this document
-            db_doc = {'document_id': doc['document_id'], 'views': [], 'docket_id': doc['docket_id'], 'agency': doc['agency'], 'scraped': False, 'object_id': doc['object_id'], 'last_seen': now, 'deleted': false}
-            if doc['formats']:
-                for format in doc['formats']:
-                    db_doc['views'].append(make_view(format, doc['object_id']))
+def reconcile_process(record, cache, db, now, repaired_counter, updated_counter, deleted_counter):
+    # check and see if this doc has been updated
+    new_record = cache.get(record['document_id'])
+    if new_record:
+        # do we need to fix anything?
+        statuses = [view['downloaded'] for view in record['views']] + reduce(operator.add, [[view['downloaded'] for view in attachment['views']] for attachment in record.get('attachments', [])], [])
+        types = [view['type'] for view in record['views']]
         
-            try:
-                db.docs.save(db_doc, safe=True)
-                written += 1
-            except pymongo.errors.DuplicateKeyError:
-                # this shouldn't happen unless there's another process or thread working on the same data at the same time
-                pass
-        if (updated + written + repaired) % 1000 == 0:
-            print '[%s] %s completed so far.' % (os.getpid(), updated + written + repaired)
-    
-    return {'docs': len(docs), 'updated': updated, 'written': written, 'repaired': repaired}
+        if 'failed' in statuses or sorted(new_record['formats'] or []) != sorted(types):
+            # needs a repair; grab the full document
+        
+            current_docs = db.docs.find({'_id': record['_id']})
+            
+            db_doc = current_docs[0]
+            
+            if db_doc['scraped'] == 'failed':
+                db_doc['scraped'] = False
+            
+            # rebuild views
+            if new_record['formats']:
+                for format in new_record['formats']:
+                    already_exists = [view for view in db_doc['views'] if view['type'] == format]
+                    if not already_exists:
+                        db_doc['views'].append(make_view(format, new_record['object_id']))
+                    elif already_exists and already_exists[0]['downloaded'] == 'failed':
+                        already_exists[0]['downloaded'] = False
+                        if 'failure_reason' in already_exists[0]:
+                            del already_exists[0]['failure_reason']
+        
+            # while we're here, reset attachment download status (can't do a full rebuild without rescrape, but I can live with that for now)
+            if 'attachments' in db_doc:
+                for attachment in db_doc['attachments']:
+                    for view in attachment['views']:
+                        if view['downloaded'] == 'failed':
+                            view['downloaded'] = False
+                            if 'failure_reason' in view:
+                                del view['failure_reason']
+            
+            # update the last-seen date
+            db_doc['last_seen'] = now
+            
+            # do save
+            db.doc.save(db_doc, safe=True)
+            repaired_counter.increment()
+        else:
+            # we don't need a full repair, so just do an update on the date
+            db.docs.update({'_id': record['_id']}, {'$set': {'last_seen': now}}, safe=True)
+            updated_counter.increment()
+        
+        # either way, delete the document from the cache so we can tell what's new at the end
+        cache.delete(record['document_id'])
+    else:
+        # this document isn't in the new data anymore, so mark it deleted
+        db.docs.update({'_id': record['_id']}, {'$set': {'deleted': True}}, safe=True)
+        deleted_counter.increment()
 
-def worker(todo_queue, done_queue, now):
+def reconcile_worker(todo_queue, cache_wrapper, now, repaired_counter, updated_counter, deleted_counter):
     pid = os.getpid()
     
-    print '[%s] Worker started.' % pid
+    print '[%s] Reconciliation worker started.' % pid
     
-    db = get_db()
-    client = RegsClient()
+    cache = cache_wrapper.get_pickle_connection()
+    
+    import pymongo
+    db = pymongo.Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
+    
+    while True:
+        record = todo_queue.get()
+        
+        reconcile_process(record, cache, db, now, repaired_counter, updated_counter, deleted_counter)
+        
+        todo_queue.task_done()
+    
+def add_new_docs(cache_wrapper, now):
+    print 'Adding new documents to the database...'
+    
+    import pymongo
+    db = pymongo.Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
+    
+    cache = cache_wrapper.get_pickle_connection()
+    
+    new = 0
+    replaced = 0
+    for id in cache.keys():
+        doc = cache.get(id)
+        db_doc = {'document_id': doc['document_id'], 'views': [], 'docket_id': doc['docket_id'], 'agency': doc['agency'], 'scraped': False, 'object_id': doc['object_id'], 'last_seen': now, 'deleted': False}
+        if doc['formats']:
+            for format in doc['formats']:
+                db_doc['views'].append(make_view(format, doc['object_id']))
+    
+        try:
+            db.docs.save(db_doc, safe=True)
+            new += 1
+        except pymongo.errors.DuplicateKeyError:
+            # apparently sometimes documents get deleted and recreated; when this occurs, nuke the existing one and replace it
+            db.docs.remove({'document_id': doc['document_id']}, safe=True)
+            db.docs.save(db_doc, safe=True)
+            replaced += 1
+    
+    written = new + replaced
+    print 'Wrote %s new documents, of which %s were replacements for documents flagged as deleted.' % (written, replaced)
+    
+    return written
+
+def reconcile_dumps(options, cache_wrapper, now):
+    sys.stdout.write('Reconciling dumps with current data...\n')
+    sys.stdout.flush()
+    
+    # get workers going
+    num_workers = options.multi
+    
+    todo_queue = multiprocessing.JoinableQueue(num_workers * 3)
+    repaired_counter = Counter()
+    updated_counter = Counter()
+    deleted_counter = Counter()
+    
+    processes = []
+    for i in range(num_workers):
+        proc = multiprocessing.Process(target=reconcile_worker, args=(todo_queue, cache_wrapper, now, repaired_counter, updated_counter, deleted_counter))
+        proc.start()
+        processes.append(proc)
+    
+    import pymongo
+    db = pymongo.Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
+    
+    conditions = {'last_seen': {'$lt': now}, 'deleted': False}
+    fields = {'document_id': 1, 'views.downloaded': 1, 'views.type': 1, 'attachments.views.downloaded': 1, 'attachments.views.type': 1}
+    to_check = db.docs.find(conditions, fields)
     
     while True:
         try:
-            file = todo_queue.get(timeout=5)
-        except Empty:
-            print '[%s] Processing complete.' % os.getpid()
-            return
+            record = to_check.next()
+        except pymongo.errors.OperationFailure:
+            print 'OH NOES!'
+            to_scrape = db.docs.find(conditions, fields)
+            continue
+        except StopIteration:
+            break
+            
+        todo_queue.put(record)
+    
+    todo_queue.join()
+    
+    for proc in processes:
+        print 'Terminating reconciliation worker %s...' % proc.pid
+        proc.terminate()
+    
+    # compile and print some stats
+    num_updated = updated_counter.value
+    num_repaired = repaired_counter.value
+    num_deleted = deleted_counter.value
+    num_docs = num_updated + num_repaired + num_deleted
+    print 'Reconciliation complete: examined %s documents, of which %s were updated, %s were repaired, and %s were flagged as deleted.' % (num_docs, num_updated, num_repaired, num_deleted)
+
+def parser_process(file, client, cache):    
+    docs = parse(os.path.join(settings.DUMP_DIR, file), client)
+    print '[%s] Done with GWT decode.' % os.getpid()
+    
+    for doc in docs:
+        cache.set(doc['document_id'], doc)
+    
+    return {'docs': len(docs)}
+
+def parser_worker(todo_queue, done_queue, cache_wrapper):
+    pid = os.getpid()
+    
+    print '[%s] Parser worker started.' % pid
+    
+    client = RegsClient()
+    cache = cache_wrapper.get_pickle_connection()
+    
+    while True:
+        file = todo_queue.get()
         
         sys.stdout.write('[%s] Parsing file %s...\n' % (pid, file))
         sys.stdout.flush()
         start = datetime.datetime.now()
         
-        stats = process(file, client, db, now)
+        stats = parser_process(file, client, cache)
         
         elapsed = datetime.datetime.now() - start
-        sys.stdout.write('[%s] Done with %s in %s minutes (got %s documents, of which %s were new, %s were updated, and %s were repaired)\n' % (pid, file, round(elapsed.total_seconds() / 60.0), stats['docs'], stats['written'], stats['updated'], stats['repaired']))
+        sys.stdout.write('[%s] Done with %s in %s minutes\n' % (pid, file, round(elapsed.total_seconds() / 60.0)))
         sys.stdout.flush()
         
         done_queue.put(stats)
         
         todo_queue.task_done()
     
+def parse_dumps(options, cache_wrapper):
+    num_workers = options.multi
+    files = [file for file in os.listdir(settings.DUMP_DIR) if file.endswith('.gwt')]
+    
+    # it's a small number of files, so just make a queue big enough to hold them all, to keep from having to block
+    todo_queue = multiprocessing.JoinableQueue(len(files))
+    done_queue = multiprocessing.Queue(len(files))
+    
+    sys.stdout.write('Starting parser workers...\n')
+    processes = []
+    for i in range(num_workers):
+        proc = multiprocessing.Process(target=parser_worker, args=(todo_queue, done_queue, cache_wrapper))
+        proc.start()
+        processes.append(proc)
+    
+    for file in files:
+        todo_queue.put(file)
+    
+    todo_queue.join()
+    
+    for proc in processes:
+        print 'Terminating parser worker %s...' % proc.pid
+        proc.terminate()
+    
+    # print totals
+    print 'Done parsing files.'
+
 def run(options, args):
     sys.stdout.write('Starting decoding...\n')
     sys.stdout.flush()
@@ -138,39 +253,34 @@ def run(options, args):
     now = datetime.datetime.now(tz=pytz.utc)
     
     num_workers = options.multi
-    files = [file for file in os.listdir(settings.DUMP_DIR) if file.endswith('.gwt')]
     
-    # it's a small number of files, so just make a queue big enough to hold them all, to keep from having to block
-    todo_queue = multiprocessing.JoinableQueue(len(files))
-    done_queue = multiprocessing.Queue(len(files))
+    # set up caching
+    sys.stdout.write('Spinning up Redis instance...\n')
     
-    for i in range(num_workers):
-        proc = multiprocessing.Process(target=worker, args=(todo_queue, done_queue, now))
-        proc.start()
+    if options.use_cache:
+        cache_wrapper = TmpRedis(db_uuid=options.use_cache)
+        # give it time to rebuild its cache from disk if we're using an already-built cache
+        sys.stdout.write('Loading cache from disk...')
+        time.sleep(15)
+        sys.stdout.write(' done.\n')
+    else:
+        cache_wrapper = TmpRedis()
+        parse_dumps(options, cache_wrapper)
     
-    for file in files:
-        todo_queue.put(file)
+    if not options.add_only:
+        reconcile_dumps(options, cache_wrapper, now)
+    else:
+        print 'Skipping reconciliation step.'
     
-    todo_queue.join()
+    # still-existing and deleted stuff is now done, but we still have to do the new stuff
+    add_new_docs(cache_wrapper, now)
     
-    # print totals
-    print 'Tabulating stats...'
-    num_docs = 0
-    num_written = 0
-    num_updated = 0
-    num_repaired = 0
-    while True:
-        try:
-            stats = done_queue.get(timeout=0)
-            num_docs += stats['docs']
-            num_written += stats['written']
-            num_updated += stats['updated']
-            num_repaired += stats['repaired']
-        except Empty:
-            break
+    sys.stdout.write('Terminating Redis cache...\n')
     
-    print 'Decoding complete: decoded %s documents, of which %s were new, %s were updated, and %s were repaired.' % (num_docs, num_written, num_updated, num_repaired)
+    if options.keep_cache:
+        cache_wrapper.terminate(delete=False)
+        print 'Cache preserved with UUID %s.' % cache_wrapper.uuid
+    else:
+        cache_wrapper.terminate()
     
-    sys.stdout.write('Flagging deletions...')
-    get_db().docs.update({'last_seen': {'$lt': now}}, {'$set': {'deleted': True}}, multi=True)
-    sys.stdout.write(' done.\n')
+    

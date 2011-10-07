@@ -81,11 +81,7 @@ def worker(todo_queue):
     db = Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
     
     while True:
-        try:
-            record = todo_queue.get(timeout=5)
-        except Empty:
-            print '[%s] Processing complete.' % pid
-            return
+        record = todo_queue.get()
         
         process_record(record, client, db)
         
@@ -100,9 +96,11 @@ def run(options, args):
     
     todo_queue = multiprocessing.JoinableQueue(num_workers * 3)
     
+    processes = []
     for i in range(num_workers):
         proc = multiprocessing.Process(target=worker, args=(todo_queue,))
         proc.start()
+        processes.append(proc)
     
     import pymongo
     db = pymongo.Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
@@ -123,5 +121,9 @@ def run(options, args):
         todo_queue.put(record)
     
     todo_queue.join()
+    
+    for proc in processes:
+        print 'Terminating worker %s...' % proc.pid
+        proc.terminate()
     
     print 'Scrape complete.'

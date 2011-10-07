@@ -28,7 +28,7 @@ def get_downloader(result, update_func):
         size = 0
         try:
             start = datetime.datetime.now()
-            size = download_wget(result['view']['url'], newfullpath)
+            size = download(result['view']['url'], newfullpath)
             download_succeeded = True
             elapsed = datetime.datetime.now() - start
         except urllib2.HTTPError as e:
