@@ -11,12 +11,17 @@ class TmpRedis(object):
     def get_config(self, **kwargs):
         return '\n'.join([' '.join(option).strip() for option in self.REDIS_CONFIG.items()]).format(**kwargs)
     
-    def __init__(self):
-        redis_base = getattr(settings, 'REDIS_BASE', '/mnt/redis')
-        redis_dir = os.path.join(redis_base, uuid.uuid4().__str__())
+    def __init__(self, db_uuid=None):
+        self.uuid = db_uuid if db_uuid else uuid.uuid4().__str__()
         
-        os.mkdir(redis_dir)
-        os.mkdir(os.path.join(redis_dir, 'data'))
+        redis_base = getattr(settings, 'REDIS_BASE', '/mnt/redis')
+        redis_dir = os.path.join(redis_base, self.uuid)
+        
+        try:
+            os.mkdir(redis_dir)
+            os.mkdir(os.path.join(redis_dir, 'data'))
+        except OSError:
+            pass
         
         self.config = os.path.join(redis_dir, 'redis.conf')
         config_file = open(self.config, 'w')
@@ -48,7 +53,8 @@ class TmpRedis(object):
         
         return PickleRedis(unix_socket_path=self.socket)
     
-    def terminate(self):
+    def terminate(self, delete=True):
         self.process.terminate()
         time.sleep(1)
-        shutil.rmtree(self.directory)
+        if delete:
+            shutil.rmtree(self.directory)
