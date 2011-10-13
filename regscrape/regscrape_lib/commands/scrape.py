@@ -9,12 +9,13 @@ import traceback
 
 import multiprocessing
 from Queue import Empty
+from regscrape_lib.mp_types import Counter
 
 from optparse import OptionParser
 arg_parser = OptionParser()
 arg_parser.add_option("-m", "--multi", dest="multi", action="store", type="int", default=multiprocessing.cpu_count(), help="Set number of worker processes.  Defaults to number of cores if not specified.")
 
-def process_record(record, client, db):
+def process_record(record, client, db, num_succeeded, num_failed):
     if record is None:
         return
     
@@ -28,6 +29,7 @@ def process_record(record, client, db):
             doc['_id'] = record['_id']
             doc['last_seen'] = record['last_seen']
             print '[%s] Scraped doc %s...' % (os.getpid(), doc['document_id'])
+            num_succeeded.increment()
             break
         except ActionException:
             error = sys.exc_info()
@@ -57,6 +59,7 @@ def process_record(record, client, db):
     
     # catch errors and removes
     if removed:
+        num_failed.increment()
         return None
     elif error or not doc:
         doc = db.docs.find({'_id': record['_id']})[0]
@@ -64,13 +67,14 @@ def process_record(record, client, db):
         if error:
             print 'Scrape of %s failed because of %s' % (doc['document_id'], str(error))
             doc['failure_reason'] = str(error)
+        num_failed.increment()
     
     try:
         db.docs.save(doc, safe=True)
     except:
         print "Warning: database save failed on document %s (scraped based on original doc ID %s)." % (doc['document_id'], record['document_id'])
 
-def worker(todo_queue):
+def worker(todo_queue, num_succeeded, num_failed):
     pid = os.getpid()
     
     print '[%s] Worker started.' % pid
@@ -83,7 +87,7 @@ def worker(todo_queue):
     while True:
         record = todo_queue.get()
         
-        process_record(record, client, db)
+        process_record(record, client, db, num_succeeded, num_failed)
         
         todo_queue.task_done()
 
@@ -96,9 +100,13 @@ def run(options, args):
     
     todo_queue = multiprocessing.JoinableQueue(num_workers * 3)
     
+    # set up some counters to track progress
+    num_succeeded = Counter()
+    num_failed = Counter()
+    
     processes = []
     for i in range(num_workers):
-        proc = multiprocessing.Process(target=worker, args=(todo_queue,))
+        proc = multiprocessing.Process(target=worker, args=(todo_queue, num_succeeded, num_failed))
         proc.start()
         processes.append(proc)
     
@@ -126,4 +134,5 @@ def run(options, args):
         print 'Terminating worker %s...' % proc.pid
         proc.terminate()
     
-    print 'Scrape complete.'
+    print 'Scrape complete with %s successes and %s failures.' % (num_succeeded.value, num_failed.value)
+    return {'scraped': num_succeeded.value, 'failed': num_failed.value}

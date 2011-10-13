@@ -11,10 +11,12 @@ import pymongo
 MIN_SIZE = getattr(settings, 'MIN_DOWNLOAD_SIZE', 1024)
 
 def run():
-    run_for_view_type('document views', find_views, update_view)
-    run_for_view_type('attachment views', find_attachment_views, update_attachment_view)
+    return {
+        'document_views': run_for_view_type('document views', find_views, update_view),
+        'attachment_views': run_for_view_type('attachment views', find_attachment_views, update_attachment_view)
+    }
 
-def get_downloader(result, update_func):
+def get_downloader(result, update_func, stats):
     def download_view():
         print 'Downloading %s...' % result['view']['url']
         filename = result['view']['url'].split('/')[-1]
@@ -36,9 +38,11 @@ def get_downloader(result, update_func):
             result['view']['downloaded'] = "failed"
             result['view']['failure_reason'] = e.code
             update_func(**result)
+            stats['failed'] += 1
         except:
             exc = sys.exc_info()
             print traceback.print_tb(exc[2])
+            stats['failed'] += 1
         
         if download_succeeded:
             if size >= MIN_SIZE:
@@ -50,10 +54,12 @@ def get_downloader(result, update_func):
                 result['view']['downloaded'] = True
                 result['view']['file'] = newfullpath
                 result['view']['extracted'] = False
+                stats['downloaded'] += 1
             else:
                 print 'Download of %s failed because the resulting file was too small.' % result['view']['url']
                 result['view']['file'] = newfullpath
                 result['view']['downloaded'] = "too_small"
+                stats['failed'] += 1
             update_func(**result)
     
     return download_view
@@ -63,6 +69,9 @@ def run_for_view_type(view_label, find_func, update_func):
     
     views = find_func(downloaded=False, query={'deleted': False})
     workers = Pool(getattr(settings, 'DOWNLOADERS', 5))
+    
+    # track stats -- no locks because yay for cooperative multitasking
+    stats = {'downloaded': 0, 'failed': 0}
     
     # keep the decoders busy with tasks as long as there are more results
     while True:
@@ -75,10 +84,12 @@ def run_for_view_type(view_label, find_func, update_func):
         except StopIteration:
             break
         
-        workers.spawn(get_downloader(result, update_func))
+        workers.spawn(get_downloader(result, update_func, stats))
     
     workers.join()
     print 'Done with %s.' % view_label
+    
+    return stats
 
 if __name__ == "__main__":
     run()

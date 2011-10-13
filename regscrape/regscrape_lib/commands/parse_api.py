@@ -183,6 +183,8 @@ def reconcile_dumps(options, cache_wrapper, now):
     num_deleted = deleted_counter.value
     num_docs = num_updated + num_repaired + num_deleted
     print 'Reconciliation complete: examined %s documents, of which %s were updated, %s were repaired, and %s were flagged as deleted.' % (num_docs, num_updated, num_repaired, num_deleted)
+    
+    return {'updated': num_updated, 'repaired': num_repaired, 'deleted': num_deleted}
 
 def parser_process(file, client, cache):    
     docs = parse(os.path.join(settings.DUMP_DIR, file), client)
@@ -267,13 +269,14 @@ def run(options, args):
         cache_wrapper = TmpRedis()
         parse_dumps(options, cache_wrapper)
     
+    stats = {}
     if not options.add_only:
-        reconcile_dumps(options, cache_wrapper, now)
+        stats = reconcile_dumps(options, cache_wrapper, now)
     else:
         print 'Skipping reconciliation step.'
     
     # still-existing and deleted stuff is now done, but we still have to do the new stuff
-    add_new_docs(cache_wrapper, now)
+    stats['new'] = add_new_docs(cache_wrapper, now)
     
     sys.stdout.write('Terminating Redis cache...\n')
     
@@ -283,4 +286,4 @@ def run(options, args):
     else:
         cache_wrapper.terminate()
     
-    
+    return stats

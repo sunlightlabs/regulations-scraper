@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys
+import sys, optparse, json
 
 NO_GEVENT = ['scrape', 'scrape_dockets', 'parse_api']
 
@@ -27,13 +27,29 @@ def run_command():
         sys.exit()
     
     parser = getattr(mod, 'arg_parser', None)
-    parse_results = []
-    if parser:
-        parse_results = parser.parse_args(sys.argv[2:])
+    parser_defined = parser is not None
+    
+    if not parser:
+        parser = optparse.OptionParser()
+    parser.add_option('--parsable', dest='parsable', action='store_true', default=False, help='Output JSON instead of human-readable messages.')
+    parse_results = parser.parse_args(sys.argv[2:])
+    
+    if parse_results[0].parsable:
+        # disable standard output by monkey-patching sys.stdout
+        dev_null = open('/dev/null', 'w')
+        real_stdout = sys.stdout
+        sys.stdout = dev_null
     
     from regscrape_lib.util import bootstrap_settings
     bootstrap_settings()
     
-    out = run(*parse_results)
-    if out:
-        print out
+    out = run(*(parse_results if parser_defined else []))
+    
+    if parse_results[0].parsable:
+        # turn stdout back on so we can print output
+        sys.stdout = real_stdout
+        # but disable stderr so we can avoid that stupid gevent thing
+        sys.stderr = dev_null
+        
+        if out:
+            print json.dumps(out)
