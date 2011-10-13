@@ -54,7 +54,7 @@ arg_parser.add_option("-p", "--pretend", action="store_true", dest="pretend", de
 arg_parser.add_option("-t", "--type", action="store", dest="type", default=None)
 
 # decoder factory
-def get_decoder(result, options, update_func):
+def get_decoder(result, options, update_func, stats):
     def decode():
         ext = result['view']['file'].split('.')[-1]
         if ext in DECODERS:
@@ -78,18 +78,22 @@ def get_decoder(result, options, update_func):
                 else:
                     update_func(**result)
                     print 'Decoded and saved %s using %s' % (result['view']['file'], decoder.__str__())
+                stats['extracted'] += 1
                 break
         if not result['view'].get('extracted', False):
             result['view']['extracted'] = 'failed'
             if not options.pretend:
                 update_func(**result)
                 print 'Saved failure to decode %s' % result['view']['file']
+            stats['failed'] += 1
     return decode
 
 # runner
 def run(options, args):
-    run_for_view_type('document views', find_views, update_view, options)
-    run_for_view_type('attachment views', find_attachment_views, update_attachment_view, options)
+    return {
+        'document_views': run_for_view_type('document views', find_views, update_view, options),
+        'attachment_views': run_for_view_type('attachment views', find_attachment_views, update_attachment_view, options)
+    }
 
 def run_for_view_type(view_label, find_func, update_func, options):
     if options.pretend:
@@ -108,6 +112,9 @@ def run_for_view_type(view_label, find_func, update_func, options):
     views = find_func(**find_conditions)
     workers = Pool(settings.DECODERS)
     
+    # track stats -- no locks because yay for cooperative multitasking
+    stats = {'extracted': 0, 'failed': 0}
+    
     # keep the decoders busy with tasks as long as there are more results
     while True:
         try:
@@ -119,10 +126,12 @@ def run_for_view_type(view_label, find_func, update_func, options):
         except StopIteration:
             break
         
-        workers.spawn(get_decoder(result, options, update_func))
+        workers.spawn(get_decoder(result, options, update_func, stats))
     workers.join()
     
     print 'Done with %s.' % view_label
+    
+    return stats
 
 if __name__ == "__main__":
     run()
