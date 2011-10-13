@@ -19,3 +19,5 @@ def run():
             pass
     
     print 'Iterated over %s dockets, of which %s were new.' % (len(docket_ids), new)
+    
+    return {'total': len(docket_ids), 'new': new}
