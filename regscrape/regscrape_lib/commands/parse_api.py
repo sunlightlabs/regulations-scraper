@@ -276,7 +276,7 @@ def run(options, args):
         print 'Skipping reconciliation step.'
     
     # still-existing and deleted stuff is now done, but we still have to do the new stuff
-    add_new_docs(cache_wrapper, now)
+    stats['new'] = add_new_docs(cache_wrapper, now)
     
     sys.stdout.write('Terminating Redis cache...\n')
     
