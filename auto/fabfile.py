@@ -53,13 +53,14 @@ def handle_completion(message, results):
         send_email(ADMINS, message, output)
 
 @hosts(ssh_config('scraper'))
-def run_regs():
+def run_regs(start_with='dump_api'):
+    tasks = TASKS[[i for i in range(len(TASKS)) if TASKS[i][1][0] == start_with][0]:] # eep! finds the thing to start with, then takes the subset of TASKS from then on
     runners = {
         'remote': run_remote,
         'local': run_local
     }
-    results = OrderedDict
-    for func, command in TASKS:
+    results = OrderedDict()
+    for func, command in tasks:
         try:
             output = runners[func](' '.join(['./run.py'] + command + ['--parsable']))
             results[command[0]] = json.loads(output)
