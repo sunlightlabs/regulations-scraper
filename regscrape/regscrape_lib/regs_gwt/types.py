@@ -104,7 +104,7 @@ class DocumentSummary(object):
         
         date_posted = reader.read_string()
         
-        reader.read_int()
+        reader.read_string()
         reader.read_string() # context
         reader.read_string()
         
