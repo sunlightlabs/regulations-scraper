@@ -43,7 +43,7 @@ def run_local(command):
 def run_remote(command):
     with cd('~/regulations-scraper/regscrape'):
         with prefix('source ~/.virtualenvs/scraper/bin/activate'):
-            return run('which python')
+            return run(command)
 
 def handle_completion(message, results):
     output = '%s\nComplete results:\n%s' % (message, json.dumps(results, indent=4))
