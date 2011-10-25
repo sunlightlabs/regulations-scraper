@@ -63,9 +63,12 @@ def run_regs(start_with='dump_api'):
     for func, command in tasks:
         try:
             output = runners[func](' '.join(['./run.py'] + command + ['--parsable']))
-            results[command[0]] = json.loads(output)
+            try:
+                results[command[0]] = json.loads(output)
+            except ValueError:
+                results[command[0]] = 'unable to decode results'
             if VERBOSE and ADMINS:
-                send_email(ADMINS, 'Results of %s' % command[0], 'Results of %s:\n%s' % (command[0], json.dumps(results, indent=4)))
+                send_email(ADMINS, 'Results of %s' % command[0], 'Results of %s:\n%s' % (command[0], json.dumps(results[command[0]], indent=4)))
         except SystemExit:
             results[command[0]] = 'failed'
             handle_completion('Aborting at step: %s' % command[0], results)
