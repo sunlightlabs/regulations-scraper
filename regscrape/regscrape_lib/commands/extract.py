@@ -76,13 +76,23 @@ def get_decoder(result, options, update_func, stats):
                 if options.pretend:
                     print 'Decoded %s using %s' % (result['view']['file'], decoder.__str__())
                 else:
-                    update_func(**result)
-                    print 'Decoded and saved %s using %s' % (result['view']['file'], decoder.__str__())
-                stats['extracted'] += 1
+                    # since we're adding potentially tons of text here, there's a chance of making the document too big
+                    try:
+                        update_func(**result)
+                        print 'Decoded and saved %s using %s' % (result['view']['file'], decoder.__str__())
+                        stats['extracted'] += 1
+                    except (pymongo.errors.OperationFailure, pymongo.errors.InvalidDocument):
+                        print 'Decoded %s using %s but failed to save due to oversized document.' % (result['view']['file'], decoder.__str__())
+                        stats['failed'] += 1
+                        
+                        if not 'oversized' in stats:
+                            stats['oversized'] = []
+                        stats['oversized'].append(result['view']['url'])
                 break
         if not result['view'].get('extracted', False):
             result['view']['extracted'] = 'failed'
             if not options.pretend:
+                # this shouldn't make the document too big, so don't bother with handling that case for now
                 update_func(**result)
                 print 'Saved failure to decode %s' % result['view']['file']
             stats['failed'] += 1

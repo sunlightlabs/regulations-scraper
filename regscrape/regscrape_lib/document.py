@@ -33,7 +33,7 @@ def scrape_document(id, client):
             'X-GWT-Module-Base': client.js_url,
             'X-GWT-Permutation': '534129813C1882BA14066C262A32047D',
         }
-    ))
+    ), timeout=15)
 
     response = Response(client, download)
     raw = response.reader.read_object()

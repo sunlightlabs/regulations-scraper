@@ -41,13 +41,13 @@ def process_record(record, client, db, num_succeeded, num_failed):
             else:
                 # treat like any other error
                 print 'Warning: scrape failed on try %s with server exception: %s' % (i, error[1])
-                print traceback.print_tb(error[2])
+                traceback.print_tb(error[2], file=sys.stdout)
         except KeyboardInterrupt:
             raise
         except:
             print 'Warning: scrape failed on try %s' % i
             error = sys.exc_info()
-            print traceback.print_tb(error[2])
+            traceback.print_tb(error[2], file=sys.stdout)
     
     # catch renames of documents
     if doc and (not error) and (not removed) and doc['document_id'] != record['document_id']:
