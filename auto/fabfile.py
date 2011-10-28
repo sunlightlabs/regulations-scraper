@@ -38,7 +38,7 @@ def send_email(recipients, subject, message):
 
 def run_local(command):
     os.chdir(os.path.expanduser('~/regulations-scraper/regscrape'))
-    out = local(command, capture=True)
+    out = local(' '.join([sys.executable, command]), capture=True)
     return out
 
 def run_remote(command):
