@@ -18,6 +18,7 @@ TASKS = [
 ADMINS = []
 EMAIL_SENDER = ''
 EMAIL_API_KEY = ''
+LOCK_DIR = '/tmp'
 
 try:
     from local_settings import *
@@ -52,8 +53,31 @@ def handle_completion(message, results):
     if ADMINS:
         send_email(ADMINS, message, output)
 
+def acquire_lock():
+    lock_path = os.path.join(LOCK_DIR, 'regs.lock')
+    if os.path.exists(lock_path):
+        raise RuntimeError("Can't acquire lock.")
+    else:
+        lock = open(lock_path, 'w')
+        lock.write(os.getpid())
+        lock.close()
+
+def release_lock():
+    lock_path = os.path.join(LOCK_DIR, 'regs.lock')
+    os.unlink(lock_path)
+
 @hosts(ssh_config('scraper'))
 def run_regs(start_with='dump_api'):
+    try:
+        # use a lock file to keep multiple instances from trying to run simultaneously, which, among other things, consumes all of the memory on the high-CPU instance
+        acquire_lock()
+    except:
+        print 'Unable to acquire lock.'
+        if ADMINS:
+            send_email(ADMINS, "Aborting: can't acquire lock", "Can't start processing due to inability to acquire lock.")
+        
+        sys.exit(1)
+    
     tasks = TASKS[[i for i in range(len(TASKS)) if TASKS[i][1][0] == start_with][0]:] # eep! finds the thing to start with, then takes the subset of TASKS from then on
     runners = {
         'remote': run_remote,
@@ -74,3 +98,5 @@ def run_regs(start_with='dump_api'):
             handle_completion('Aborting at step: %s' % command[0], results)
             sys.exit(1)
     handle_completion('All steps completed.', results)
+
+    release_lock()
