@@ -59,7 +59,7 @@ def acquire_lock():
         raise RuntimeError("Can't acquire lock.")
     else:
         lock = open(lock_path, 'w')
-        lock.write(os.getpid())
+        lock.write(str(os.getpid()))
         lock.close()
 
 def release_lock():
