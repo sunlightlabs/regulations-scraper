@@ -5,7 +5,7 @@ from pytz import timezone
 import datetime
 
 DATE_FORMAT = re.compile('^(?P<month>\w+) (?P<day>\d{2}) (?P<year>\d{4}), at (?P<hour>\d{2}):(?P<minute>\d{2}) (?P<ampm>\w{2}) (?P<timezone>[\w ]+)$')
-DOCUMENT_REQUEST_URL = "7|0|9|http://www.regulations.gov/Regs/|79054EB91D11DE9BC8E593C638C41668|com.gwtplatform.dispatch.shared.DispatchService|execute|java.lang.String/2004016611|com.gwtplatform.dispatch.shared.Action|dabfb57f5c4a2c6459d66dd6080492eb8ac981cd6cc450e0cf5de2db7f8a3ecc.e38Sb3aKaN8Oe38Lby0|gov.egov.erule.regs.shared.action.LoadDocumentDetailAction/1648650509|%s|1|2|3|4|2|5|6|7|8|9|"
+DOCUMENT_REQUEST_URL = "7|0|9|http://www.regulations.gov/Regs/|A7D51DAC75A664C72891603F2A86026B|com.gwtplatform.dispatch.shared.DispatchService|execute|java.lang.String/2004016611|com.gwtplatform.dispatch.shared.Action|dabfb57f5c4a2c6459d66dd6080492eb8ac981cd6cc450e0cf5de2db7f8a3ecc.e38Sb3aKaN8Oe38Lby0|gov.egov.erule.regs.shared.action.LoadDocumentDetailAction/1648650509|%s|1|2|3|4|2|5|6|7|8|9|"
 
 def check_date(value):
     # is it a date?
@@ -91,7 +91,7 @@ def scrape_document(id, client):
     
     return out
 
-DOCKET_REQUEST_URL = "7|0|9|http://www.regulations.gov/Regs/|79054EB91D11DE9BC8E593C638C41668|com.gwtplatform.dispatch.shared.DispatchService|execute|java.lang.String/2004016611|com.gwtplatform.dispatch.shared.Action|dabfb57f5c4a2c6459d66dd6080492eb8ac981cd6cc450e0cf5de2db7f8a3ecc.e38Sb3aKaN8Oe38Lby0|gov.egov.erule.regs.shared.action.LoadDocketFolderMetadataAction/386901167|%s|1|2|3|4|2|5|6|7|8|9|"
+DOCKET_REQUEST_URL = "7|0|9|http://www.regulations.gov/Regs/|A7D51DAC75A664C72891603F2A86026B|com.gwtplatform.dispatch.shared.DispatchService|execute|java.lang.String/2004016611|com.gwtplatform.dispatch.shared.Action|dabfb57f5c4a2c6459d66dd6080492eb8ac981cd6cc450e0cf5de2db7f8a3ecc.e38Sb3aKaN8Oe38Lby0|gov.egov.erule.regs.shared.action.LoadDocketFolderMetadataAction/386901167|%s|1|2|3|4|2|5|6|7|8|9|"
 DOCKET_YEAR_FINDER = re.compile("[_-](\d{4})[_-]")
 
 def scrape_docket(id, client):
