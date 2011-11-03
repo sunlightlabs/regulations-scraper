@@ -67,7 +67,7 @@ def release_lock():
     os.unlink(lock_path)
 
 @hosts(ssh_config('scraper'))
-def run_regs(start_with='dump_api'):
+def run_regs(start_with='dump_api', end_with='scrape_dockets'):
     try:
         # use a lock file to keep multiple instances from trying to run simultaneously, which, among other things, consumes all of the memory on the high-CPU instance
         acquire_lock()
@@ -78,7 +78,9 @@ def run_regs(start_with='dump_api'):
         
         sys.exit(1)
     
-    tasks = TASKS[[i for i in range(len(TASKS)) if TASKS[i][1][0] == start_with][0]:] # eep! finds the thing to start with, then takes the subset of TASKS from then on
+    first_task_idx = [i for i in range(len(TASKS)) if TASKS[i][1][0] == start_with][0]
+    last_task_idx = [i for i in range(len(TASKS)) if TASKS[i][1][0] == end_with][0]
+    tasks = TASKS[first_task_idx:(last_task_idx+1)]
     runners = {
         'remote': run_remote,
         'local': run_local
