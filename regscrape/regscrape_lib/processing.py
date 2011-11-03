@@ -2,6 +2,7 @@
 
 from bson.code import Code
 from pymongo.objectid import ObjectId
+from pymongo.binary import Binary
 import subprocess, os, urlparse, json
 from regscrape_lib.util import get_db
 from exceptions import DecodeFailed
@@ -13,6 +14,7 @@ import itertools
 import sys
 import regscrape_lib
 import operator
+import zlib
 
 def find_views(**params):
     db = get_db()
@@ -65,30 +67,50 @@ def find_attachment_views(**params):
 
     return results
 
-def update_view(doc, view):
+def update_view(doc, view, try_compression=True):
     oid = ObjectId(doc)
     
     # use db object from thread pool
     db = get_db()
     
     # can't figure out a way to do this atomically because of bug SERVER-1050
+    # remove the old version of the view
     db.docs.update({
         '_id': oid
     },
     {
-        '$pull': { "views": {"url": view['url']}}
+        '$pull': {"views": {"url": view['url']}}
     }, safe=True)
-    db.docs.update({
-        '_id': oid
-    },
-    {
-        '$push': { "views": view}
-    }, safe=True)
+
+    # add the new one back
+    try:
+        db.docs.update({
+            '_id': oid
+        },
+        {
+            '$push': {"views": view}
+        }, safe=True)
+    except (pymongo.errors.OperationFailure, pymongo.errors.InvalidDocument):
+        # apparently whatever we changed made the document too big
+        # so as long as we haven't already tried, let's first compress
+        # all the other views on the document
+        if try_compression:
+            compress_all(doc)
+
+            # then, since saving this view failed, before, add back a compressed version
+            db.docs.update({
+                '_id': oid
+            },
+            {
+                '$push': {"views": compress_view(view)}
+            }, safe=True)
+        else:
+            raise
     
     # return it to the pool
     del db
 
-def update_attachment_view(doc, attachment, view):
+def update_attachment_view(doc, attachment, view, try_compression=True):
     oid = ObjectId(doc)
     
     db = get_db()
@@ -101,15 +123,78 @@ def update_attachment_view(doc, attachment, view):
     {
         '$pull': {'attachments.$.views': {'url': view['url']}}
     }, safe=True)
-    db.docs.update({
-        '_id': oid,
-        'attachments.object_id': attachment
-    },
-    {
-        '$push': {'attachments.$.views': view}
-    }, safe=True)
+
+    try:
+        db.docs.update({
+            '_id': oid,
+            'attachments.object_id': attachment
+        },
+        {
+            '$push': {'attachments.$.views': view}
+        }, safe=True)
+    except (pymongo.errors.OperationFailure, pymongo.errors.InvalidDocument):
+        # apparently whatever we changed made the document too big
+        # same strategy as above
+        if try_compression:
+            compress_all(doc)
+
+            # then, since saving this view failed, before, add back a compressed version
+            db.docs.update({
+                '_id': oid,
+                'attachments.object_id': attachment
+            },
+            {
+                '$push': {'attachments.$.views': compress_view(view)}
+            }, safe=True)
+        else:
+            raise
     
     del db
+
+def compress_all(doc):
+    # grab the original document and run compression on everything that isn't compressed
+    # but save via pull/push, since there are other workers potentially making simultaneous saves
+    oid = ObjectId(doc)
+
+    db = get_db()
+
+    full_doc = db.docs.find({'_id': oid})[0]
+
+    # regular views first
+    for view in full_doc['views']:
+        if not view_is_compressed(view):
+            update_view(doc, compress_view(view), try_compression=False)
+    
+    # then attachments
+    for attachment in full_doc.get('attachments', []):
+        for view in attachment['views']:
+            if not view_is_compressed(view):
+                update_attachment_view(doc, attachment['object_id'], compress_view(view), try_compression=False)
+
+def view_is_compressed(view):
+    if 'text' not in view or not view['text']:
+        # the only compression strategy we have operates on the text, so if there's no text, it's as compressed
+        # as it's going to get
+        return True
+    elif type(view['text']) == dict and 'compressed' in view['text']:
+        # already compressed
+        return True
+    else:
+        return False
+
+def compress_view(view):
+    text = view.get('text', '')
+    if type(text) == unicode:
+        text = text.encode('utf-8')
+    
+    if type(text) == str:
+        text = {'compressed': Binary(zlib.compress(text))}
+    
+    out = view.copy()
+    out['text'] = text
+
+    return out
+
 
 # the following is from http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
 def which(program):
