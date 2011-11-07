@@ -3,6 +3,7 @@
 from bson.code import Code
 from pymongo.objectid import ObjectId
 from pymongo.binary import Binary
+from pymongo.errors import OperationFailure, InvalidDocument
 import subprocess, os, urlparse, json
 from regscrape_lib.util import get_db
 from exceptions import DecodeFailed
@@ -90,7 +91,7 @@ def update_view(doc, view, try_compression=True):
         {
             '$push': {"views": view}
         }, safe=True)
-    except (pymongo.errors.OperationFailure, pymongo.errors.InvalidDocument):
+    except (OperationFailure, InvalidDocument):
         # apparently whatever we changed made the document too big
         # so as long as we haven't already tried, let's first compress
         # all the other views on the document
@@ -132,7 +133,7 @@ def update_attachment_view(doc, attachment, view, try_compression=True):
         {
             '$push': {'attachments.$.views': view}
         }, safe=True)
-    except (pymongo.errors.OperationFailure, pymongo.errors.InvalidDocument):
+    except (OperationFailure, InvalidDocument):
         # apparently whatever we changed made the document too big
         # same strategy as above
         if try_compression:
