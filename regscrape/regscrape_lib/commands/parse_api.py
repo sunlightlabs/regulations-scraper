@@ -72,7 +72,7 @@ def reconcile_process(record, cache, db, now, repaired_counter, updated_counter,
             db_doc['last_seen'] = now
             
             # do save
-            db.doc.save(db_doc, safe=True)
+            db.docs.save(db_doc, safe=True)
             repaired_counter.increment()
         else:
             # we don't need a full repair, so just do an update on the date
