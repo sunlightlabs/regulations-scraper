@@ -92,7 +92,7 @@ def run_regs(start_with='dump_api', end_with='scrape_dockets'):
             try:
                 results[command[0]] = json.loads(output)
             except ValueError:
-                results[command[0]] = 'unable to decode results'
+                results[command[0]] = {'raw_results': output}
             if VERBOSE and ADMINS:
                 send_email(ADMINS, 'Results of %s' % command[0], 'Results of %s:\n%s' % (command[0], json.dumps(results[command[0]], indent=4)))
         except SystemExit:
