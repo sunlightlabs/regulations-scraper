@@ -223,6 +223,10 @@ def parser_worker(todo_queue, done_queue, cache_wrapper):
 def parse_dumps(options, cache_wrapper):
     num_workers = options.multi
     files = [file for file in os.listdir(settings.DUMP_DIR) if file.endswith('.gwt')]
+
+    if len(files) < 10:
+        # something is wrong, as there should be more than ten files
+        raise Exception('Too few .gwt files; something went wrong.')
     
     # it's a small number of files, so just make a queue big enough to hold them all, to keep from having to block
     todo_queue = multiprocessing.JoinableQueue(len(files))

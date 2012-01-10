@@ -32,8 +32,7 @@ def run():
                     time.sleep(10)
                 else:
                     print 'System troubles; giving up.'
-                    stats['failed'] += 1
-                    return stats
+                    raise
         
         position += settings.DUMP_INCREMENT
     
