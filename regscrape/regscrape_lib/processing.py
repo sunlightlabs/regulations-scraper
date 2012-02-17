@@ -5,8 +5,10 @@ from pymongo.objectid import ObjectId
 from pymongo.binary import Binary
 from pymongo.errors import OperationFailure, InvalidDocument
 import subprocess, os, urlparse, json
+import gevsubprocess
+from gevent import Timeout
 from regscrape_lib.util import get_db
-from exceptions import DecodeFailed
+from exceptions import DecodeFailed, ChildTimeout
 import os
 import re
 import cStringIO
@@ -230,8 +232,16 @@ def binary_decoder(binary, error=None, append=[]):
     if not type(binary) == list:
         binary = [binary]
     def decoder(filename):
-        interpreter = subprocess.Popen(binary + [filename] + append, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        output, run_error = interpreter.communicate('')
+        interpreter = gevsubprocess.GPopen(binary + [filename] + append, stdin=gevsubprocess.PIPE, stdout=gevsubprocess.PIPE, stderr=gevsubprocess.STDOUT)
+        
+        timeout = Timeout(getattr(settings, 'EXTRACTION_TIMEOUT', 120), ChildTimeout)
+        timeout.start()
+        try:
+            output, run_error = interpreter.communicate('')
+            timeout.cancel()
+        except ChildTimeout:
+            interpreter.kill()
+            raise
         
         if not output.strip() or (error and error in output):
             raise DecodeFailed()

@@ -3,3 +3,6 @@ class DecodeFailed(Exception):
 
 class DoesNotExist(Exception):
     pass
+
+class ChildTimeout(Exception):
+    pass

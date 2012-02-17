@@ -24,6 +24,12 @@ def get_decoder(result, options, update_func, stats):
                         ' %s' % reason if reason else ''
                     )
                     continue
+                except ChildTimeout as failure:
+                    print 'Failed decoding %s using %s due to timeout' % (
+                        result['view']['url'],
+                        decoder.__str__()
+                    )
+                    continue
                 
                 result['view']['extracted'] = True
                 result['view']['text'] = unicode(remove_control_chars(output), 'utf-8', 'ignore')
