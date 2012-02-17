@@ -62,7 +62,7 @@ def get_decoder(result, options, update_func, stats):
 # runner
 def run(options, args): 
     global Pool, sys, settings, subprocess, os, urlparse, json, regscrape_lib, pymongo, DECODERS
-    from regscrape_lib.processing import *
+    from regscrape_lib.processing import find_views, update_view, find_attachment_views, update_attachment_view
     from regscrape_lib.extraction import DECODERS
     from gevent.pool import Pool
     import sys

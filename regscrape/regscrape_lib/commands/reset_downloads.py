@@ -4,7 +4,7 @@ MIN_SIZE = getattr(settings, 'MIN_DOWNLOAD_SIZE', 1024)
 
 def run():
     global os, settings
-    from regscrape_lib.processing import *
+    from regscrape_lib.processing import find_views, update_view, find_attachment_views, update_attachment_view
     import os
     import settings
 
