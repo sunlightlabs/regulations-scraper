@@ -1,13 +1,3 @@
-import settings
-import datetime
-import os
-import pymongo
-import itertools
-import json
-from regscrape_lib.util import get_db
-import zipfile
-import sys
-
 from optparse import OptionParser
 arg_parser = OptionParser()
 arg_parser.add_option("-a", "--agency", dest="agency", action="store", type="string", default=None, help="Filter to only one agency.  Default to all agencies if not specified.")
@@ -27,6 +17,17 @@ def extract(record, keys):
 dthandler = lambda obj: obj.isoformat() if isinstance(obj, datetime.datetime) else None
 
 def run(options, args):
+    global os
+    import settings
+    import datetime
+    import os
+    import pymongo
+    import itertools
+    import json
+    from regscrape_lib.util import get_db
+    import zipfile
+    import sys
+
     print 'Starting dump...'
     
     query = {'scraped': True, 'deleted': False}

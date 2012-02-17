@@ -1,16 +1,18 @@
 #!/usr/bin/env python
 
-from regscrape_lib.processing import *
-from regscrape_lib.util import download, download_wget
-import settings
-import subprocess, os, urlparse, sys, traceback, datetime
-from gevent.pool import Pool
-import urllib2
-import pymongo
-
 MIN_SIZE = getattr(settings, 'MIN_DOWNLOAD_SIZE', 1024)
 
 def run():
+    # global imports hack so we don't mess up gevent loading
+    global download, settings, subprocess, os, urlparse, sys, traceback, datetime, Pool, urllib2, pymongo
+    from regscrape_lib.processing import *
+    from regscrape_lib.util import download
+    import settings
+    import subprocess, os, urlparse, sys, traceback, datetime
+    from gevent.pool import Pool
+    import urllib2
+    import pymongo
+    
     return {
         'document_views': run_for_view_type('document views', find_views, update_view),
         'attachment_views': run_for_view_type('attachment views', find_attachment_views, update_attachment_view)

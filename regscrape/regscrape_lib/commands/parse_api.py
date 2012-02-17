@@ -1,3 +1,5 @@
+GEVENT = False
+
 from regs_gwt.regs_client import RegsClient
 import os
 import settings

@@ -1,3 +1,5 @@
+GEVENT = False
+
 import settings
 from regscrape_lib.regs_gwt.regs_client import RegsClient
 from regscrape_lib.document import scrape_docket

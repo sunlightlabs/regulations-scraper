@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
-from regscrape_lib.processing import *
-import os
-import settings
-
 MIN_SIZE = getattr(settings, 'MIN_DOWNLOAD_SIZE', 1024)
 
 def run():
+    global os, settings
+    from regscrape_lib.processing import *
+    import os
+    import settings
+
     run_for_view_type('document views', find_views, update_view)
     run_for_view_type('attachment views', find_attachment_views, update_attachment_view)
 

@@ -1,7 +1,7 @@
-from regscrape_lib.util import get_db
-import settings
-
 def run():
+    from regscrape_lib.util import get_db
+    import settings
+    
     query = settings.FILTER.copy()
     query['_scraping'] = {'$exists': True}
     

@@ -1,6 +1,6 @@
-import settings
-
 def run():
+    import settings
+    
     from regscrape_lib.regs_gwt.regs_client import RegsClient
     client = RegsClient()
 

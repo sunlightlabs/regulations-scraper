@@ -2,17 +2,11 @@
 
 import sys, optparse, json
 
-NO_GEVENT = ['scrape', 'scrape_dockets', 'parse_api']
-
 def run_command():    
     if len(sys.argv) < 2:
         print 'Usage: ./run.py <command>'
         sys.exit()
     command = sys.argv[1]
-    
-    if command not in NO_GEVENT:
-        from gevent.monkey import patch_all
-        patch_all()
     
     try:
         parent_mod = __import__('regscrape_lib.commands', fromlist=[command])
@@ -21,6 +15,10 @@ def run_command():
         print 'No such command: %s' % command
         sys.exit()
     
+    if getattr(mod, 'GEVENT', True):
+        from gevent.monkey import patch_all
+        patch_all()
+
     run = getattr(mod, 'run', False)
     if not run or not callable(run):
         print 'Command %s is not runnable' % command

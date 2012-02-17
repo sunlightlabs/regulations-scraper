@@ -1,52 +1,7 @@
 #!/usr/bin/env python
 
-from regscrape_lib.processing import *
-from optparse import OptionParser
 from regscrape_lib.exceptions import *
-from gevent.pool import Pool
-import sys
-import settings
-import subprocess, os, urlparse, json
-import regscrape_lib
-import pymongo
-
-DECODERS = {
-    'xml': [
-        binary_decoder('html2text', error='The document does not have a content file of type')
-    ],
-        
-    'pdf': [
-        binary_decoder('pdftotext', append=['-'], error='PDF file is damaged'),
-        binary_decoder('ps2ascii', error='Unrecoverable error'),
-#        pdf_ocr
-    ],
-    
-    'msw8': [
-        binary_decoder('antiword', error='is not a Word Document'),
-        binary_decoder('catdoc', error='The document does not have a content file of type') # not really an error, but catdoc happily regurgitates whatever you throw at it
-    ],
-    
-    'rtf': [
-        binary_decoder('catdoc', error='The document does not have a content file of type') # not really an error, as above
-    ],
-    
-    'txt': [
-        binary_decoder('cat', error='The document does not have a content file of type') # not really an error, as above
-    ],
-    
-    'msw12': [
-        script_decoder('extract_docx.py', error='Failed to decode file')
-    ],
-    
-    'wp8': [
-        binary_decoder('wpd2text', error='ERROR')
-    ],
-}
-
-DECODERS['crtext'] = DECODERS['xml']
-DECODERS['html'] = DECODERS['xml']
-DECODERS['msw6'] = DECODERS['msw8']
-DECODERS['msw'] = DECODERS['msw8']
+from optparse import OptionParser
 
 # arguments
 arg_parser = OptionParser()
@@ -99,7 +54,17 @@ def get_decoder(result, options, update_func, stats):
     return decode
 
 # runner
-def run(options, args):
+def run(options, args): 
+    global Pool, sys, settings, subprocess, os, urlparse, json, regscrape_lib, pymongo, DECODERS
+    from regscrape_lib.processing import *
+    from regscrape_lib.extraction import DECODERS
+    from gevent.pool import Pool
+    import sys
+    import settings
+    import subprocess, os, urlparse, json
+    import regscrape_lib
+    import pymongo
+
     return {
         'document_views': run_for_view_type('document views', find_views, update_view, options),
         'attachment_views': run_for_view_type('attachment views', find_attachment_views, update_attachment_view, options)

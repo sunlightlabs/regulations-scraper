@@ -1,7 +1,7 @@
-from regscrape_lib.util import get_db
-from pymongo.errors import DuplicateKeyError
-
 def run():
+    from regscrape_lib.util import get_db
+    from pymongo.errors import DuplicateKeyError
+    
     db = get_db()
     new = 0
     
