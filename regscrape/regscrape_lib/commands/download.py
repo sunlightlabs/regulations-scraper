@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import settings
 MIN_SIZE = getattr(settings, 'MIN_DOWNLOAD_SIZE', 1024)
 
 def run():
@@ -7,7 +8,6 @@ def run():
     global download, settings, subprocess, os, urlparse, sys, traceback, datetime, Pool, urllib2, pymongo
     from regscrape_lib.processing import find_views, update_view, find_attachment_views, update_attachment_view
     from regscrape_lib.util import download
-    import settings
     import subprocess, os, urlparse, sys, traceback, datetime
     from gevent.pool import Pool
     import urllib2
