@@ -3,7 +3,7 @@ def run():
     import settings
     import os, time, sys
     from regscrape_lib.regs_gwt.regs_client import RegsClient
-    from regscrape_lib.util import download
+    from regscrape_lib.transfer import download
     from regscrape_lib.search import search
     
     # delete old dumps
