@@ -38,7 +38,7 @@ def run_for_view_type(view_label, find_func, update_func):
             yield (result['view']['url'], save_path, result)
         except pymongo.errors.OperationFailure:
             # occasionally pymongo seems to lose track of the cursor for some reason, so reset the query
-            views = find_func(downloaded=False, query=settings.FILTER)
+            views = find_func(downloaded=False, query={'deleted': False})
             continue
         except StopIteration:
             break
