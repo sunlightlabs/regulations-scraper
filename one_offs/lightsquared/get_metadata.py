@@ -5,10 +5,11 @@ def run(options, args):
     import zipfile, sys, datetime, re, json
     from lxml import etree
 
-    if len(args) > 0:
+    if len(args) > 1:
         wbk_path = args[0]
+        out_path = args[1]
     else:
-        print "Specify file"
+        print "Specify files"
         sys.exit(0)
     
     wbk = zipfile.ZipFile(wbk_path, 'r')
@@ -65,4 +66,4 @@ def run(options, args):
         if len(row_data.keys()) > 1:
             out.append(row_data)
 
-    print json.dumps(out, default=date_handler, indent=4)
+    open(out_path, 'w').write(json.dumps(out, default=date_handler, indent=4))
