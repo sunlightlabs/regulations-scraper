@@ -3,6 +3,8 @@ import subprocess
 from gevent.pool import Pool
 import settings
 import datetime
+import sys
+import traceback
 
 def pump(input, output, chunk_size):
     size = 0
@@ -48,7 +50,7 @@ def _get_downloader(status_func, retries, verbose, min_size, url, filename, reco
                 download_succeeded = True
                 elapsed = datetime.datetime.now() - start
             except urllib2.HTTPError as e:
-                if verbose: print 'Download of %s failed due to error %s.' % (result['view']['url'], e.code)
+                if verbose: print 'Download of %s failed due to error %s.' % (url, e.code)
                 download_message = e.code
             except:
                 exc = sys.exc_info()
@@ -58,7 +60,7 @@ def _get_downloader(status_func, retries, verbose, min_size, url, filename, reco
                 if size >= min_size:
                     # print status
                     ksize = int(round(size/1024.0))
-                    if verbose: print 'Downloaded %s: %sk in %s seconds (%sk/sec)' % (result['view']['url'], ksize, elapsed.seconds, round(float(ksize)/elapsed.seconds * 10)/10 if elapsed.seconds > 0 else '--')
+                    if verbose: print 'Downloaded %s: %sk in %s seconds (%sk/sec)' % (url, ksize, elapsed.seconds, round(float(ksize)/elapsed.seconds * 10)/10 if elapsed.seconds > 0 else '--')
                     break
                 else:
                     download_succeeded = False
@@ -77,8 +79,8 @@ def bulk_download(download_iterable, status_func=None, retries=1, verbose=False,
     workers = Pool(getattr(settings, 'DOWNLOADERS', 5))
     
     # keep the decoders busy with tasks as long as there are more results
-    for download in download_iterable:
-        workers.spawn(_get_downloader(update_func, retries, verbose, min_size, *download))
+    for download_record in download_iterable:
+        workers.spawn(_get_downloader(status_func, retries, verbose, min_size, *download_record))
     
     workers.join()
     
