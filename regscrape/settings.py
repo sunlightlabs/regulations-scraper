@@ -2,7 +2,7 @@ TARGET_SERVER = 'www.regulations.gov'
 DEBUG = True
 DB_NAME = 'regulations'
 DATA_DIR = '/data'
-DECODERS = 2
+EXTRACTORS = 2
 
 DUMP_START = 0
 DUMP_END = 3500000

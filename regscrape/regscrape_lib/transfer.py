@@ -78,7 +78,7 @@ def _get_downloader(status_func, retries, verbose, min_size, url, filename, reco
 def bulk_download(download_iterable, status_func=None, retries=1, verbose=False, min_size=0):    
     workers = Pool(getattr(settings, 'DOWNLOADERS', 5))
     
-    # keep the decoders busy with tasks as long as there are more results
+    # keep the downloaders busy with tasks as long as there are more results
     for download_record in download_iterable:
         workers.spawn(_get_downloader(status_func, retries, verbose, min_size, *download_record))
     

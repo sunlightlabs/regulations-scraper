@@ -8,7 +8,7 @@ import subprocess, os, urlparse, json
 import gevsubprocess
 from gevent import Timeout
 from regscrape_lib.util import get_db
-from exceptions import DecodeFailed, ChildTimeout
+from exceptions import ExtractionFailed, ChildTimeout
 import os
 import re
 import cStringIO
@@ -227,11 +227,11 @@ control_char_re = re.compile('[%s]' % re.escape(control_chars))
 def remove_control_chars(s):
     return control_char_re.sub('', s)
 
-# decoders
-def binary_decoder(binary, error=None, append=[]):
+# extractor
+def binary_extractor(binary, error=None, append=[]):
     if not type(binary) == list:
         binary = [binary]
-    def decoder(filename):
+    def extractor(filename):
         interpreter = gevsubprocess.GPopen(binary + [filename] + append, stdin=gevsubprocess.PIPE, stdout=gevsubprocess.PIPE, stderr=gevsubprocess.STDOUT)
         
         timeout = Timeout(getattr(settings, 'EXTRACTION_TIMEOUT', 120), ChildTimeout)
@@ -244,21 +244,21 @@ def binary_decoder(binary, error=None, append=[]):
             raise
         
         if not output.strip() or (error and error in output):
-            raise DecodeFailed()
+            raise ExtractionFailed()
         else:
             return output
     
-    decoder.__str__ = lambda: binary[0]
+    extractor.__str__ = lambda: binary[0]
     
-    return decoder
+    return extractor
 
-def script_decoder(script, error=None):
+def script_extractor(script, error=None):
     script_path = os.path.join(os.path.dirname(os.path.abspath(regscrape_lib.__file__)), 'scripts', script)
     
-    decoder = binary_decoder([sys.executable, script_path], error=error)
-    decoder.__str__ = lambda: script
+    extractor = binary_extractor([sys.executable, script_path], error=error)
+    extractor.__str__ = lambda: script
     
-    return decoder
+    return extractor
 
 def ocr_scrub(text):
     lines = re.split(r'\n', text)
@@ -272,7 +272,7 @@ def ocr_scrub(text):
     filtered_text = '\n'.join(filtered_lines)
     
     if len(filtered_text) / float(len(text)) < 0.5:
-        raise DecodeFailed('This is does not appear to be text.')
+        raise ExtractionFailed('This is does not appear to be text.')
     
     return filtered_text
 
@@ -292,25 +292,25 @@ def pdf_ocr(filename):
     extractor_output, extractor_error = extractor.communicate()
     if extractor_error:
         cleanup()
-        raise DecodeFailed("Failed to extract image data from PDF.")
+        raise ExtractionFailed("Failed to extract image data from PDF.")
     
     pnm_match = re.compile(r"[a-zA-Z0-9]+-[0-9]+\.p.m")
     pnms = [file for file in os.listdir(working) if pnm_match.match(file)]
     if not pnms:
         cleanup()
-        raise DecodeFailed("No images found in PDF.")
+        raise ExtractionFailed("No images found in PDF.")
     
     converter = subprocess.Popen(['gm', 'mogrify', '-format', 'tiff', '-type', 'Grayscale'] + pnms, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     converter_output, converter_error = converter.communicate()
     if converter_error:
         cleanup()
-        raise DecodeFailed("Failed to convert images to tiff.")
+        raise ExtractionFailed("Failed to convert images to tiff.")
     
     tiff_match = re.compile(r"[a-zA-Z0-9]+-[0-9]+\.tiff")
     tiffs = [file for file in os.listdir(working) if tiff_match.match(file)]
     if not tiffs:
         cleanup()
-        raise DecodeFailed("Converted tiffs not found.")
+        raise ExtractionFailed("Converted tiffs not found.")
     
     out = cStringIO.StringIO()
     for tiff in tiffs:
@@ -322,7 +322,7 @@ def pdf_ocr(filename):
     txts = [file for file in os.listdir(working) if txt_match.match(file)]
     if not txts:
         cleanup()
-        raise DecodeFailed("OCR failed to find any text.")
+        raise ExctractionFailed("OCR failed to find any text.")
     
     for txt in txts:
         ocr_file = open(txt, 'r')

@@ -1,4 +1,4 @@
-class DecodeFailed(Exception):
+class ExtractionFailed(Exception):
     pass
 
 class DoesNotExist(Exception):
