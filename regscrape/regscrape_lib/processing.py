@@ -18,6 +18,7 @@ import sys
 import regscrape_lib
 import operator
 import zlib
+import settings
 
 def find_views(**params):
     db = get_db()
@@ -228,11 +229,12 @@ def remove_control_chars(s):
     return control_char_re.sub('', s)
 
 # extractor
+POPEN = gevsubprocess.GPopen
 def binary_extractor(binary, error=None, append=[]):
     if not type(binary) == list:
         binary = [binary]
     def extractor(filename):
-        interpreter = gevsubprocess.GPopen(binary + [filename] + append, stdin=gevsubprocess.PIPE, stdout=gevsubprocess.PIPE, stderr=gevsubprocess.STDOUT)
+        interpreter = POPEN(binary + [filename] + append, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         
         timeout = Timeout(getattr(settings, 'EXTRACTION_TIMEOUT', 120), ChildTimeout)
         timeout.start()
@@ -240,6 +242,7 @@ def binary_extractor(binary, error=None, append=[]):
             output, run_error = interpreter.communicate('')
             timeout.cancel()
         except ChildTimeout:
+            print 'killing %s' % filename
             interpreter.kill()
             raise
         

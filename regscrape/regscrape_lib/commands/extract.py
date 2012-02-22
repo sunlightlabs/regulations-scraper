@@ -9,9 +9,9 @@ arg_parser.add_option("-t", "--type", action="store", dest="type", default=None)
 
 # runner
 def run(options, args): 
-    global Pool, sys, settings, subprocess, os, urlparse, json, regscrape_lib, pymongo, DECODERS
+    global Pool, sys, settings, subprocess, os, urlparse, json, regscrape_lib, pymongo, serial_bulk_extract
     from regscrape_lib.processing import find_views, update_view, find_attachment_views, update_attachment_view
-    from regscrape_lib.extraction import DECODERS
+    from regscrape_lib.extraction import serial_bulk_extract
     from gevent.pool import Pool
     import sys
     import settings
@@ -74,7 +74,7 @@ def run_for_view_type(view_label, find_func, update_func, options):
             stats['failed'] += 1
         update_func(**result)
     
-    bulk_extract(extract_iterable, status_func, verbose=True)
+    serial_bulk_extract(extract_generator(), status_func, verbose=True)
 
     print 'Done with %s.' % view_label
     

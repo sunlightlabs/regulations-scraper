@@ -1,4 +1,8 @@
 from regscrape_lib.processing import *
+import subprocess
+from gevent.pool import Pool
+import gevent
+import settings
 
 EXTRACTORS = {
     'xml': [
@@ -39,15 +43,14 @@ EXTRACTORS['msw6'] = EXTRACTORS['msw8']
 EXTRACTORS['msw'] = EXTRACTORS['msw8']
 
 # extractor factory
-def _get_downloader(status_func, verbose, filename, filetype=None, record=None):
+def _get_extractor(status_func, verbose, filename, filetype=None, record=None):
     def extract():
-        if filetype is None:
-            filetype = filename.split('.')[-1]
-        if filetype in EXTRACTORS:
+        local_filetype = filetype if filetype else filename.split('.')[-1]
+        if local_filetype in EXTRACTORS:
             success = False
             error_message = None
             used_ocr = False
-            for extractor in EXTRACTORS[filetype]:
+            for extractor in EXTRACTORS[local_filetype]:
                 try:
                     output = extractor(filename)
                 except ExtractionFailed as failure:
@@ -61,7 +64,7 @@ def _get_downloader(status_func, verbose, filename, filetype=None, record=None):
                     continue
                 except ChildTimeout as failure:
                     error_message = 'Failed extracting from %s using %s due to timeout' % (
-                        result['view']['url'],
+                        filename,
                         extractor.__str__()
                     )
                     if verbose: print error_message
@@ -70,6 +73,10 @@ def _get_downloader(status_func, verbose, filename, filetype=None, record=None):
                 success = True
                 text = unicode(remove_control_chars(output), 'utf-8', 'ignore')
                 used_ocr = getattr(extractor, 'ocr', False)
+                if verbose: print 'Extracted text from %s using %s' % (
+                    filename,
+                    extractor.__str__()
+                )
                 
                 break
 
@@ -77,7 +84,7 @@ def _get_downloader(status_func, verbose, filename, filetype=None, record=None):
                 (success, error_message),
                 text if success else None,
                 filename,
-                filetype,
+                local_filetype,
                 used_ocr,
                 record
             )
@@ -92,4 +99,15 @@ def bulk_extract(extract_iterable, status_func=None, verbose=False):
     
     workers.join()
     
+    return
+
+def serial_bulk_extract(extract_iterable, status_func=None, verbose=False):
+    import subprocess
+    import regscrape_lib.processing
+
+    regscrape_lib.processing.POPEN = subprocess.Popen
+    
+    for extract_record in extract_iterable:
+        _get_extractor(status_func, verbose, *extract_record)()
+
     return
