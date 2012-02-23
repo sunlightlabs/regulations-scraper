@@ -7,12 +7,15 @@ class RegsClient(Client):
         
         self.domain = 'www.regulations.gov'
         self.js_url = 'http://www.regulations.gov/Regs/'
-        self.gwt_permutation = '96ED140EA002EA7F0224967DBF229721'
+        self.gwt_permutation = '84DE24481783ADA97BBE752EAB730C0C'
         
         self.class_map.update({
             'gov.egov.erule.regs.shared.action.LoadSearchResultsResult': SearchResultPackage,
             'gov.egov.erule.regs.shared.models.SearchResultModel': SearchResult,
             'gov.egov.erule.regs.shared.models.Agency': Agency,
+            'gov.egov.erule.regs.shared.models.Category': Category,
+            'gov.egov.erule.regs.shared.models.ClosingSoon': ClosingSoon,
+            'gov.egov.erule.regs.shared.models.NewlyPosted': NewlyPosted,
             'gov.egov.erule.regs.shared.models.DimensionCounterFilter': DimensionCounter,
             'gov.egov.erule.regs.shared.models.CommentPeriod': CommentPeriod,
             'gov.egov.erule.regs.shared.models.DocumentSummaryModel': DocumentSummary,

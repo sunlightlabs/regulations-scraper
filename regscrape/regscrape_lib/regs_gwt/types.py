@@ -9,8 +9,18 @@ class SearchResult(object):
     @classmethod
     def gwt_deserialize(cls, reader):
         reader.read_object() # agencies
+        reader.read_object() # categories
+        reader.read_object() # closing-soon?
+        reader.read_object() # ?
+        documents = reader.read_object() # documents
         reader.read_object()
-        documents = reader.read_object()
+        reader.read_object() # types
+        reader.read_object() # newly posted
+        reader.read_object()
+        reader.read_int()
+        reader.read_int()
+        reader.read_int()
+        
         return documents
 
 class Agency(object):
@@ -27,6 +37,21 @@ class Agency(object):
         num_results2 = reader.read_string() # num results
         name = reader.read_string() # name
         return cls(abbr, num_results, num_results, name)
+
+class Category(object):
+    @classmethod
+    def gwt_deserialize(cls, reader):
+        return reader.read_int()
+
+class ClosingSoon(object):
+    @classmethod
+    def gwt_deserialize(cls, reader):
+        return reader.read_int()
+
+class NewlyPosted(object):
+    @classmethod
+    def gwt_deserialize(cls, reader):
+        return reader.read_int()
 
 class DimensionCounter(object):
     @classmethod
@@ -65,10 +90,11 @@ class DocumentSummary(object):
         agency = reader.read_string() # agency_abbreviation
         
         has_attachments = reader.read_object()
+
         reader.read_int()
         
         allow_comments = reader.read_object() # allow comments
-        
+                
         # More stuff we don't care about
         reader.read_object()
         
@@ -87,8 +113,8 @@ class DocumentSummary(object):
         document_id = reader.read_string()
         
         # Some stuff we don't care about after the document id
-        reader.read_object()        
-        reader.read_object() # maybe related to type?
+        reader.read_object()
+        type = reader.read_object()
         
         formats = reader.read_object() # formats
         
@@ -112,7 +138,7 @@ class DocumentSummary(object):
         
         reader.read_string()
         reader.read_object() # sort info
-        
+                
         return exclude(locals(), ['cls', 'reader'])
 
 class DocumentDetailPackage(object):
@@ -261,5 +287,5 @@ class DocketDetail(object):
         reader.read_string() # some kind of object ID?
         rin = reader.read_string() # rin
         title = reader.read_string() # title
-        
+
         return exclude(locals(), ['cls', 'reader'])

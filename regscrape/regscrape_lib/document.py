@@ -5,7 +5,7 @@ from pytz import timezone
 import datetime
 
 DATE_FORMAT = re.compile('^(?P<month>\w+) (?P<day>\d{2}) (?P<year>\d{4}), at (?P<hour>\d{2}):(?P<minute>\d{2}) (?P<ampm>\w{2}) (?P<timezone>[\w ]+)$')
-DOCUMENT_REQUEST_URL = "7|0|9|http://www.regulations.gov/Regs/|E4625492BC992E3FD53A93EC85103116|com.gwtplatform.dispatch.shared.DispatchService|execute|java.lang.String/2004016611|com.gwtplatform.dispatch.shared.Action|9324e41757554f59f2c8f74e588b41040fab46547bea7264778f86992a4bdcd9.e38Sc3uTa3qQe3yTbi0|gov.egov.erule.regs.shared.action.LoadDocumentDetailAction/1648650509|%s|1|2|3|4|2|5|6|7|8|9|"
+DOCUMENT_REQUEST_URL = "7|0|10|http://www.regulations.gov/Regs/|25E7F431559001DE380DFAB488A0FFF6|com.gwtplatform.dispatch.shared.DispatchService|execute|java.lang.String/2004016611|com.gwtplatform.dispatch.shared.Action|e2f277cdcbcdf9a6b0ef8c8a000d83de6df5a5f04d21d523ad7c83d889640418.e38Sb3aKaN8Oe3qLc40|gov.egov.erule.regs.shared.action.LoadDocumentDetailAction/1304900391|d|%s|1|2|3|4|2|5|6|7|8|9|10|"
 
 def check_date(value):
     # is it a date?
@@ -24,7 +24,7 @@ def check_date(value):
     
     return value
 
-def scrape_document(id, client):
+def get_document(id, client):
     download = urllib2.urlopen(urllib2.Request(
         'http://www.regulations.gov/dispatch/LoadDocumentDetailAction',
         DOCUMENT_REQUEST_URL % id,
@@ -36,7 +36,10 @@ def scrape_document(id, client):
     ), timeout=15)
 
     response = Response(client, download)
-    raw = response.reader.read_object()
+    return response.reader.read_object()
+
+def scrape_document(id, client):
+    raw = get_document(id, client)
     
     out = {
         # basic metadata
@@ -91,12 +94,12 @@ def scrape_document(id, client):
     
     return out
 
-DOCKET_REQUEST_URL = "7|0|9|http://www.regulations.gov/Regs/|E4625492BC992E3FD53A93EC85103116|com.gwtplatform.dispatch.shared.DispatchService|execute|java.lang.String/2004016611|com.gwtplatform.dispatch.shared.Action|9324e41757554f59f2c8f74e588b41040fab46547bea7264778f86992a4bdcd9.e38Sc3uTa3qQe3yTbi0|gov.egov.erule.regs.shared.action.LoadDocketFolderMetadataAction/386901167|%s|1|2|3|4|2|5|6|7|8|9|"
+DOCKET_REQUEST_URL = "7|0|9|http://www.regulations.gov/Regs/|25E7F431559001DE380DFAB488A0FFF6|com.gwtplatform.dispatch.shared.DispatchService|execute|java.lang.String/2004016611|com.gwtplatform.dispatch.shared.Action|e2f277cdcbcdf9a6b0ef8c8a000d83de6df5a5f04d21d523ad7c83d889640418.e38Sb3aKaN8Oe3qLc40|gov.egov.erule.regs.shared.action.LoadDocketFolderMetadataAction/386901167|%s|1|2|3|4|2|5|6|7|8|9|"
 DOCKET_YEAR_FINDER = re.compile("[_-](\d{4})[_-]")
 
-def scrape_docket(id, client):
+def get_docket(id, client):
     download = urllib2.urlopen(urllib2.Request(
-        'http://www.regulations.gov/dispatch/LoadDocumentDetailAction',
+        'http://www.regulations.gov/dispatch/LoadDocketFolderMetadataAction',
         DOCKET_REQUEST_URL % id,
         {
             'Content-Type': "text/x-gwt-rpc; charset=utf-8",
@@ -106,8 +109,11 @@ def scrape_docket(id, client):
     ))
 
     response = Response(client, download)
-    raw = response.reader.read_object()
-    
+    return response.reader.read_object()
+
+def scrape_docket(id, client):
+    raw = get_docket(id, client)
+
     out = {
         'docket_id': raw['docket_id'],
         'agency': raw['agency'],

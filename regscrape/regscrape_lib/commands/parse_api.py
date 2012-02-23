@@ -117,7 +117,7 @@ def add_new_docs(cache_wrapper, now):
     replaced = 0
     for id in cache.keys():
         doc = cache.get(id)
-        db_doc = {'document_id': doc['document_id'], 'views': [], 'docket_id': doc['docket_id'], 'agency': doc['agency'], 'scraped': False, 'object_id': doc['object_id'], 'last_seen': now, 'deleted': False}
+        db_doc = {'document_id': doc['document_id'], 'views': [], 'docket_id': doc['docket_id'], 'agency': doc['agency'], 'scraped': False, 'object_id': doc['object_id'], 'type': doc['type'], last_seen': now, 'deleted': False}
         if doc['formats']:
             for format in doc['formats']:
                 db_doc['views'].append(make_view(format, doc['object_id']))
