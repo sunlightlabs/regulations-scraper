@@ -20,28 +20,30 @@ def run_for_view_type(view_label, find_func, update_func):
     print 'Preparing download of %s.' % view_label
     
     views = find_func(downloaded=False, query={'deleted': False})
-    workers = Pool(getattr(settings, 'DOWNLOADERS', 5))
     
     # track stats -- no locks because yay for cooperative multitasking
     stats = {'downloaded': 0, 'failed': 0}
     
+    # hack around stupid Python closure behavior
+    v_array = [views]
     def download_generator():
         while True:
-            result = views.next()
-
-            filename = result['view']['url'].split('/')[-1]
-            
-            qs = dict(urlparse.parse_qsl(filename.split('?')[-1]))
-            save_name = '%s.%s' % (qs['objectId'], qs['contentType'])
-            save_path = os.path.join(settings.DOWNLOAD_DIR, newname)
-
-            yield (result['view']['url'], save_path, result)
-        except pymongo.errors.OperationFailure:
-            # occasionally pymongo seems to lose track of the cursor for some reason, so reset the query
-            views = find_func(downloaded=False, query={'deleted': False})
-            continue
-        except StopIteration:
-            break
+            try:
+                result = v_array[0].next()
+                
+                filename = result['view']['url'].split('/')[-1]
+                
+                qs = dict(urlparse.parse_qsl(filename.split('?')[-1]))
+                save_name = '%s.%s' % (qs['objectId'], qs['contentType'])
+                save_path = os.path.join(settings.DOWNLOAD_DIR, save_name)
+                
+                yield (result['view']['url'], save_path, result)
+            except pymongo.errors.OperationFailure:
+                # occasionally pymongo seems to lose track of the cursor for some reason, so reset the query
+                v_array[0] = find_func(downloaded=False, query={'deleted': False})
+                continue
+            except StopIteration:
+                break
     
     def status_func(status, url, filename, result):
         if status[0]:

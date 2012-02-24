@@ -40,16 +40,19 @@ def run_for_view_type(view_label, find_func, update_func, options):
 
     views = find_func(**find_conditions)
 
+    # same yucky hack as in downloads
+    v_array = [views]
     def extract_generator():
         while True:
-            result = views.next()
-            yield (result['view']['file'], None, result)
-        except pymongo.errors.OperationFailure:
-            # occasionally pymongo seems to lose track of the cursor for some reason, so reset the query
-            views = find_func(**find_conditions)
-            continue
-        except StopIteration:
-            break
+            try:
+                result = v_array[0].next()
+                yield (result['view']['file'], None, result)
+            except pymongo.errors.OperationFailure:
+                # occasionally pymongo seems to lose track of the cursor for some reason, so reset the query
+                v_array[0] = find_func(**find_conditions)
+                continue
+            except StopIteration:
+                break
 
     def status_func(status, text, filename, filetype, used_ocr, result):
         if status[0]:
