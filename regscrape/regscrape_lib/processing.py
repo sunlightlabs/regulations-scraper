@@ -234,7 +234,7 @@ def binary_extractor(binary, error=None, append=[]):
     if not type(binary) == list:
         binary = [binary]
     def extractor(filename):
-        interpreter = POPEN(binary + [filename] + append, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        interpreter = POPEN(binary + [filename] + append, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         
         timeout = Timeout(getattr(settings, 'EXTRACTION_TIMEOUT', 120), ChildTimeout)
         timeout.start()
@@ -246,7 +246,7 @@ def binary_extractor(binary, error=None, append=[]):
             interpreter.kill()
             raise
         
-        if not output.strip() or (error and error in output):
+        if not output.strip() or (error and (error in output or error in run_error)):
             raise ExtractionFailed()
         else:
             return output
