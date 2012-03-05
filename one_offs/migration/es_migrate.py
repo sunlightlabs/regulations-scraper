@@ -23,7 +23,7 @@ import pyes
 es = pyes.ES(['10.241.118.127:9500'])
 
 now = datetime.datetime.now()
-for doc in db.docs.find({'deleted': False, 'scraped': True}):
+for doc in db.docs.find({'deleted': False, 'scraped': True, 'es_indexed': False}):
     print 'trying', doc['document_id']
     if 'renamed_to' in doc:
         print 'renamed', doc['document_id']
@@ -33,6 +33,7 @@ for doc in db.docs.find({'deleted': False, 'scraped': True}):
     es_doc = {
         'document_id': doc['document_id'],
         'docket_id': doc['document_id'],
+        'comment_on': doc.get('comment_on', {}).get('id', None),
         'title': doc['title'],
         'agency': doc['agency'],
         'posted_date': doc['details'].get('fr_publish_date', None),
