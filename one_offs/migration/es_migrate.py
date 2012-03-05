@@ -36,6 +36,7 @@ for doc in db.docs.find({'deleted': False, 'scraped': True}):
         'title': doc['title'],
         'agency': doc['agency'],
         'posted_date': doc['details'].get('fr_publish_date', None),
+        'document_type': doc['type'],
         'submitter_organization': doc['details'].get('organization', None),
         'submitter_name': ' '.join(filter(bool, [doc['details'].get('first_name', None), doc['details'].get('mid_initial', None), doc['details'].get('last_name', None)])),
         'files': []
@@ -50,6 +51,7 @@ for doc in db.docs.find({'deleted': False, 'scraped': True}):
             "abstract": None,
             "object_id": doc['object_id'],
             "file_type": view['type'],
+            "view_type": "document_view",
             "text": get_text(view)
         })
 
@@ -63,31 +65,30 @@ for doc in db.docs.find({'deleted': False, 'scraped': True}):
                 "abstract": attachment.get('abstract', None),
                 "object_id": attachment['object_id'],
                 "file_type": view['type'],
+                "view_type": "attachment_view",
                 "text": get_text(view)
             })
 
     # save to es
-    es_status = es.index(es_doc, 'regulations', 'document')
-    es_id = es_status['_id']
-    print 'saved %s to ES as %s' % (doc['document_id'], es_id)
+    es_status = es.index(es_doc, 'regulations', 'document', id=str(doc['_id']))
+    print 'saved %s to ES as %s' % (doc['document_id'], es_status['_id'])
 
     # update main mongo doc
-    doc['es_id'] = es_id
     doc['es_indexed'] = now
 
     # update mongo views
     for view in doc.get('views', []):
         if not view.get("text", False):
             continue
-        view['es_address'] = "%s/%s.%s" % (es_id, doc['object_id'], view['type'])
+        view['es_address'] = "%s/%s.%s" % (es_status['_id'], doc['object_id'], view['type'])
 
     # update mongo attachments attachments
     for attachment in doc.get('attachments', []):
         for view in attachment.get('views', []):
             if not view.get("text", False):
                 continue
-            view['es_address'] = "%s/%s.%s" % (es_id, attachment['object_id'], view['type'])
+            view['es_address'] = "%s/%s.%s" % (es_status['_id'], attachment['object_id'], view['type'])
 
     # save back to Mongo
-    db.docs.save(doc)
+    db.docs.save(doc, safe=True)
     print "saved %s back to mongo" % doc['document_id']
