@@ -1,0 +1,52 @@
+{
+    "document" : {
+        "properties" : {
+            "title": {
+                "type": "string"
+            },
+            "agency": {
+                "type": "string",
+                "index": "not_analyzed"
+            },
+            "document_id" : {
+                "type" : "string",
+                "index" : "not_analyzed"
+            },
+            "docket_id": {
+                "type" : "string",
+                "index" : "not_analyzed"
+            },
+            "posted_date": {
+                "type": "date"
+            },
+            "submitter_organization": {
+                "type": "string"
+            },
+            "submitter_name": {
+                "type": "string"
+            },
+            "files": {
+                "properties": {
+                    "title": {
+                        "type": "string"
+                    },
+                    "abstract": {
+                        "type": "string"
+                    },
+                    "text": {
+                        "type": "string",
+                        "term_vector": "yes"
+                    },
+                    "object_id": {
+                        "type": "string",
+                        "index": "not_analyzed"
+                    },
+                    "file_type": {
+                        "type": "string",
+                        "index": "not_analyzed"
+                    }
+                }
+            }
+        }
+    }
+}
