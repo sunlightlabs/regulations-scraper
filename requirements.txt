@@ -6,6 +6,9 @@ PIL
 -e git+https://github.com/jodal/pykka.git@v0.12#egg=pykka
 pymongo
 -e git+https://github.com/mikemaccana/python-docx.git#egg=docx
+-e git+https://github.com/sunlightlabs/oxtail.git#egg=oxtail
+-e git+https://github.com/sunlightlabs/python-transparencydata#egg=transparencydata
+-e git+https://github.com/sunlightlabs/name-cleaver.git#egg=name_cleaver
 
 # redis-based sync requirements
 -e git+https://github.com/pietern/hiredis-py.git#egg=hiredis
