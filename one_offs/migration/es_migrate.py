@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-SERVER = '10.241.118.127:9200'
-
 from pymongo import Connection
 import urllib2, json, traceback, datetime, zlib
 
@@ -20,7 +18,7 @@ db = Connection().regulations
 
 import pyes
 
-es = pyes.ES(['10.241.118.127:9500'])
+es = pyes.ES(['10.241.118.127:9500'], timeout=30.0)
 
 now = datetime.datetime.now()
 for doc in db.docs.find({'deleted': False, 'scraped': True, 'es_indexed': False}):
@@ -40,6 +38,7 @@ for doc in db.docs.find({'deleted': False, 'scraped': True, 'es_indexed': False}
         'document_type': doc['type'],
         'submitter_organization': doc['details'].get('organization', None),
         'submitter_name': ' '.join(filter(bool, [doc['details'].get('first_name', None), doc['details'].get('mid_initial', None), doc['details'].get('last_name', None)])),
+        'submitter_entities': doc.get('submitter_entities', []),
         'files': []
     }
 
@@ -53,7 +52,8 @@ for doc in db.docs.find({'deleted': False, 'scraped': True, 'es_indexed': False}
             "object_id": doc['object_id'],
             "file_type": view['type'],
             "view_type": "document_view",
-            "text": get_text(view)
+            "text": get_text(view),
+            "entities": view.get('entities', None)
         })
 
     # add attachments
@@ -67,7 +67,8 @@ for doc in db.docs.find({'deleted': False, 'scraped': True, 'es_indexed': False}
                 "object_id": attachment['object_id'],
                 "file_type": view['type'],
                 "view_type": "attachment_view",
-                "text": get_text(view)
+                "text": get_text(view),
+                "entities": view.get('entities', None)
             })
 
     # save to es

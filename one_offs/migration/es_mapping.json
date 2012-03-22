@@ -37,6 +37,10 @@
             "submitter_name": {
                 "type": "string"
             },
+            "submitter_entities": {
+                "type": "string",
+                "index": "not_analyzed"
+            },
             "files": {
                 "properties": {
                     "title": {
@@ -47,7 +51,7 @@
                     },
                     "text": {
                         "type": "string",
-                        "term_vector": "yes"
+                        "term_vector": "with_positions_offsets"
                     },
                     "object_id": {
                         "type": "string",
@@ -58,6 +62,10 @@
                         "index": "not_analyzed"
                     },
                     "view_type": {
+                        "type": "string",
+                        "index": "not_analyzed"
+                    },
+                    "entities": {
                         "type": "string",
                         "index": "not_analyzed"
                     }
