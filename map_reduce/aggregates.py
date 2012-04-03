@@ -12,7 +12,7 @@ FIELDS = [
     'submitter_entities'
 ]
 
-# class to work around the idiotic octopoda requirement that the data be structured as a dictionary
+# class to work around the mincemeat requirement that the data be structured as a dictionary
 class MongoSource(object):
     def __init__(self):
         self.cache = {}
