@@ -1,4 +1,4 @@
-import pymongo
+import pymongo, bson
 QUERY = {'deleted': False}
 FIELDS = [
     'document_id',
@@ -14,15 +14,15 @@ FIELDS = [
 
 # class to work around the mincemeat requirement that the data be structured as a dictionary
 class MongoSource(object):
-    def __init__(self):
+    def __init__(self, db):
         self.cache = {}
+        self.db = db
 
     def __iter__(self):
         _cache = self.cache
 
         def gen():
-            db = pymongo.Connection().regulations
-            for doc in db.docs.find(QUERY, FIELDS):
+            for doc in self.db.docs.find(QUERY, FIELDS):
                 doc_id = str(doc['_id'])
                 _cache[doc_id] = doc
                 yield doc_id
@@ -40,15 +40,17 @@ def mapfn(key, document):
     from collections import defaultdict
     import itertools
 
-    ### COLLECTION: dockets ###
+    # pre-computed date data
     doc_type = document.get('type', None)
     doc_date = document.get('details', {}).get('fr_publish_date', None)
     doc_week = isoweek.Week(*(doc_date.isocalendar()[:-1])) if doc_date else None
-    doc_week_range = (doc_week.monday(), doc_week.sunday()) if doc_week else None
+    doc_week_range = (doc_week.monday().isoformat(), doc_week.sunday().isoformat()) if doc_week else None
+    doc_month = doc_date.isoformat()[:7] if doc_date else None
 
+    ### COLLECTION: dockets ###
     docket_info = {
         'count': 1,
-        'type_breakdown': {doc_type: 1},
+        'type_breakdown': {str(doc_type): 1},
         'rules': [{
             'date': doc_date.date().isoformat() if doc_date else None,
             'type': doc_type,
@@ -61,17 +63,31 @@ def mapfn(key, document):
         'submitter_entities': {}
     }
 
+    ### COLLECTION: agencies ###
+    agency_info = {
+        'count': 1,
+        'date_range': [doc_date, doc_date],
+        'months': [(doc_month, 1)],
+        'type_breakdown': {str(doc_type): 1},
+        'text_entities': {},
+        'submitter_entities': {}
+    }
+
+    # entity data for dockets and agencies
     # text entities
     views = itertools.chain.from_iterable([document.get('views', [])] + [attachment.get('views', []) for attachment in document.get('attachments', [])])
     for view in views:
         for entity in view.get('entities', []):
             docket_info['text_entities'][entity] = 1
+            agency_info['text_entities'][entity] = 1
 
     # submitters
     for entity in document.get('submitter_entities', []):
         docket_info['submitter_entities'][entity] = 1
+        agency_info['submitter_entities'][entity] = 1
 
     yield ('dockets', document['docket_id']), docket_info
+    yield ('agencies', document.get('agency', None)), agency_info
 
     ### COLLECTION: entities ###
     entities = set(docket_info['text_entities'].keys())
@@ -85,12 +101,16 @@ def mapfn(key, document):
             'text_mentions': {
                 'count': text_count,
                 'agencies': {document.get('agency', None): text_count},
-                'dockets': {document['docket_id']: text_count}
+                'dockets': {document['docket_id']: text_count},
+                'months': [(doc_month, text_count)],
+                'date_range': [doc_date, doc_date] if text_count else [None, None]
             },
             'submitter_mentions': {
                 'count': submitter_count,
                 'agencies': {document.get('agency', None): submitter_count},
-                'dockets': {document['docket_id']: submitter_count}
+                'dockets': {document['docket_id']: submitter_count},
+                'months': [(doc_month, submitter_count)],
+                'date_range': [doc_date, doc_date] if text_count else [None, None]
             }
         }
         yield ('entities', entity), entity_info
@@ -150,7 +170,41 @@ def reducefn(key, documents):
 
         out['rules'] = sorted(out['rules'], key=lambda x: x['date'])
 
-        out['weeks'] = sorted(out['weeks'].items(), key=lambda x: x[0][0] if x[0] else datetime.date.min)
+        out['weeks'] = sorted(out['weeks'].items(), key=lambda x: x[0][0] if x[0] else datetime.date.min.isoformat())
+        return out
+
+    ### COLLECTION: agencies ###
+    if key[0] == 'agencies':
+        out = {
+            'count': 0,
+            'type_breakdown': defaultdict(int),
+            'months': defaultdict(int),
+            'date_range': [None, None],
+            'text_entities': defaultdict(int),
+            'submitter_entities': defaultdict(int)
+        }
+        if documents:
+            out['date_range'] = documents[0]['date_range']
+
+        for value in documents:
+            out['count'] += value['count']
+            
+            for doc_type, count in value['type_breakdown'].iteritems():
+                out['type_breakdown'][doc_type] += count
+                        
+            for month, count in dict(value['months']).iteritems():
+                out['months'][month] += count
+
+            for entity, count in value['text_entities'].iteritems():
+                out['text_entities'][entity] += count
+
+            for entity, count in value['submitter_entities'].iteritems():
+                out['submitter_entities'][entity] += count
+
+            out['date_range'][0] = min_date(out['date_range'][0], value['date_range'][0])
+            out['date_range'][1] = max_date(out['date_range'][1], value['date_range'][1])
+
+        out['months'] = sorted(out['months'].items(), key=lambda x: x[0] if x[0] else datetime.date.min.isoformat())
         return out
 
     ### COLLECTION: entities ###
@@ -159,12 +213,16 @@ def reducefn(key, documents):
             'text_mentions': {
                 'count': 0,
                 'agencies': defaultdict(int),
-                'dockets': defaultdict(int)
+                'dockets': defaultdict(int),
+                'months': defaultdict(int),
+                'date_range': [None, None]
             },
             'submitter_mentions': {
                 'count': 0,
                 'agencies': defaultdict(int),
-                'dockets': defaultdict(int)
+                'dockets': defaultdict(int),
+                'months': defaultdict(int),
+                'date_range': [None, None]
             }
         }
         for value in documents:
@@ -176,25 +234,43 @@ def reducefn(key, documents):
                 for docket, count in value[mention_type]['dockets'].iteritems():
                     if value[mention_type]['dockets'][docket]:
                         out[mention_type]['dockets'][docket] += value[mention_type]['dockets'][docket]
+                months_dict = dict(value[mention_type]['months'])
+                for month, count in months_dict.iteritems():
+                    if months_dict[month]:
+                        out[mention_type]['months'][month] += months_dict[month]
+                out[mention_type]['date_range'][0] = min_date(out[mention_type]['date_range'][0], value[mention_type]['date_range'][0])
+                out[mention_type]['date_range'][1] = max_date(out[mention_type]['date_range'][1], value[mention_type]['date_range'][1])
 
         return out
 
-#import mincemeat_sqlite as mincemeat
-import mincemeat
-s = mincemeat.SqliteServer('/tmp/test.db')
-s.mapfn = mapfn
-s.reducefn = reducefn
-s.datasource = MongoSource()
+if __name__ == '__main__':
+    db = pymongo.Connection().regulations
 
-results = s.run_server()
+    import mincemeat
+    s = mincemeat.SqliteServer('/tmp/test.db')
+    s.mapfn = mapfn
+    s.reducefn = reducefn
+    s.datasource = MongoSource(db)
 
-import json
-def handler(obj):
-    if hasattr(obj, 'isoformat'):
-        return obj.isoformat()
-    else:
-        raise TypeError, 'Object of type %s with value of %s is not JSON serializable' % (type(obj), repr(obj))
+    results = s.run_server()
 
-for result, value in results:
-    print result
-    print json.dumps(value, indent=4, default=handler)
+    for key, value in results:
+        collection = key[0]
+        _id = key[1]
+        if not _id:
+            continue
+
+        try:
+            db[collection].update(
+                {
+                    '_id': _id
+                },
+                {
+                    '$set': {'stats': value}
+                },
+                upsert=True,
+                safe=True
+            )
+        except bson.errors.InvalidDocument:
+            print value
+            raise
