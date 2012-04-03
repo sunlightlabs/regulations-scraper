@@ -10,6 +10,7 @@ pymongo
 -e git+https://github.com/sunlightlabs/python-transparencydata#egg=transparencydata
 -e git+https://github.com/sunlightlabs/name-cleaver.git#egg=name_cleaver
 -e git+https://github.com/apendleton/mincemeatpy.git#egg=mincemeat
+isoweek
 
 # redis-based sync requirements
 -e git+https://github.com/pietern/hiredis-py.git#egg=hiredis
