@@ -50,7 +50,8 @@ def process_record(record, client, db, num_succeeded, num_failed):
         num_failed.increment()
     
     try:
-        db.dockets.save(docket, safe=True)
+        docket_without_id = dict([item for item in docket.items() if item[0] != '_id'])
+        db.dockets.update({'_id': docket['_id']}, {'$set': docket_without_id}, upsert=True, safe=True)
     except:
         print "Warning: database save failed on document %s (scraped based on original doc ID %s)." % (docket['_id'], record['_id'])
 

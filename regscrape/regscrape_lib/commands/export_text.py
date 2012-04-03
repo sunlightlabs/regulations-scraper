@@ -53,7 +53,7 @@ def run(options, args):
             zip_path = os.path.join(agency_dir, '%s.zip' % docket)
             
             with zipfile.ZipFile(zip_path, 'a', zipfile.ZIP_DEFLATED, True) as docket_zip:
-                docket_record = list(db.dockets.find({'docket_id': docket}))
+                docket_record = list(db.dockets.find({'_id': docket}))
                 
                 if docket_record:
                     docket_zip.writestr(

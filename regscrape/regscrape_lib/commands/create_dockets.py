@@ -9,7 +9,7 @@ def run():
     docket_ids = db.docs.distinct('docket_id')
     for docket_id in docket_ids:
         try:
-            db.dockets.save({
+            db.dockets.insert({
                 '_id': docket_id,
                 'scraped': False
             }, safe=True)
