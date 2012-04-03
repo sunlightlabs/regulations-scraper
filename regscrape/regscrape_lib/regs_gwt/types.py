@@ -23,6 +23,28 @@ class SearchResult(object):
         
         return documents
 
+# something of a hack -- we don't want the overhead of having to store the
+# agencies when we return search results most of the time, but for actually
+# *generating* the local agency list, we do. This class isn't used by default,
+# and is identical to the one above, but returns agencies instead of documents.
+class AgencySearchResult(object):
+    @classmethod
+    def gwt_deserialize(cls, reader):
+        agencies = reader.read_object() # agencies
+        reader.read_object() # categories
+        reader.read_object() # closing-soon?
+        reader.read_object() # ?
+        reader.read_object() # documents
+        reader.read_object()
+        reader.read_object() # types
+        reader.read_object() # newly posted
+        reader.read_object()
+        reader.read_int()
+        reader.read_int()
+        reader.read_int()
+        
+        return agencies
+
 class Agency(object):
     def __init__(self, abbr, num_results, num_results2, name):
         self.abbr = abbr

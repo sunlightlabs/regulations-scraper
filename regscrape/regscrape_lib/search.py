@@ -23,3 +23,17 @@ def parsed_search(per_page, position, client=None):
         client = RegsClient()
     
     return parse(search(per_page, position, client), client)
+
+# use the search with an overridden client to get the agencies instead of the documents
+def get_agencies():
+    from regs_gwt.regs_client import RegsClient
+    from regs_gwt.types import AgencySearchResult
+
+    class AgencyClient(RegsClient):
+        def __init__(self):
+            super(AgencyClient, self).__init__()
+            self.class_map.update({
+                'gov.egov.erule.regs.shared.models.SearchResultModel': AgencySearchResult
+            })
+
+    return parsed_search(1, 0, AgencyClient())
