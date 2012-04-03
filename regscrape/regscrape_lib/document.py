@@ -115,7 +115,7 @@ def scrape_docket(id, client):
     raw = get_docket(id, client)
 
     out = {
-        'docket_id': raw['docket_id'],
+        '_id': raw['docket_id'],
         'agency': raw['agency'],
         'title': raw['title'],
         

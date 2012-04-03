@@ -10,7 +10,7 @@ def run():
     for docket_id in docket_ids:
         try:
             db.dockets.save({
-                'docket_id': docket_id,
+                '_id': docket_id,
                 'scraped': False
             }, safe=True)
             new += 1

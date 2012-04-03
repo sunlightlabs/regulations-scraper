@@ -26,9 +26,8 @@ def process_record(record, client, db, num_succeeded, num_failed):
     for i in range(3):
         error = None
         try:
-            docket = scrape_docket(record['docket_id'], client)
-            docket['_id'] = record['_id']
-            print '[%s] Scraped docket %s...' % (os.getpid(), docket['docket_id'])
+            docket = scrape_docket(record['_id'], client)
+            print '[%s] Scraped docket %s...' % (os.getpid(), docket['_id'])
             num_succeeded.increment()
             break
         except ActionException:
@@ -46,14 +45,14 @@ def process_record(record, client, db, num_succeeded, num_failed):
         docket = record
         docket['scraped'] = 'failed'
         if error:
-            print 'Scrape of %s failed because of %s' % (docket['docket_id'], str(error))
+            print 'Scrape of %s failed because of %s' % (docket['_id'], str(error))
             docket['failure_reason'] = str(error)
         num_failed.increment()
     
     try:
         db.dockets.save(docket, safe=True)
     except:
-        print "Warning: database save failed on document %s (scraped based on original doc ID %s)." % (docket['docket_id'], record['docket_id'])
+        print "Warning: database save failed on document %s (scraped based on original doc ID %s)." % (docket['_id'], record['_id'])
 
 def worker(todo_queue, num_succeeded, num_failed):
     pid = os.getpid()

@@ -12,7 +12,8 @@ pid = os.getpid()
 
 DOCKETS_QUERY = {'scraped': True}
 
-DOCKET_FIELDS = ['docket_id', 'title', 'agency', 'year']
+DOCKET_MONGO_FIELDS = ['_id', 'title', 'agency', 'year']
+DOCKET_CSV_FIELDS = ['docket_id', 'title', 'agency', 'year']
 
 def filter_for_postgres(v):
     if v is None:
@@ -36,7 +37,7 @@ if __name__ == '__main__':
     prefix = args[2]
     
     writer = csv.writer(open(sys.argv[3] + '_dockets.csv', 'w'))
-    writer.writerow(DOCKET_FIELDS)
+    writer.writerow(DOCKET_CSV_FIELDS)
     
     cursor = Connection(host=host)[dbname].dockets.find(DOCKETS_QUERY)
     
@@ -44,6 +45,6 @@ if __name__ == '__main__':
     print '[%s] Starting export...' % pid
     
     for row in cursor:
-        writer.writerow([filter_for_postgres(row[field]) for field in DOCKET_FIELDS])
+        writer.writerow([filter_for_postgres(row[field]) for field in DOCKET_MONGO_FIELDS])
     
     print '[%s] Completed export in %s seconds.' % (pid, time.time() - run_start)
