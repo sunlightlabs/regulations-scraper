@@ -110,7 +110,7 @@ def mapfn(key, document):
                 'agencies': {document.get('agency', None): submitter_count},
                 'dockets': {document['docket_id']: submitter_count},
                 'months': [(doc_month, submitter_count)],
-                'date_range': [doc_date, doc_date] if text_count else [None, None]
+                'date_range': [doc_date, doc_date] if submitter_count else [None, None]
             }
         }
         yield ('entities', entity), entity_info
