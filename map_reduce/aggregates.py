@@ -241,6 +241,9 @@ def reducefn(key, documents):
                 out[mention_type]['date_range'][0] = min_date(out[mention_type]['date_range'][0], value[mention_type]['date_range'][0])
                 out[mention_type]['date_range'][1] = max_date(out[mention_type]['date_range'][1], value[mention_type]['date_range'][1])
 
+        for mention_type in ['text_mentions', 'submitter_mentions']:
+            out[mention_type]['months'] = sorted(out[mention_type]['months'].items(), key=lambda x: x[0] if x[0] else datetime.date.min.isoformat())
+        
         return out
 
 if __name__ == '__main__':
