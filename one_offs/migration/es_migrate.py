@@ -18,7 +18,7 @@ db = Connection().regulations
 
 import pyes
 
-es = pyes.ES(['10.241.118.127:9500'], timeout=30.0)
+es = pyes.ES(['localhost:9500'], timeout=30.0)
 
 now = datetime.datetime.now()
 for doc in db.docs.find({'deleted': False, 'scraped': True, 'es_indexed': False}):
