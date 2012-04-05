@@ -30,7 +30,7 @@ for doc in db.docs.find({'deleted': False, 'scraped': True, 'es_indexed': False}
     # build initial ES document
     es_doc = {
         'document_id': doc['document_id'],
-        'docket_id': doc['document_id'],
+        'docket_id': doc['docket_id'],
         'comment_on': doc.get('comment_on', {}).get('id', None),
         'title': doc['title'],
         'agency': doc['agency'],
