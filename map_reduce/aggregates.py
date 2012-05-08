@@ -51,12 +51,12 @@ def mapfn(key, document):
     docket_info = {
         'count': 1,
         'type_breakdown': {str(doc_type): 1},
-        'rules': [{
+        'fr_docs': [{
             'date': doc_date.date().isoformat() if doc_date else None,
             'type': doc_type,
             'id': document['document_id'],
             'title': document['title']
-        }] if doc_type in ['rule', 'proposed_rule'] else [],
+        }] if doc_type in ['notice', 'rule', 'proposed_rule'] else [],
         'weeks': [(doc_week_range, 1)],
         'date_range': [doc_date, doc_date],
         'text_entities': {},
@@ -139,7 +139,7 @@ def reducefn(key, documents):
         out = {
             'count': 0,
             'type_breakdown': defaultdict(int),
-            'rules': [],
+            'fr_docs': [],
             'weeks': defaultdict(int),
             'date_range': [None, None],
             'text_entities': defaultdict(int),
@@ -154,7 +154,7 @@ def reducefn(key, documents):
             for doc_type, count in value['type_breakdown'].iteritems():
                 out['type_breakdown'][doc_type] += count
             
-            out['rules'].extend(value['rules'])
+            out['fr_docs'].extend(value['fr_docs'])
             
             for week, count in dict(value['weeks']).iteritems():
                 out['weeks'][week] += count
@@ -168,7 +168,7 @@ def reducefn(key, documents):
             out['date_range'][0] = min_date(out['date_range'][0], value['date_range'][0])
             out['date_range'][1] = max_date(out['date_range'][1], value['date_range'][1])
 
-        out['rules'] = sorted(out['rules'], key=lambda x: x['date'])
+        out['fr_docs'] = sorted(out['fr_docs'], key=lambda x: x['date'])
 
         out['weeks'] = sorted(out['weeks'].items(), key=lambda x: x[0][0] if x[0] else datetime.date.min.isoformat())
         return out
