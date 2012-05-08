@@ -6,6 +6,8 @@ FIELDS = [
     'agency',
     'title',
     'details.fr_publish_date',
+    'details.comment_start_date',
+    'details.comment_end_date',
     'type',
     'views.entities',
     'attachments.views.entities',
@@ -42,10 +44,16 @@ def mapfn(key, document):
 
     # pre-computed date data
     doc_type = document.get('type', None)
-    doc_date = document.get('details', {}).get('fr_publish_date', None)
+    details = document.get('details', {})
+    doc_date = details.get('fr_publish_date', None)
     doc_week = isoweek.Week(*(doc_date.isocalendar()[:-1])) if doc_date else None
     doc_week_range = (doc_week.monday().isoformat(), doc_week.sunday().isoformat()) if doc_week else None
     doc_month = doc_date.isoformat()[:7] if doc_date else None
+    
+    if 'comment_start_date' in details and 'comment_end_date' in details:
+        comment_date_range = [details['comment_start_date'].date().isoformat(), details['comment_end_date'].date().isoformat()]
+    else:
+        comment_date_range = None
 
     ### COLLECTION: dockets ###
     docket_info = {
@@ -53,6 +61,7 @@ def mapfn(key, document):
         'type_breakdown': {str(doc_type): 1},
         'fr_docs': [{
             'date': doc_date.date().isoformat() if doc_date else None,
+            'comment_date_range': comment_date_range,
             'type': doc_type,
             'id': document['document_id'],
             'title': document['title']
