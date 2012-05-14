@@ -20,5 +20,5 @@ def run():
 
         full_dockets.append(scrape_docket(full_doc['docket_id'], client))
     
-    print docs, full_docs, full_dockets
+    print docs, "\n\n", full_docs, "\n\n", full_dockets
     return {'success': True}

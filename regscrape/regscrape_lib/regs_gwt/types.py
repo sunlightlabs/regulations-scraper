@@ -116,14 +116,14 @@ class DocumentSummary(object):
         reader.read_int()
         
         allow_comments = reader.read_object() # allow comments
-                
+
         # More stuff we don't care about
         reader.read_object()
         
         comment_due = reader.read_string()
         
         reader.read_string()
-        reader.read_int()
+        reader.read_object() # this is a date of some kind
         reader.read_string()
         reader.read_string()
         
