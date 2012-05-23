@@ -6,8 +6,8 @@ MIN_SIZE = getattr(settings, 'MIN_DOWNLOAD_SIZE', 1024)
 def run():
     # global imports hack so we don't mess up gevent loading
     global bulk_download, settings, subprocess, os, urlparse, sys, traceback, datetime, pymongo
-    from regscrape_lib.processing import find_views, update_view, find_attachment_views, update_attachment_view
-    from regscrape_lib.transfer import bulk_download
+    from regs_common.processing import find_views, update_view, find_attachment_views, update_attachment_view
+    from regs_common.transfer import bulk_download
     import subprocess, os, urlparse, sys, traceback, datetime
     import pymongo
     

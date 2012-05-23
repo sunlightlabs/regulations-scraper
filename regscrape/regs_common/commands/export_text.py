@@ -24,7 +24,7 @@ def run(options, args):
     import pymongo
     import itertools
     import json
-    from regscrape_lib.util import get_db
+    from regs_common.util import get_db
     import zipfile
     import sys
 

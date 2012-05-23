@@ -83,7 +83,7 @@ def process_worker(todo_queue):
         todo_queue.task_done()
 
 def run():
-    from regscrape_lib.entities import load_trie_from_mongo
+    from regs_common.entities import load_trie_from_mongo
     import time
 
     pid = os.getpid()

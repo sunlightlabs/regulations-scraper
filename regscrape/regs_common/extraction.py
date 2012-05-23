@@ -1,4 +1,4 @@
-from regscrape_lib.processing import *
+from regs_common.processing import *
 import subprocess
 from gevent.pool import Pool
 import gevent
@@ -103,9 +103,9 @@ def bulk_extract(extract_iterable, status_func=None, verbose=False):
 
 def serial_bulk_extract(extract_iterable, status_func=None, verbose=False):
     import subprocess
-    import regscrape_lib.processing
+    import regs_common.processing
 
-    regscrape_lib.processing.POPEN = subprocess.Popen
+    regs_common.processing.POPEN = subprocess.Popen
     
     for extract_record in extract_iterable:
         _get_extractor(status_func, verbose, *extract_record)()

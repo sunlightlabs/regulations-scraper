@@ -2,9 +2,9 @@ def run():
     import urllib2
     import settings
     import os, time, sys
-    from regscrape_lib.regs_gwt.regs_client import RegsClient
-    from regscrape_lib.transfer import download
-    from regscrape_lib.search import search
+    from regsdotgov.regs_gwt.regs_client import RegsClient
+    from regsdotgov.search import search
+    from regs_common.transfer import download
     
     # delete old dumps
     [os.unlink(os.path.join(settings.DUMP_DIR, file)) for file in os.listdir(settings.DUMP_DIR) if file.endswith('.gwt')]

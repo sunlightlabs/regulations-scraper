@@ -1,8 +1,8 @@
 GEVENT = False
 
 import settings
-from regscrape_lib.regs_gwt.regs_client import RegsClient
-from regscrape_lib.document import scrape_document
+from regsdotgov.regs_gwt.regs_client import RegsClient
+from regsdotgov.document import scrape_document
 from pygwt.types import ActionException
 import urllib2
 import sys
@@ -11,7 +11,7 @@ import traceback
 
 import multiprocessing
 from Queue import Empty
-from regscrape_lib.mp_types import Counter
+from regs_common.mp_types import Counter
 
 from optparse import OptionParser
 arg_parser = OptionParser()

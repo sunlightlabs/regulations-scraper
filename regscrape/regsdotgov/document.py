@@ -1,6 +1,6 @@
 import re
 import urllib2
-from regscrape_lib.pygwt.response import Response
+from regsdotgov.pygwt.response import Response
 from pytz import timezone
 import datetime
 

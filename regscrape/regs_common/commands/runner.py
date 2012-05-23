@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, optparse, json
+import sys, optparse, json, settings
 
 def run_command():    
     if len(sys.argv) < 2:
@@ -17,10 +17,18 @@ def run_command():
             print 'Could not load custom command: %s' % command
             sys.exit()
     else:
-        try:
-            parent_mod = __import__('regscrape_lib.commands', fromlist=[command])
-            mod = getattr(parent_mod, command)
-        except ImportError:
+        imported = False
+        for lib in ['regs_common'] + settings.SITES:
+            try:
+                parent_mod = __import__('%s.commands' % lib, fromlist=[command])
+                mod = getattr(parent_mod, command)
+                imported = True
+                break
+            except ImportError:
+                pass
+            except AttributeError:
+                pass
+        if not imported:
             print 'No such command: %s' % command
             sys.exit()
     
@@ -47,7 +55,7 @@ def run_command():
         real_stdout = sys.stdout
         sys.stdout = dev_null
     
-    from regscrape_lib.util import bootstrap_settings
+    from regs_common.util import bootstrap_settings
     bootstrap_settings()
     
     out = run(*(parse_results if parser_defined else []))

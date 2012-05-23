@@ -1,6 +1,6 @@
 def all_aliases():
     import itertools
-    from regscrape_lib.util import get_db
+    from regs_common.util import get_db
     db = get_db()
 
     return itertools.chain.from_iterable(

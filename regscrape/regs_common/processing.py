@@ -7,7 +7,7 @@ from pymongo.errors import OperationFailure, InvalidDocument
 import subprocess, os, urlparse, json
 import gevsubprocess
 from gevent import Timeout
-from regscrape_lib.util import get_db
+from regs_common.util import get_db
 from exceptions import ExtractionFailed, ChildTimeout
 import os
 import re
@@ -15,7 +15,7 @@ import cStringIO
 import time
 import itertools
 import sys
-import regscrape_lib
+import regs_common
 import operator
 import zlib
 import settings
@@ -256,7 +256,7 @@ def binary_extractor(binary, error=None, append=[]):
     return extractor
 
 def script_extractor(script, error=None):
-    script_path = os.path.join(os.path.dirname(os.path.abspath(regscrape_lib.__file__)), 'scripts', script)
+    script_path = os.path.join(os.path.dirname(os.path.abspath(regs_common.__file__)), 'scripts', script)
     
     extractor = binary_extractor([sys.executable, script_path], error=error)
     extractor.__str__ = lambda: script

@@ -1,6 +1,6 @@
 def run():
-    from regscrape_lib.util import get_db
-    from regscrape_lib.search import get_agencies
+    from regs_common.util import get_db
+    from regsdotgov.search import get_agencies
     from pymongo.errors import DuplicateKeyError
     
     db = get_db()

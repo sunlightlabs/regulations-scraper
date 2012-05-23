@@ -13,7 +13,7 @@ def run():
         for i in range(0, count, 10000):
             entities.extend(api.entities.list(i, i + 10000, type))
 
-    from regscrape_lib.util import get_db
+    from regs_common.util import get_db
     db = get_db()
     db.entities.ensure_index('td_type')
 

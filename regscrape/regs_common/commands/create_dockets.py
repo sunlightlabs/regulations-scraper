@@ -1,5 +1,5 @@
 def run():
-    from regscrape_lib.util import get_db
+    from regs_common.util import get_db
     from pymongo.errors import DuplicateKeyError
     
     db = get_db()

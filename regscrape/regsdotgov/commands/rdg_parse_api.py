@@ -1,6 +1,6 @@
 GEVENT = False
 
-from regs_gwt.regs_client import RegsClient
+from regsdotgov.regs_gwt.regs_client import RegsClient
 import os
 import settings
 import sys
@@ -9,8 +9,8 @@ import pytz
 import datetime
 import operator
 import time
-from regscrape_lib.tmp_redis import TmpRedis
-from regscrape_lib.mp_types import Counter
+from regs_common.tmp_redis import TmpRedis
+from regs_common.mp_types import Counter
 
 
 import multiprocessing

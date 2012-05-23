@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from regscrape_lib.exceptions import *
+from regs_common.exceptions import *
 from optparse import OptionParser
 
 # arguments
@@ -9,14 +9,13 @@ arg_parser.add_option("-t", "--type", action="store", dest="type", default=None)
 
 # runner
 def run(options, args): 
-    global Pool, sys, settings, subprocess, os, urlparse, json, regscrape_lib, pymongo, serial_bulk_extract
-    from regscrape_lib.processing import find_views, update_view, find_attachment_views, update_attachment_view
-    from regscrape_lib.extraction import serial_bulk_extract
+    global Pool, sys, settings, subprocess, os, urlparse, json, regs_common, pymongo, serial_bulk_extract
+    from regs_common.processing import find_views, update_view, find_attachment_views, update_attachment_view
+    from regs_common.extraction import serial_bulk_extract
     from gevent.pool import Pool
     import sys
     import settings
     import subprocess, os, urlparse, json
-    import regscrape_lib
     import pymongo
 
     return {
