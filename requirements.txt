@@ -15,3 +15,5 @@ isoweek
 # redis-based sync requirements
 -e git+https://github.com/pietern/hiredis-py.git#egg=hiredis
 redis
+
+mongoengine
