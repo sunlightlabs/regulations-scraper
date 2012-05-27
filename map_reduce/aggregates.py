@@ -259,7 +259,7 @@ if __name__ == '__main__':
     db = pymongo.Connection().regulations
 
     import mincemeat
-    s = mincemeat.SqliteServer('/tmp/test.db')
+    s = mincemeat.BatchSqliteServer('/tmp/test.db', 1000)
     s.mapfn = mapfn
     s.reducefn = reducefn
     s.datasource = MongoSource(db)
