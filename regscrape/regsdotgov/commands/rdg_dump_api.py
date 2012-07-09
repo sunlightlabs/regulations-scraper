@@ -7,8 +7,7 @@ def run(options, args):
     import urllib2
     import settings
     import os, time, sys
-    from regsdotgov.regs_gwt.regs_client import RegsClient
-    from regsdotgov.search import search
+    from regsdotgov.search import search, parsed_search
     from regs_common.transfer import download
 
     search_args = {}
@@ -23,15 +22,14 @@ def run(options, args):
         id_string = 'docket_' + options.docket.replace('-', '_')
 
     # delete old dumps
-    [os.unlink(os.path.join(settings.DUMP_DIR, file)) for file in os.listdir(settings.DUMP_DIR) if file.startswith('dump_%s' % id_string) and file.endswith('.gwt')]
+    [os.unlink(os.path.join(settings.DUMP_DIR, file)) for file in os.listdir(settings.DUMP_DIR) if file.startswith('dump_%s' % id_string) and file.endswith('.json')]
     
     # keep stats
     stats = {'downloaded': 0, 'failed': 0}
     
     # start new dumps
-    client = RegsClient()
     position = 0
-    total = 1
+    total = parsed_search(1, 0, **search_args)['searchresult']['recordCount']
     num_digits = len(str(settings.DUMP_END))
     while position <= total:
         for i in range(3):
@@ -40,8 +38,8 @@ def run(options, args):
                 total_str = '?' if total == 1 else (total / settings.DUMP_INCREMENT) + 1
                 print "Downloading page %s of %s..." % (current_str, total_str)
                 total = download(
-                    search(settings.DUMP_INCREMENT, position, client, **search_args),
-                    os.path.join(settings.DUMP_DIR, 'dump_%s_%s.gwt' % (id_string, str(position).zfill(num_digits))),
+                    search(settings.DUMP_INCREMENT, position, **search_args),
+                    os.path.join(settings.DUMP_DIR, 'dump_%s_%s.json' % (id_string, str(position).zfill(num_digits))),
                 )
                 stats['downloaded'] += 1
                 break

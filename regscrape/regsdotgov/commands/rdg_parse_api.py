@@ -1,6 +1,5 @@
 GEVENT = False
 
-from regsdotgov.regs_gwt.regs_client import RegsClient
 import os
 import settings
 import sys
@@ -9,8 +8,10 @@ import pytz
 import datetime
 import operator
 import time
+import json
 from regs_common.tmp_redis import TmpRedis
 from regs_common.mp_types import Counter
+from models import *
 
 
 import multiprocessing
@@ -21,7 +22,10 @@ arg_parser = OptionParser()
 arg_parser.add_option("-m", "--multi", dest="multi", action="store", type="int", default=multiprocessing.cpu_count(), help="Set number of worker processes. Defaults to number of cores if not specified.")
 arg_parser.add_option("-k", "--keep-cache", dest="keep_cache", action="store_true", default=False, help="Prevents the cache from being deleted at the end of processing to make testing faster.")
 arg_parser.add_option("-u", "--use-cache", dest="use_cache", action="store", default=None, help="Use pre-existing cache to make testing faster.")
-arg_parser.add_option("-a", "--add-only", dest="add_only", action="store_true", default=False, help="Skip reconciliation, assume that all records are new, and go straight to the add step.")
+arg_parser.add_option("-A", "--add-only", dest="add_only", action="store_true", default=False, help="Skip reconciliation, assume that all records are new, and go straight to the add step.")
+arg_parser.add_option("-a", "--agency", dest="agency", action="store", type="string", default=None, help="Specify an agency to which to limit the dump.")
+arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="string", default=None, help="Specify a docket to which to limit the dump.")
+
 
 def make_view(format, object_id):
     return {
@@ -114,25 +118,29 @@ def add_new_docs(cache_wrapper, now):
     cache = cache_wrapper.get_pickle_connection()
     
     new = 0
-    replaced = 0
     for id in cache.keys():
         doc = cache.get(id)
-        db_doc = {'document_id': doc['document_id'], 'views': [], 'docket_id': doc['docket_id'], 'agency': doc['agency'], 'scraped': False, 'object_id': doc['object_id'], 'type': doc['type'], 'last_seen': now, 'deleted': False}
-        if doc['formats']:
-            for format in doc['formats']:
-                db_doc['views'].append(make_view(format, doc['object_id']))
+        db_doc = Doc(**{
+            'id': doc['documentId'],
+            'docket_id': doc['docketId'],
+            'agency': doc['agency'],
+            'type': doc['documentType'].lower().replace(' ', '_'),
+            'last_seen': now
+        })
+
+        if doc['fileFormats']:
+            for format in listify(doc['fileFormats']):
+                db_doc.views.append(make_view(format))
+            db_doc.object_id = db_doc.views[0].object_id
     
         try:
-            db.docs.save(db_doc, safe=True)
+            db_doc.save()
             new += 1
-        except pymongo.errors.DuplicateKeyError:
-            # apparently sometimes documents get deleted and recreated; when this occurs, nuke the existing one and replace it
-            db.docs.remove({'document_id': doc['document_id']}, safe=True)
-            db.docs.save(db_doc, safe=True)
-            replaced += 1
+        except:
+            print "Oh No!"
     
-    written = new + replaced
-    print 'Wrote %s new documents, of which %s were replacements for documents flagged as deleted.' % (written, replaced)
+    written = new
+    print 'Wrote %s new documents.' % (written)
     
     return written
 
@@ -188,12 +196,12 @@ def reconcile_dumps(options, cache_wrapper, now):
     
     return {'updated': num_updated, 'repaired': num_repaired, 'deleted': num_deleted}
 
-def parser_process(file, client, cache):    
-    docs = parse(os.path.join(settings.DUMP_DIR, file), client)
+def parser_process(file, cache):    
+    docs = parse(os.path.join(settings.DUMP_DIR, file))
     print '[%s] Done with GWT decode.' % os.getpid()
     
-    for doc in docs:
-        cache.set(doc['document_id'], doc)
+    for doc in docs['searchresult']['documents']['document']:
+        cache.set(doc['documentId'], doc)
     
     return {'docs': len(docs)}
 
@@ -202,7 +210,6 @@ def parser_worker(todo_queue, done_queue, cache_wrapper):
     
     print '[%s] Parser worker started.' % pid
     
-    client = RegsClient()
     cache = cache_wrapper.get_pickle_connection()
     
     while True:
@@ -212,7 +219,7 @@ def parser_worker(todo_queue, done_queue, cache_wrapper):
         sys.stdout.flush()
         start = datetime.datetime.now()
         
-        stats = parser_process(file, client, cache)
+        stats = parser_process(file, cache)
         
         elapsed = datetime.datetime.now() - start
         sys.stdout.write('[%s] Done with %s in %s minutes\n' % (pid, file, round(elapsed.total_seconds() / 60.0)))
@@ -223,12 +230,21 @@ def parser_worker(todo_queue, done_queue, cache_wrapper):
         todo_queue.task_done()
     
 def parse_dumps(options, cache_wrapper):
-    num_workers = options.multi
-    files = [file for file in os.listdir(settings.DUMP_DIR) if file.endswith('.gwt')]
+    # figure out which files are ours
+    id_string = 'all'
+    if options.agency and options.docket:
+        raise Exception("Specify either an agency or a docket")
+    elif options.agency:
+        id_string = 'agency_' + options.agency
+    elif options.docket:
+        id_string = 'docket_' + options.docket.replace('-', '_')
 
-    if len(files) < 10:
+    num_workers = options.multi
+    files = [file for file in os.listdir(settings.DUMP_DIR) if file.startswith('dump_%s' % id_string) and file.endswith('.json')]
+
+    if len(files) < 1:
         # something is wrong, as there should be more than ten files
-        raise Exception('Too few .gwt files; something went wrong.')
+        raise Exception('Too few .json files; something went wrong.')
     
     # it's a small number of files, so just make a queue big enough to hold them all, to keep from having to block
     todo_queue = multiprocessing.JoinableQueue(len(files))
