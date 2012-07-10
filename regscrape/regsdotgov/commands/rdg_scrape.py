@@ -1,49 +1,44 @@
 GEVENT = False
 
 import settings
-from regsdotgov.regs_gwt.regs_client import RegsClient
+from models import *
 from regsdotgov.document import scrape_document
-from pygwt.types import ActionException
 import urllib2
 import sys
 import os
 import traceback
+import pymongo
 
 import multiprocessing
 from Queue import Empty
 from regs_common.mp_types import Counter
+from regs_common.exceptions import DoesNotExist
 
 from optparse import OptionParser
 arg_parser = OptionParser()
 arg_parser.add_option("-m", "--multi", dest="multi", action="store", type="int", default=multiprocessing.cpu_count(), help="Set number of worker processes.  Defaults to number of cores if not specified.")
+arg_parser.add_option("-a", "--agency", dest="agency", action="store", type="string", default=None, help="Specify an agency to which to limit the dump.")
+arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="string", default=None, help="Specify a docket to which to limit the dump.")
 
-def process_record(record, client, db, num_succeeded, num_failed):
+def process_record(record, num_succeeded, num_failed):
     if record is None:
         return
     
-    doc = None
+    new_doc = None
     
     for i in range(3):
         error = None
         removed = False
         try:
-            doc = scrape_document(record['document_id'], client)
-            doc['_id'] = record['_id']
-            doc['last_seen'] = record['last_seen']
-            print '[%s] Scraped doc %s...' % (os.getpid(), doc['document_id'])
+            new_doc = scrape_document(record.id)
+            new_doc.last_seen = record.last_seen
+            print '[%s] Scraped doc %s...' % (os.getpid(), new_doc.id)
             num_succeeded.increment()
             break
-        except ActionException:
-            error = sys.exc_info()
-            if 'failed to load document data' in str(error[1]):
-                # this document got deleted
-                print "Document %s appears to have been deleted; skipping." % record['_id']
-                removed = True
-                break
-            else:
-                # treat like any other error
-                print 'Warning: scrape failed on try %s with server exception: %s' % (i, error[1])
-                traceback.print_tb(error[2], file=sys.stdout)
+        except DoesNotExist:
+            print "Document %s appears to have been deleted; skipping." % record.id
+            removed = True
+            break
         except KeyboardInterrupt:
             raise
         except:
@@ -52,44 +47,41 @@ def process_record(record, client, db, num_succeeded, num_failed):
             traceback.print_tb(error[2], file=sys.stdout)
     
     # catch renames of documents
-    if doc and (not error) and (not removed) and doc['document_id'] != record['document_id']:
-        renamed_to = doc['document_id']
-        doc = db.docs.find({'_id': record['_id']})[0]
-        doc['views'] = []
-        doc['scraped'] = True
-        doc['renamed_to'] = renamed_to
+    if new_doc and (not error) and (not removed) and new_doc.id != record.id:
+        renamed_to = new_doc.id
+        new_doc = Doc.objects(id=record.id)[0]
+        new_doc.scraped = True
+        new_doc.attachments = []
+        new_doc.views = []
+        new_doc.details['renamed_to'] = renamed_to
+        new_doc.renamed = True
     
     # catch errors and removes
     if removed:
         num_failed.increment()
         return None
-    elif error or not doc:
-        doc = db.docs.find({'_id': record['_id']})[0]
-        doc['scraped'] = 'failed'
+    elif error or not new_doc:
+        new_doc = Doc.objects(id=record.id)[0]
+        new_doc.scraped = 'failed'
         if error:
-            print 'Scrape of %s failed because of %s' % (doc['document_id'], str(error))
-            doc['failure_reason'] = str(error)
+            print 'Scrape of %s failed because of %s' % (new_doc.id, str(error))
         num_failed.increment()
     
     try:
-        db.docs.save(doc, safe=True)
+        new_doc.save()
     except:
-        print "Warning: database save failed on document %s (scraped based on original doc ID %s)." % (doc['document_id'], record['document_id'])
+        print "Warning: database save failed on document %s (scraped based on original doc ID %s)." % (new_doc.id, record.id)
+        traceback.print_exc()
 
 def worker(todo_queue, num_succeeded, num_failed):
     pid = os.getpid()
     
     print '[%s] Worker started.' % pid
-    
-    from pymongo import Connection
-    
-    client = RegsClient()
-    db = Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
-    
+            
     while True:
         record = todo_queue.get()
         
-        process_record(record, client, db, num_succeeded, num_failed)
+        process_record(record, num_succeeded, num_failed)
         
         todo_queue.task_done()
 
@@ -112,18 +104,18 @@ def run(options, args):
         proc.start()
         processes.append(proc)
     
-    import pymongo
-    db = pymongo.Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
-    
-    conditions = {'scraped': False, 'deleted': False}
-    fields = {'document_id': 1, 'last_seen': 1}
-    to_scrape = db.docs.find(conditions, fields)
+    conditions = {'scraped': 'no', 'deleted': False}
+    if options.agency:
+        conditions['agency'] = options.agency
+    if options.docket:
+        conditions['docket_id'] = options.docket
+    to_scrape = Doc.objects(**conditions).only('id', 'last_seen')
     
     while True:
         try:
             record = to_scrape.next()
         except pymongo.errors.OperationFailure:
-            to_scrape = db.docs.find(conditions, fields)
+            to_scrape = Doc.objects(**conditions).only('id', 'last_seen')
             continue
         except StopIteration:
             break

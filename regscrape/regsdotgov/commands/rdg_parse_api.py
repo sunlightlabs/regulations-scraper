@@ -13,6 +13,7 @@ import re
 from regs_common.tmp_redis import TmpRedis
 from regs_common.mp_types import Counter
 from regs_common.util import listify
+from regsdotgov.document import make_view
 from models import *
 
 
@@ -27,11 +28,6 @@ arg_parser.add_option("-u", "--use-cache", dest="use_cache", action="store", def
 arg_parser.add_option("-A", "--add-only", dest="add_only", action="store_true", default=False, help="Skip reconciliation, assume that all records are new, and go straight to the add step.")
 arg_parser.add_option("-a", "--agency", dest="agency", action="store", type="string", default=None, help="Specify an agency to which to limit the dump.")
 arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="string", default=None, help="Specify a docket to which to limit the dump.")
-
-FORMAT_PARSER = re.compile(r"http://www\.regulations\.gov/api/contentStreamer\?objectId=(?P<object_id>[0-9a-z]+)&disposition=attachment&contentType=(?P<type>[0-9a-z]+)")
-def make_view(format):
-    match = FORMAT_PARSER.match(format).groupdict()
-    return View(**match)
 
 def repair_views(old_views, new_views):
     for new_view in new_views:
@@ -62,17 +58,14 @@ def reconcile_process(record, cache, db, now, repaired_counter, updated_counter,
                     attachment_meta[a_views[0].object_id] = attachment
 
         new_types = new_types + [set([view.type for view in item[1]]) for item in sorted(attachment_views.items(), key=lambda a: a[0])]
-
         
-        if 'failed' in reduce(operator.add, statuses, []) or old_types != new_types:
-            # needs a repair; grab the full document
-        
+        if record['scraped'] == 'failed' or 'failed' in reduce(operator.add, statuses, []) or old_types != new_types:
+            # needs a repair; grab the full document        
             current_docs = Doc.objects(id=record['_id'])
             
             db_doc = current_docs[0]
             
-            if db_doc.scraped == 'failed':
-                db_doc.scraped = "no"
+            db_doc.scraped = "no"
             
             # rebuild views
             repair_views(db_doc.views, main_views)
@@ -143,6 +136,7 @@ def add_new_docs(cache_wrapper, now):
             'docket_id': doc['docketId'],
             'agency': doc['agency'],
             'type': doc['documentType'].lower().replace(' ', '_'),
+            'fr_doc': doc['isFrDoc'],
             'last_seen': now,
             'created': now
         })
@@ -198,7 +192,7 @@ def reconcile_dumps(options, cache_wrapper, now):
     if options.docket:
         conditions['docket_id'] = options.docket
 
-    fields = {'_id': 1, 'views.downloaded': 1, 'views.type': 1, 'attachments.views.downloaded': 1, 'attachments.views.type': 1, 'attachments.object_id': 1}
+    fields = {'_id': 1, 'scraped': 1, 'views.downloaded': 1, 'views.type': 1, 'attachments.views.downloaded': 1, 'attachments.views.type': 1, 'attachments.object_id': 1}
     to_check = db.docs.find(conditions, fields)
     
     while True:

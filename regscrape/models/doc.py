@@ -76,8 +76,10 @@ class Doc(Document):
         default="no",
         choices=["no", "failed", "yes"]
     )
+    renamed = BooleanField(default=False)
     in_search_index = BooleanField(default=False)
     in_aggregates = BooleanField(default=False)
+    fr_doc = BooleanField(default=False)
     
     # dates
     created = DateTimeField()
