@@ -3,6 +3,7 @@ from mongoengine import *
 class View(EmbeddedDocument):
     # data
     type = StringField(required=True)
+    object_id = StringField()
     url = URLField(required=True)
     
     content = FileField(collection_name='files')
@@ -28,6 +29,9 @@ class View(EmbeddedDocument):
         'allow_inheritance': False,
     }
 
+    def url(self):
+        return 'http://www.regulations.gov/contentStreamer?objectId=%s&disposition=inline&contentType=%s' % (self.object_id, self.type)
+
 
 class Attachment(EmbeddedDocument):
     # data
@@ -36,7 +40,7 @@ class Attachment(EmbeddedDocument):
     abstract = StringField()
 
     # sub-docs
-    views = ListField(field=View)
+    views = ListField(field=EmbeddedDocumentField(View))
 
     meta = {
         'allow_inheritance': False,
@@ -44,6 +48,8 @@ class Attachment(EmbeddedDocument):
 
 
 class Doc(Document):
+    id = StringField(required=True, primary_key=True)
+
     # data
     title = StringField(required=True)
     agency = StringField(required=True)
@@ -61,8 +67,8 @@ class Doc(Document):
     comment_on = DictField(default=None)
 
     # sub-docs
-    views = ListField(field=View)
-    attachments = ListField(field=Attachment)
+    views = ListField(field=EmbeddedDocumentField(View))
+    attachments = ListField(field=EmbeddedDocumentField(Attachment))
 
     # flags
     deleted = BooleanField(default=False)
@@ -74,8 +80,8 @@ class Doc(Document):
     in_aggregates = BooleanField(default=False)
     
     # dates
-    created = DateField()
-    last_seen = DateField()
+    created = DateTimeField()
+    last_seen = DateTimeField()
 
     meta = {
         'allow_inheritance': False,

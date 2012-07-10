@@ -23,7 +23,7 @@ def search(per_page, position, **args):
 
 def parse(file):
     data = open(file) if type(file) in (unicode, str) else file
-    return json.load(file)
+    return json.load(data)
 
 # convenience function that strings them together
 def parsed_search(per_page, position, client=None, **args):

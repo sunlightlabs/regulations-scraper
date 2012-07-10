@@ -37,7 +37,7 @@ def run(options, args):
                 current_str = (position / settings.DUMP_INCREMENT) + 1
                 total_str = '?' if total == 1 else (total / settings.DUMP_INCREMENT) + 1
                 print "Downloading page %s of %s..." % (current_str, total_str)
-                total = download(
+                download(
                     search(settings.DUMP_INCREMENT, position, **search_args),
                     os.path.join(settings.DUMP_DIR, 'dump_%s_%s.json' % (id_string, str(position).zfill(num_digits))),
                 )

@@ -9,8 +9,10 @@ import datetime
 import operator
 import time
 import json
+import re
 from regs_common.tmp_redis import TmpRedis
 from regs_common.mp_types import Counter
+from regs_common.util import listify
 from models import *
 
 
@@ -26,70 +28,88 @@ arg_parser.add_option("-A", "--add-only", dest="add_only", action="store_true", 
 arg_parser.add_option("-a", "--agency", dest="agency", action="store", type="string", default=None, help="Specify an agency to which to limit the dump.")
 arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="string", default=None, help="Specify a docket to which to limit the dump.")
 
+FORMAT_PARSER = re.compile(r"http://www\.regulations\.gov/api/contentStreamer\?objectId=(?P<object_id>[0-9a-z]+)&disposition=attachment&contentType=(?P<type>[0-9a-z]+)")
+def make_view(format):
+    match = FORMAT_PARSER.match(format).groupdict()
+    return View(**match)
 
-def make_view(format, object_id):
-    return {
-        'type': format,
-        'url': 'http://www.regulations.gov/contentStreamer?objectId=%s&disposition=inline&contentType=%s' % (object_id, format),
-        'downloaded': False,
-        'extracted': False,
-        'ocr': False
-    }
+def repair_views(old_views, new_views):
+    for new_view in new_views:
+        already_exists = [view for view in old_views if view.type == new_view.type]
+        if not already_exists:
+            old_views.append(new_view)
+        elif already_exists and already_exists[0].downloaded == 'failed':
+            already_exists[0].downloaded = "no"
 
 def reconcile_process(record, cache, db, now, repaired_counter, updated_counter, deleted_counter):
     # check and see if this doc has been updated
-    new_record = cache.get(record['document_id'])
+    new_record = cache.get(record['_id'])
     if new_record:
         # do we need to fix anything?
-        statuses = [view['downloaded'] for view in record['views']] + reduce(operator.add, [[view['downloaded'] for view in attachment['views']] for attachment in record.get('attachments', [])], [])
-        types = [view['type'] for view in record['views']]
+        statuses = [[view['downloaded'] for view in record['views']]] + [[view['downloaded'] for view in attachment['views']] for attachment in record.get('attachments', [])]
+        old_types = [set([view['type'] for view in record['views']])] + [set([view['type'] for view in attachment['views']]) for attachment in sorted(record.get('attachments', []), key=lambda a: a['object_id'])]
+
+        main_views = [make_view(format) for format in listify(new_record['fileFormats'])]
+        new_types = [set([view.type for view in main_views])]
+
+        attachment_views = {}
+        attachment_meta = {}
+        if new_record['attachmentCount'] > 0:
+            for attachment in listify(new_record['attachments']['attachment']):
+                a_views = [make_view(format) for format in listify(attachment['fileFormats'])]
+                if a_views:
+                    attachment_views[a_views[0].object_id] = a_views
+                    attachment_meta[a_views[0].object_id] = attachment
+
+        new_types = new_types + [set([view.type for view in item[1]]) for item in sorted(attachment_views.items(), key=lambda a: a[0])]
+
         
-        if 'failed' in statuses or sorted(new_record['formats'] or []) != sorted(types):
+        if 'failed' in reduce(operator.add, statuses, []) or old_types != new_types:
             # needs a repair; grab the full document
         
-            current_docs = db.docs.find({'_id': record['_id']})
+            current_docs = Doc.objects(id=record['_id'])
             
             db_doc = current_docs[0]
             
-            if db_doc['scraped'] == 'failed':
-                db_doc['scraped'] = False
+            if db_doc.scraped == 'failed':
+                db_doc.scraped = "no"
             
             # rebuild views
-            if new_record['formats']:
-                for format in new_record['formats']:
-                    already_exists = [view for view in db_doc['views'] if view['type'] == format]
-                    if not already_exists:
-                        db_doc['views'].append(make_view(format, new_record['object_id']))
-                    elif already_exists and already_exists[0]['downloaded'] == 'failed':
-                        already_exists[0]['downloaded'] = False
-                        if 'failure_reason' in already_exists[0]:
-                            del already_exists[0]['failure_reason']
+            repair_views(db_doc.views, main_views)
         
-            # while we're here, reset attachment download status (can't do a full rebuild without rescrape, but I can live with that for now)
-            if 'attachments' in db_doc:
-                for attachment in db_doc['attachments']:
-                    for view in attachment['views']:
-                        if view['downloaded'] == 'failed':
-                            view['downloaded'] = False
-                            if 'failure_reason' in view:
-                                del view['failure_reason']
+            # rebuild attachments
+            for object_id, new_views in attachment_views.items():
+                existing_attachment = [attachment for attachment in db_doc.attachments if attachment.object_id == object_id]
+                if existing_attachment:
+                    repair_views(existing_attachment[0].views, new_views)
+                else:
+                    new_attachment = attachment_meta[object_id]
+                    db_attachment = Attachment(**{
+                        'title': new_attachment['title'],
+                        'abstract': new_attachment['abstract'] if 'abstract' in new_attachment and new_attachment['abstract'] else None,
+                        'views': new_views
+                    })
+                    if db_attachment.views:
+                        db_attachment.object_id = db_attachment.views[0].object_id
+                    db_doc.attachments.append(db_attachment)
+
             
             # update the last-seen date
-            db_doc['last_seen'] = now
+            db_doc.last_seen = now
             
             # do save
-            db.docs.save(db_doc, safe=True)
+            db_doc.save()
             repaired_counter.increment()
         else:
             # we don't need a full repair, so just do an update on the date
-            db.docs.update({'_id': record['_id']}, {'$set': {'last_seen': now}}, safe=True)
+            Doc.objects(id=record['_id']).update_one(set__last_seen=now)
             updated_counter.increment()
         
         # either way, delete the document from the cache so we can tell what's new at the end
-        cache.delete(record['document_id'])
+        cache.delete(record['_id'])
     else:
         # this document isn't in the new data anymore, so mark it deleted
-        db.docs.update({'_id': record['_id']}, {'$set': {'deleted': True}}, safe=True)
+        Doc.objects(id=record['_id']).update_one(set__deleted=True)
         deleted_counter.increment()
 
 def reconcile_worker(todo_queue, cache_wrapper, now, repaired_counter, updated_counter, deleted_counter):
@@ -112,9 +132,6 @@ def reconcile_worker(todo_queue, cache_wrapper, now, repaired_counter, updated_c
 def add_new_docs(cache_wrapper, now):
     print 'Adding new documents to the database...'
     
-    import pymongo
-    db = pymongo.Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
-    
     cache = cache_wrapper.get_pickle_connection()
     
     new = 0
@@ -122,22 +139,32 @@ def add_new_docs(cache_wrapper, now):
         doc = cache.get(id)
         db_doc = Doc(**{
             'id': doc['documentId'],
+            'title': doc['title'],
             'docket_id': doc['docketId'],
             'agency': doc['agency'],
             'type': doc['documentType'].lower().replace(' ', '_'),
-            'last_seen': now
+            'last_seen': now,
+            'created': now
         })
 
         if doc['fileFormats']:
             for format in listify(doc['fileFormats']):
                 db_doc.views.append(make_view(format))
             db_doc.object_id = db_doc.views[0].object_id
+
+        if doc['attachmentCount'] > 0:
+            for attachment in listify(doc['attachments']['attachment']):
+                db_attachment = Attachment(**{
+                    'title': attachment['title'],
+                    'abstract': attachment['abstract'] if 'abstract' in attachment and attachment['abstract'] else None,
+                    'views': [make_view(format) for format in listify(attachment['fileFormats'])]
+                })
+                if db_attachment.views:
+                    db_attachment.object_id = db_attachment.views[0].object_id
+                db_doc.attachments.append(db_attachment)
     
-        try:
-            db_doc.save()
-            new += 1
-        except:
-            print "Oh No!"
+        db_doc.save()
+        new += 1
     
     written = new
     print 'Wrote %s new documents.' % (written)
@@ -166,7 +193,12 @@ def reconcile_dumps(options, cache_wrapper, now):
     db = pymongo.Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
     
     conditions = {'last_seen': {'$lt': now}, 'deleted': False}
-    fields = {'document_id': 1, 'views.downloaded': 1, 'views.type': 1, 'attachments.views.downloaded': 1, 'attachments.views.type': 1}
+    if options.agency:
+        conditions['agency'] = options.agency
+    if options.docket:
+        conditions['docket_id'] = options.docket
+
+    fields = {'_id': 1, 'views.downloaded': 1, 'views.type': 1, 'attachments.views.downloaded': 1, 'attachments.views.type': 1, 'attachments.object_id': 1}
     to_check = db.docs.find(conditions, fields)
     
     while True:

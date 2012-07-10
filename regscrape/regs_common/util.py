@@ -17,3 +17,10 @@ def bootstrap_settings():
     
     if not getattr(settings, 'DUMP_DIR', False):
         settings.DUMP_DIR = os.path.join(settings.DATA_DIR, 'dumps')
+
+def listify(item):
+    if not item:
+        return []
+    if type(item) in (str, unicode, dict):
+        return [item]
+    return list(item)
