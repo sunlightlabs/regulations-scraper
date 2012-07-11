@@ -14,5 +14,6 @@ class Entity(Document):
 
     meta = {
         'allow_inheritance': False,
-        'collection': 'entities'
+        'collection': 'entities',
+        'indexes': ['td_type']
     }
