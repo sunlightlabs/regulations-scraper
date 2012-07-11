@@ -1,9 +1,9 @@
 from mongoengine import *
 
 class Docket(Document):
-    docket_id = StringField(required=True, primary_key=True)
+    id = StringField(required=True, primary_key=True)
 
-    title = StringField(required=True)
+    title = StringField()
     agency = StringField()
     rin = StringField()
     year = IntField()

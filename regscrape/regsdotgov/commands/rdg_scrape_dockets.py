@@ -1,23 +1,24 @@
 GEVENT = False
 
 import settings
-from regsdotgov.regs_gwt.regs_client import RegsClient
 from regsdotgov.document import scrape_docket
-from pygwt.types import ActionException
 import urllib2
 import sys
 import os
 import traceback
+from models import *
+import pymongo
 
 import multiprocessing
 from Queue import Empty
 from regs_common.mp_types import Counter
+from regs_common.exceptions import DoesNotExist
 
 from optparse import OptionParser
 arg_parser = OptionParser()
 arg_parser.add_option("-m", "--multi", dest="multi", action="store", type="int", default=multiprocessing.cpu_count(), help="Set number of worker processes.  Defaults to number of cores if not specified.")
 
-def process_record(record, client, db, num_succeeded, num_failed):
+def process_record(record, num_succeeded, num_failed):
     if record is None:
         return
     
@@ -26,11 +27,12 @@ def process_record(record, client, db, num_succeeded, num_failed):
     for i in range(3):
         error = None
         try:
-            docket = scrape_docket(record['_id'], client)
-            print '[%s] Scraped docket %s...' % (os.getpid(), docket['_id'])
+            docket = scrape_docket(record.id)
+            docket._created = record._created
+            print '[%s] Scraped docket %s...' % (os.getpid(), docket.id)
             num_succeeded.increment()
             break
-        except ActionException:
+        except DoesNotExist:
             error = sys.exc_info()
             # treat like any other error
             print 'Warning: scrape failed on try %s with server exception: %s' % (i, error[1])
@@ -43,27 +45,20 @@ def process_record(record, client, db, num_succeeded, num_failed):
     # catch errors
     if error or not docket:
         docket = record
-        docket['scraped'] = 'failed'
+        docket.scraped = 'failed'
         if error:
-            print 'Scrape of %s failed because of %s' % (docket['_id'], str(error))
-            docket['failure_reason'] = str(error)
+            print 'Scrape of %s failed because of %s' % (docket.id, str(error))
         num_failed.increment()
     
     try:
-        docket_without_id = dict([item for item in docket.items() if item[0] != '_id'])
-        db.dockets.update({'_id': docket['_id']}, {'$set': docket_without_id}, upsert=True, safe=True)
+        docket.save()
     except:
-        print "Warning: database save failed on document %s (scraped based on original doc ID %s)." % (docket['_id'], record['_id'])
+        print "Warning: database save failed on document %s (scraped based on original doc ID %s)." % (docket.id, record.id)
 
 def worker(todo_queue, num_succeeded, num_failed):
     pid = os.getpid()
     
     print '[%s] Worker started.' % pid
-    
-    from pymongo import Connection
-    
-    client = RegsClient()
-    db = Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
     
     while True:
         try:
@@ -72,7 +67,7 @@ def worker(todo_queue, num_succeeded, num_failed):
             print '[%s] Processing complete.' % pid
             return
         
-        process_record(record, client, db, num_succeeded, num_failed)
+        process_record(record, num_succeeded, num_failed)
         
         todo_queue.task_done()
 
@@ -92,18 +87,15 @@ def run(options, args):
     for i in range(num_workers):
         proc = multiprocessing.Process(target=worker, args=(todo_queue, num_succeeded, num_failed))
         proc.start()
-    
-    import pymongo
-    db = pymongo.Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
-    
-    conditions = {'scraped': False}
-    to_scrape = db.dockets.find(conditions)
+        
+    conditions = {'scraped': 'no'}
+    to_scrape = Docket.objects(**conditions)
     
     while True:
         try:
             record = to_scrape.next()
         except pymongo.errors.OperationFailure:
-            to_scrape = db.dockets.find(conditions)
+            to_scrape = Docket.objects(**conditions)
             continue
         except StopIteration:
             break

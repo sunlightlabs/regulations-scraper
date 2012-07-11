@@ -1,18 +1,15 @@
 def run():
-    from regs_common.util import get_db
-    from pymongo.errors import DuplicateKeyError
+    import models
     
-    db = get_db()
+    db = models.Docket._get_db()
     new = 0
     
     print 'Starting docket query...'
     docket_ids = db.docs.distinct('docket_id')
     for docket_id in docket_ids:
         try:
-            db.dockets.insert({
-                '_id': docket_id,
-                'scraped': False
-            }, safe=True)
+            docket = models.Docket(id=docket_id)
+            docket.save(force_insert=True)
             new += 1
         except:
             # we already have this one
