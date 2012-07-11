@@ -12,7 +12,7 @@ class View(EmbeddedDocument):
         choices=["text", "html"]
     )
     
-    search_path = StringField()
+    file_path = StringField()
 
     # flags
     downloaded = StringField(
@@ -58,13 +58,15 @@ class Doc(Document):
         required=True,
         choices=['public_submission', 'other', 'supporting_material', 'notice', 'rule', 'proposed_rule']
     )
-    topics = ListField()
+    topics = ListField(field=StringField())
     object_id = StringField()
     details = DictField()
 
     abstract = StringField()
     rin = StringField()
     comment_on = DictField(default=None)
+
+    submitter_entities = ListField(field=StringField())
 
     # sub-docs
     views = ListField(field=EmbeddedDocumentField(View))
@@ -84,6 +86,7 @@ class Doc(Document):
     # dates
     created = DateTimeField()
     last_seen = DateTimeField()
+    entities_last_extracted = DateTimeField()
 
     meta = {
         'allow_inheritance': False,
