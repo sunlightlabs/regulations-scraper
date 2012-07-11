@@ -83,7 +83,7 @@ def run_for_view_type(view_label, find_func, update_func, options):
                     stats['oversized'] = []
                 stats['oversized'].append(result['view'].url())
         else:
-            result['view'].extracted = 'failed'
+            result['view'].extracted = 'failed_extraction'
             update_func(**result)
             print 'Saved failure to decode %s' % result['view'].file_path
             stats['failed'] += 1

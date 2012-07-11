@@ -5,7 +5,7 @@ def all_aliases():
 
     return itertools.chain.from_iterable(
         itertools.imap(
-            lambda entity: [(alias, entity['_id']) for alias in entity['aliases']],
+            lambda entity: [(alias, entity['_id']) for alias in entity.get('filtered_aliases', [])],
             db.entities.find()
         )
     )

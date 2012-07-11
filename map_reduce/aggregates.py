@@ -1,13 +1,13 @@
 import pymongo, bson
 QUERY = {'deleted': False}
 FIELDS = [
-    'document_id',
+    '_id',
     'docket_id',
     'agency',
     'title',
-    'details.fr_publish_date',
-    'details.comment_start_date',
-    'details.comment_end_date',
+    'details.Date_Posted',
+    'details.Comment_Start_Date',
+    'details.Comment_End_Date',
     'type',
     'views.entities',
     'attachments.views.entities',
@@ -45,13 +45,13 @@ def mapfn(key, document):
     # pre-computed date data
     doc_type = document.get('type', None)
     details = document.get('details', {})
-    doc_date = details.get('fr_publish_date', None)
+    doc_date = details.get('Date_Posted', None)
     doc_week = isoweek.Week(*(doc_date.isocalendar()[:-1])) if doc_date else None
     doc_week_range = (doc_week.monday().isoformat(), doc_week.sunday().isoformat()) if doc_week else None
     doc_month = doc_date.isoformat()[:7] if doc_date else None
     
-    if 'comment_start_date' in details and 'comment_end_date' in details:
-        comment_date_range = [details['comment_start_date'].date().isoformat(), details['comment_end_date'].date().isoformat()]
+    if 'Comment_Start_Date' in details and 'Comment_End_Date' in details:
+        comment_date_range = [details['Comment_Start_Date'].date().isoformat(), details['Comment_End_Date'].date().isoformat()]
     else:
         comment_date_range = None
 
@@ -63,7 +63,7 @@ def mapfn(key, document):
             'date': doc_date.date().isoformat() if doc_date else None,
             'comment_date_range': comment_date_range,
             'type': doc_type,
-            'id': document['document_id'],
+            'id': document['_id'],
             'title': document['title']
         }] if doc_type in ['notice', 'rule', 'proposed_rule'] else [],
         'weeks': [(doc_week_range, 1)],
@@ -256,7 +256,7 @@ def reducefn(key, documents):
         return out
 
 if __name__ == '__main__':
-    db = pymongo.Connection().regulations
+    db = pymongo.Connection().regulations_models
 
     import mincemeat
     s = mincemeat.SqliteServer('/tmp/test.db')

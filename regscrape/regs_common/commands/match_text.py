@@ -9,57 +9,48 @@ import traceback
 import os
 import multiprocessing
 from Queue import Empty
+from models import *
 
 from oxtail.matching import match
 
 def get_text(view):
-    text = view.get('text', None)
-    if not text:
+    if not view.content:
         return ''
     
-    if type(text) == dict and 'compressed' in text:
-        print 'decompressing document'
-        return zlib.decompress(text['compressed'])
-    else:
-        return text
+    return view.content.read()
 
 def process_doc(doc):
     # entity extraction
-    if 'views' in doc and doc['views']:
-        for view in doc['views']:
-            if 'extracted' in view and view['extracted'] == True:
+    for view in doc.views:
+        if view.extracted == 'yes':
+            view_matches = match(get_text(view), multiple=True)
+            if view_matches:
+                view.entities = list(view_matches.keys())
+
+    for attachment in doc.attachments:
+        for view in attachment.views:
+            if view.extracted == 'yes':
                 view_matches = match(get_text(view), multiple=True)
                 if view_matches:
-                    view['entities'] = list(view_matches.keys())
-
-    if 'attachments' in doc and doc['attachments']:
-        for attachment in doc['attachments']:
-            if 'views' in attachment and attachment['views']:
-                for view in attachment['views']:
-                    if 'extracted' in view and view['extracted'] == True:
-                        view_matches = match(get_text(view), multiple=True)
-                        if view_matches:
-                            view['entities'] = list(view_matches.keys())
+                    view.entities = list(view_matches.keys())
     
     # submitter matches
-    details = doc.get('details', {})
+    details = doc.details
     submitter_matches = match('\n'.join([
         # organization
-        details.get('organization', ''),
+        details.get('Organization_Name', ''),
         
         # submitter name
         ' '.join(
-            filter(bool, [details.get('first_name', ''), details.get('mid_initial', ''), details.get('last_name', '')])
+            filter(bool, [details.get('First_Name', ''), details.get('Last_Name', '')])
         )
     ]))
     if submitter_matches:
-        doc['submitter_entities'] = list(submitter_matches.keys())
+        doc.submitter_entities = list(submitter_matches.keys())
 
-    doc['entities_last_extracted'] = datetime.datetime.now()
-    
-    db = pymongo.Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
-    
-    db.docs.save(doc, safe=True)
+    doc.entities_last_extracted = datetime.datetime.now()
+        
+    doc.save()
 
     return True
 
@@ -68,16 +59,16 @@ def process_worker(todo_queue):
     print '[%s] Worker started.' % pid
     while True:
         try:
-            doc = todo_queue.get()
+            doc = Doc._from_son(todo_queue.get())
         except Empty:
             print '[%s] Processing complete.' % pid
             return
         
         try:
             doc_success = process_doc(doc)
-            print '[%s] Processing of doc %s succeeded.' % (pid, doc['document_id'])
+            print '[%s] Processing of doc %s succeeded.' % (pid, doc.id)
         except:
-            print '[%s] Processing of doc %s failed.' % (pid, doc['document_id'])
+            print '[%s] Processing of doc %s failed.' % (pid, doc.id)
             traceback.print_exc()
         
         todo_queue.task_done()
@@ -94,8 +85,8 @@ def run():
     load_trie_from_mongo()
     print '[%s] Loaded trie in %s seconds.' % (pid, time.time() - import_start)
 
-    db = pymongo.Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
-    cursor = db.docs.find({'scraped': True, 'deleted': False})
+    Doc._get_db()
+    cursor = Doc.objects(scraped="yes", deleted=False)
     
     run_start = time.time()
     print '[%s] Starting analysis...' % pid
@@ -111,7 +102,7 @@ def run():
         processes.append(proc)
     
     for doc in cursor:
-        todo_queue.put(doc)
+        todo_queue.put(doc.to_mongo())
     
     todo_queue.join()
 

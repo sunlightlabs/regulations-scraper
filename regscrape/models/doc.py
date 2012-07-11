@@ -13,6 +13,7 @@ class View(EmbeddedDocument):
     )
     
     file_path = StringField()
+    entities = ListField(field=StringField())
 
     # flags
     downloaded = StringField(
