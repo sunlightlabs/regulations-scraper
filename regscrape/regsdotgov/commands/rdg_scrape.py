@@ -33,6 +33,13 @@ def process_record(record, num_succeeded, num_failed):
             new_doc = scrape_document(record.id)
             new_doc.last_seen = record.last_seen
             print '[%s] Scraped doc %s...' % (os.getpid(), new_doc.id)
+
+            if record.views:
+                new_doc.views = record.views
+
+            if record.attachments:
+                new_doc.attachments = record.attachments
+
             num_succeeded.increment()
             break
         except DoesNotExist:
@@ -115,7 +122,7 @@ def run(options, args):
         try:
             record = to_scrape.next()
         except pymongo.errors.OperationFailure:
-            to_scrape = Doc.objects(**conditions).only('id', 'last_seen')
+            to_scrape = Doc.objects(**conditions).only('id', 'last_seen', 'views', 'attachments')
             continue
         except StopIteration:
             break

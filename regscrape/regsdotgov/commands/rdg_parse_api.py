@@ -130,6 +130,10 @@ def add_new_docs(cache_wrapper, now):
     new = 0
     for id in cache.keys():
         doc = cache.get(id)
+
+        if doc.get('documentStatus', None) == "Withdrawn":
+            continue
+
         db_doc = Doc(**{
             'id': doc['documentId'],
             'title': doc['title'],
@@ -142,7 +146,7 @@ def add_new_docs(cache_wrapper, now):
         })
 
         if doc['fileFormats']:
-            for format in listify(doc['fileFormats']):
+            for format in listify(doc.get('fileFormats', [])):
                 db_doc.views.append(make_view(format))
             db_doc.object_id = db_doc.views[0].object_id
 
@@ -151,7 +155,7 @@ def add_new_docs(cache_wrapper, now):
                 db_attachment = Attachment(**{
                     'title': attachment['title'],
                     'abstract': attachment['abstract'] if 'abstract' in attachment and attachment['abstract'] else None,
-                    'views': [make_view(format) for format in listify(attachment['fileFormats'])]
+                    'views': [make_view(format) for format in listify(attachment.get('fileFormats', []))]
                 })
                 if db_attachment.views:
                     db_attachment.object_id = db_attachment.views[0].object_id
@@ -226,7 +230,7 @@ def parser_process(file, cache):
     docs = parse(os.path.join(settings.DUMP_DIR, file))
     print '[%s] Done with GWT decode.' % os.getpid()
     
-    for doc in docs['searchresult']['documents']['document']:
+    for doc in listify(docs['searchresult']['documents']['document']):
         cache.set(doc['documentId'], doc)
     
     return {'docs': len(docs)}

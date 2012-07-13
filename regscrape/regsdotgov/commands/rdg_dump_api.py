@@ -18,7 +18,7 @@ def run(options, args):
         search_args = {'agency': options.agency}
         id_string = 'agency_' + options.agency
     elif options.docket:
-        search_args = {'docket': docket}
+        search_args = {'docket': options.docket}
         id_string = 'docket_' + options.docket.replace('-', '_')
 
     # delete old dumps

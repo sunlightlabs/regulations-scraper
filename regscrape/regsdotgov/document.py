@@ -59,7 +59,7 @@ def scrape_document(id):
         'agency': doc['agencyId'],
         'docket_id': doc['docketId'],
         'type': doc['documentType'].lower().replace(' ', '_'),
-        'topics': doc['topics'] if 'topics' in doc and any(doc['topics']) else [],
+        'topics': listify(doc['topics']) if 'topics' in doc and any(doc['topics']) else [],
         'fr_doc': doc['frDoc'],
         'scraped': 'yes',
         'deleted': False,
@@ -98,6 +98,8 @@ def scrape_document(id):
             })
             if attachment.views:
                 attachment.object_id = attachment.views[0].object_id
+            attachments.append(attachment)
+        out['attachments'] = attachments
     
     if 'rin' in doc and doc['rin']:
         out['rin'] = doc['rin']
