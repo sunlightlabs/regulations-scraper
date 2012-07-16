@@ -17,6 +17,8 @@ from regs_common.exceptions import DoesNotExist
 from optparse import OptionParser
 arg_parser = OptionParser()
 arg_parser.add_option("-m", "--multi", dest="multi", action="store", type="int", default=multiprocessing.cpu_count(), help="Set number of worker processes.  Defaults to number of cores if not specified.")
+arg_parser.add_option("-a", "--agency", dest="agency", action="store", type="string", default=None, help="Specify an agency to which to limit the dump.")
+arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="string", default=None, help="Specify a docket to which to limit the dump.")
 
 def process_record(record, num_succeeded, num_failed):
     if record is None:
@@ -89,6 +91,10 @@ def run(options, args):
         proc.start()
         
     conditions = {'scraped': 'no'}
+    if options.agency:
+        conditions['agency'] = options.agency
+    if options.docket:
+        conditions['id'] = options.docket
     to_scrape = Docket.objects(**conditions)
     
     while True:
