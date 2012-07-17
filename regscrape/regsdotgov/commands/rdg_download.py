@@ -10,12 +10,18 @@ arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="str
 
 def run(options, args):
     # global imports hack so we don't mess up gevent loading
-    global bulk_download, settings, subprocess, os, urlparse, sys, traceback, datetime, pymongo
+    global bulk_download, settings, subprocess, os, urlparse, sys, traceback, datetime, pymongo, hashlib
     from regs_common.processing import find_views, update_view, find_attachment_views, update_attachment_view
     from regs_common.transfer import bulk_download
-    import subprocess, os, urlparse, sys, traceback, datetime
+    import subprocess, os, urlparse, sys, traceback, datetime, hashlib
     import pymongo
     
+    # ensure that our hash directories are all there
+    for hex_dir in [hex(i).split('x').pop().zfill(2) for i in range(255)]:
+        dir_path = os.path.join(settings.DOWNLOAD_DIR, hex_dir)
+        if not os.path.exists(dir_path):
+            os.mkdir(dir_path)
+
     return {
         'document_views': run_for_view_type('document views', find_views, update_view, options),
         'attachment_views': run_for_view_type('attachment views', find_attachment_views, update_attachment_view, options)
@@ -41,9 +47,10 @@ def run_for_view_type(view_label, find_func, update_func, options):
         while True:
             try:
                 result = v_array[0].next()
-                                
-                save_name = '%s.%s' % (result['view'].object_id, result['view'].type)
-                save_path = os.path.join(settings.DOWNLOAD_DIR, save_name)
+                
+                save_hash = hashlib.md5(result['view'].url).hexdigest()
+                save_name = '%s.%s' % (result['view'].object_id if result['view'].object_id else save_hash, result['view'].type)
+                save_path = os.path.join(settings.DOWNLOAD_DIR, save_hash[:2], save_name)
                 
                 yield (result['view'].url, save_path, result)
             except pymongo.errors.OperationFailure:
