@@ -79,7 +79,7 @@ def update_view(doc, view):
         '_id': doc
     },
     {
-        '$pull': {"views": {"type": view.type}}
+        '$pull': {"views": {"url": view.url}}
     }, safe=True)
 
     # add the new one back
@@ -102,7 +102,7 @@ def update_attachment_view(doc, attachment, view):
         'attachments.object_id': attachment
     },
     {
-        '$pull': {'attachments.$.views': {'type': view.type}}
+        '$pull': {'attachments.$.views': {'url': view.url}}
     }, safe=True)
 
     db.docs.update({

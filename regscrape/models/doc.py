@@ -30,9 +30,6 @@ class View(EmbeddedDocument):
         'allow_inheritance': False,
     }
 
-    def url(self):
-        return 'http://www.regulations.gov/contentStreamer?objectId=%s&disposition=inline&contentType=%s' % (self.object_id, self.type)
-
 
 class Attachment(EmbeddedDocument):
     # data

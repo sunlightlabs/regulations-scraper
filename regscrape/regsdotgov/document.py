@@ -41,6 +41,7 @@ def get_document(id):
 FORMAT_PARSER = re.compile(r"http://www\.regulations\.gov/api/contentStreamer\?objectId=(?P<object_id>[0-9a-z]+)&disposition=attachment&contentType=(?P<type>[0-9a-z]+)")
 def make_view(format):
     match = FORMAT_PARSER.match(format).groupdict()
+    match['url'] = 'http://www.regulations.gov/contentStreamer?objectId=%s&disposition=inline&contentType=%s' % (match['object_id'], match['type'])
     return View(**match)
 
 NON_LETTERS = re.compile('[^a-zA-Z]+')

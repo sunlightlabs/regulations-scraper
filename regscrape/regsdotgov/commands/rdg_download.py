@@ -45,7 +45,7 @@ def run_for_view_type(view_label, find_func, update_func, options):
                 save_name = '%s.%s' % (result['view'].object_id, result['view'].type)
                 save_path = os.path.join(settings.DOWNLOAD_DIR, save_name)
                 
-                yield (result['view'].url(), save_path, result)
+                yield (result['view'].url, save_path, result)
             except pymongo.errors.OperationFailure:
                 # occasionally pymongo seems to lose track of the cursor for some reason, so reset the query
                 v_array[0] = find_func(downloaded="no", query=query)
