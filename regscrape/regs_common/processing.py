@@ -147,7 +147,7 @@ def remove_control_chars(s):
 
 # extractor
 POPEN = subprocess.Popen
-_nbsp = re.compile('(&nbsp;|&#160;|&#xa0;)')
+_nbsp = re.compile('(&nbsp;?|&#160;?|&#xa0;?)')
 def binary_extractor(binary, error=None, append=[], output_type="text"):
     if not type(binary) == list:
         binary = [binary]

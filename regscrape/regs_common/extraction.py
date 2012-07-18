@@ -21,6 +21,7 @@ EXTRACTORS = {
     ],
     
     'rtf': [
+        binary_extractor('unrtf', error='Warning: No stack to get attribute from', output_type="html"),
         binary_extractor('catdoc', error='The document does not have a content file of type') # not really an error, as above
     ],
     
