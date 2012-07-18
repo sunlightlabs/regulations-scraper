@@ -2,6 +2,7 @@ import settings
 import pymongo
 import json
 import sys
+import os
 import subprocess
 import time
 import signal
@@ -25,6 +26,7 @@ FLAGS = {
 running = {}
 
 db = pymongo.Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
+pid = os.getpid()
 
 enabled = True
 def sigint_handler(signum, frame):
@@ -32,10 +34,16 @@ def sigint_handler(signum, frame):
     enabled = False
     print "Caught SIGINT; will exit after current tasks are complete."
 signal.signal(signal.SIGINT, sigint_handler)
+signal.signal(signal.SIGHUP, sigint_handler)
+
+def preexec_function():
+    # Ignore the SIGINT signal by setting the handler to the standard
+    # signal handler SIG_IGN.
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 while True:
     now = str(datetime.datetime.now())
-    print "[%s] TICK" % now
+    print "[%s] TICK %s" % (now, pid)
 
     # book-keep already started processes
     for command, info in running.items():
@@ -66,7 +74,7 @@ while True:
             next = to_do[0]
             if next not in running:
                 full_command = [sys.executable, './run.py', next] + FLAGS.get(next, []) + ['-a', agency, '--parsable']
-                proc = subprocess.Popen(full_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                proc = subprocess.Popen(full_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=preexec_function)
                 running[next] = (agency, proc)
                 print '[%s] %s has started command %s' % (now, agency, next)
 
