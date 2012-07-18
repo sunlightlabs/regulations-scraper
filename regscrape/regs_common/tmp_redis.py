@@ -56,5 +56,9 @@ class TmpRedis(object):
     def terminate(self, delete=True):
         self.process.terminate()
         time.sleep(1)
+
+        if self.process.poll() is None:
+            self.process.kill()
+        
         if delete:
             shutil.rmtree(self.directory)

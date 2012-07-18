@@ -107,7 +107,17 @@ class Doc(Document):
 
     meta = {
         'allow_inheritance': False,
-        'collection': 'docs'
+        'collection': 'docs',
+
+        'indexes': [
+            'agency',
+            'docket_id',
+            ('deleted', 'scraped', 'agency'),
+            ('deleted', 'views.downloaded', 'agency'),
+            ('deleted', 'attachments.views.downloaded', 'agency'),
+            ('deleted', 'views.downloaded', 'views.extracted', 'agency'),
+            ('deleted', 'attachments.views.downloaded', 'attachments.views.extracted', 'agency')
+        ]
     }
 
     source = StringField(required=True, default="requlations.gov")
