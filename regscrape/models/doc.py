@@ -1,11 +1,15 @@
 from mongoengine import *
 
+from html2text import *
+html2text.IGNORE_IMAGES = True
+html2text.BODY_WIDTH = 0
+
 class View(EmbeddedDocument):
     # data
     type = StringField(required=True)
     object_id = StringField()
     url = URLField(required=True)
-    
+
     content = FileField(collection_name='files')
     mode = StringField(
         default="text",
@@ -29,6 +33,21 @@ class View(EmbeddedDocument):
     meta = {
         'allow_inheritance': False,
     }
+
+    def as_text(self):
+        out = self.content.read()
+        if self.mode == "text":
+            return out
+        else:
+            return html2text.html2text(out)
+
+    def as_html(self):
+        out = self.content.read()
+        if self.mode == "text":
+            # could probably do this better, but can wait
+            return "<html><body><pre>%s</pre></body></html>" % out
+        else:
+            return out
 
 
 class Attachment(EmbeddedDocument):
