@@ -147,7 +147,8 @@ def remove_control_chars(s):
 
 # extractor
 POPEN = subprocess.Popen
-def binary_extractor(binary, error=None, append=[]):
+_nbsp = re.compile('(&nbsp;|&#160;|&#xa0;)')
+def binary_extractor(binary, error=None, append=[], output_type="text"):
     if not type(binary) == list:
         binary = [binary]
     def extractor(filename):
@@ -163,22 +164,30 @@ def binary_extractor(binary, error=None, append=[]):
             interpreter.kill()
             raise
         
-        if not output.strip() or (error and (error in output or error in run_error)):
+        if (output_type == 'text' and not output.strip()) or (output_type == 'html' and not strip_tags(output).strip()) or (error and (error in output or error in run_error)):
             raise ExtractionFailed()
+        elif output_type == 'html':
+            # strip non-breaking spaces
+            return _nbsp.sub(' ', output)
         else:
             return output
     
     extractor.__str__ = lambda: binary[0]
+    extractor.output_type = output_type
     
     return extractor
 
-def script_extractor(script, error=None):
+def script_extractor(script, error=None, output_type="text"):
     script_path = os.path.join(os.path.dirname(os.path.abspath(regs_common.__file__)), 'scripts', script)
     
-    extractor = binary_extractor([sys.executable, script_path], error=error)
+    extractor = binary_extractor([sys.executable, script_path], error=error, output_type=output_type)
     extractor.__str__ = lambda: script
     
     return extractor
+
+_tag_stripper = re.compile(r'<[^>]*?>')
+def strip_tags(text):
+    return _tag_stripper.sub('', text)
 
 def ocr_scrub(text):
     lines = re.split(r'\n', text)

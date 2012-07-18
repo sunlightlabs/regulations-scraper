@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+GEVENT = False
+
 from regs_common.exceptions import *
 from optparse import OptionParser
 
@@ -11,9 +13,9 @@ arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="str
 
 # runner
 def run(options, args): 
-    global Pool, sys, settings, subprocess, os, urlparse, json, regs_common, pymongo, serial_bulk_extract
+    global Pool, sys, settings, subprocess, os, urlparse, json, regs_common, pymongo, mp_bulk_extract
     from regs_common.processing import find_views, update_view, find_attachment_views, update_attachment_view
-    from regs_common.extraction import serial_bulk_extract
+    from regs_common.extraction import mp_bulk_extract
     from gevent.pool import Pool
     import sys
     import settings
@@ -61,7 +63,7 @@ def run_for_view_type(view_label, find_func, update_func, options):
             except StopIteration:
                 break
 
-    def status_func(status, text, filename, filetype, used_ocr, result):
+    def status_func(status, text, filename, filetype, output_type, used_ocr, result):
         if status[0]:
             result['view'].extracted = "yes"
 
@@ -70,6 +72,7 @@ def run_for_view_type(view_label, find_func, update_func, options):
             result['view'].content.write(text.encode('utf-8'))
             result['view'].content.close()
 
+            result['view'].mode = output_type
             result['view'].ocr = used_ocr
             try:
                 update_func(**result)
@@ -89,7 +92,7 @@ def run_for_view_type(view_label, find_func, update_func, options):
             stats['failed'] += 1
         update_func(**result)
     
-    serial_bulk_extract(extract_generator(), status_func, verbose=True)
+    mp_bulk_extract(extract_generator(), status_func, verbose=True)
 
     print 'Done with %s.' % view_label
     

@@ -1,15 +1,15 @@
 from regs_common.processing import *
 import subprocess
-from gevent.pool import Pool
-import gevent
 import settings
 
 EXTRACTORS = {
     'xml': [
+        binary_extractor('cat', error='The document does not have a content file of type', output_type="html"),
         binary_extractor('html2text', error='The document does not have a content file of type')
     ],
         
     'pdf': [
+        binary_extractor(['pdftohtml', '-noframes', '-i', '-stdout'], error='PDF file is damaged', output_type="html"),
         binary_extractor('pdftotext', append=['-'], error='PDF file is damaged'),
         binary_extractor('ps2ascii', error='Unrecoverable error'),
 #        pdf_ocr
@@ -73,6 +73,7 @@ def _get_extractor(status_func, verbose, filename, filetype=None, record=None):
                 success = True
                 text = unicode(remove_control_chars(output), 'utf-8', 'ignore')
                 used_ocr = getattr(extractor, 'ocr', False)
+                output_type = getattr(extractor, 'output_type', 'text')
                 if verbose: print 'Extracted text from %s using %s' % (
                     filename,
                     extractor.__str__()
@@ -85,12 +86,14 @@ def _get_extractor(status_func, verbose, filename, filetype=None, record=None):
                 text if success else None,
                 filename,
                 local_filetype,
+                output_type,
                 used_ocr,
                 record
             )
     return extract
 
-def bulk_extract(extract_iterable, status_func=None, verbose=False):    
+def bulk_extract(extract_iterable, status_func=None, verbose=False):
+    from gevent.pool import Pool  
     workers = Pool(getattr(settings, 'EXTRACTORS', 2))
     
     # keep the extractors busy with tasks as long as there are more results
@@ -101,11 +104,41 @@ def bulk_extract(extract_iterable, status_func=None, verbose=False):
     
     return
 
+def mp_bulk_extract(extract_iterable, status_func=None, verbose=False):
+    import multiprocessing
+    from Queue import Empty
+
+    num_workers = getattr(settings, 'EXTRACTORS', multiprocessing.cpu_count())
+    todo_queue = multiprocessing.JoinableQueue(num_workers * 3)
+    
+    def worker(todo_queue):
+        while True:
+            try:
+                extract_record = todo_queue.get()
+            except Empty:
+                return
+
+            _get_extractor(status_func, verbose, *extract_record)()
+            todo_queue.task_done()
+
+    processes = []
+    for i in range(num_workers):
+        proc = multiprocessing.Process(target=worker, args=(todo_queue,))
+        proc.start()
+        processes.append(proc)
+    
+    for extract_record in extract_iterable:
+        todo_queue.put(extract_record)
+
+    todo_queue.join()
+    
+    for proc in processes:
+        proc.terminate()
+
+    return
+
 def serial_bulk_extract(extract_iterable, status_func=None, verbose=False):
     import subprocess
-    import regs_common.processing
-
-    regs_common.processing.POPEN = subprocess.Popen
     
     for extract_record in extract_iterable:
         _get_extractor(status_func, verbose, *extract_record)()
