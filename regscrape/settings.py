@@ -14,6 +14,8 @@ FILTER = {}
 INSTANCES = 2
 THREADS_PER_INSTANCE = 2
 
+SITES = ['regsdotgov']
+
 try:
     from local_settings import *
 except:
