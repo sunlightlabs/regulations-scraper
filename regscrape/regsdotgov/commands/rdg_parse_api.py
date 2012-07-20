@@ -42,17 +42,17 @@ def reconcile_process(record, cache, db, now, repaired_counter, updated_counter,
     new_record = cache.get(record['_id'])
     if new_record:
         # do we need to fix anything?
-        statuses = [[view['downloaded'] for view in record['views']]] + [[view['downloaded'] for view in attachment['views']] for attachment in record.get('attachments', [])]
-        old_types = [set([view['type'] for view in record['views']])] + [set([view['type'] for view in attachment['views']]) for attachment in sorted(record.get('attachments', []), key=lambda a: a['object_id'])]
+        statuses = [[view['downloaded'] for view in record.get('views', [])]] + [[view['downloaded'] for view in attachment.get('views', [])] for attachment in record.get('attachments', [])]
+        old_types = [set([view['type'] for view in record.get('views', [])])] + [set([view['type'] for view in attachment.get('views', [])]) for attachment in sorted(record.get('attachments', []), key=lambda a: a['object_id'])]
 
-        main_views = [make_view(format) for format in listify(new_record['fileFormats'])]
+        main_views = [make_view(format) for format in listify(new_record.get('fileFormats', []))]
         new_types = [set([view.type for view in main_views])]
 
         attachment_views = {}
         attachment_meta = {}
         if new_record['attachmentCount'] > 0:
             for attachment in listify(new_record['attachments']['attachment']):
-                a_views = [make_view(format) for format in listify(attachment['fileFormats'])]
+                a_views = [make_view(format) for format in listify(attachment.get('fileFormats', []))]
                 if a_views:
                     attachment_views[a_views[0].object_id] = a_views
                     attachment_meta[a_views[0].object_id] = attachment
@@ -136,31 +136,31 @@ def add_new_docs(cache_wrapper, now):
 
         db_doc = Doc(**{
             'id': doc['documentId'],
-            'title': doc['title'],
+            'title': unicode(doc['title']),
             'docket_id': doc['docketId'],
             'agency': doc['agency'],
-            'type': doc['documentType'].lower().replace(' ', '_'),
+            'type': DOC_TYPES[doc['documentType']],
             'fr_doc': doc['isFrDoc'],
             'last_seen': now,
             'created': now
         })
 
-        if doc['fileFormats']:
+        if 'fileFormats' in doc and doc['fileFormats']:
             for format in listify(doc.get('fileFormats', [])):
                 db_doc.views.append(make_view(format))
             db_doc.object_id = db_doc.views[0].object_id
 
-        if doc['attachmentCount'] > 0:
+        if 'attachmentCount' in doc and doc['attachmentCount'] > 0:
             for attachment in listify(doc['attachments']['attachment']):
                 db_attachment = Attachment(**{
-                    'title': attachment['title'],
+                    'title': unicode(attachment['title']),
                     'abstract': attachment['abstract'] if 'abstract' in attachment and attachment['abstract'] else None,
                     'views': [make_view(format) for format in listify(attachment.get('fileFormats', []))]
                 })
                 if db_attachment.views:
                     db_attachment.object_id = db_attachment.views[0].object_id
                 db_doc.attachments.append(db_attachment)
-    
+        
         db_doc.save()
         new += 1
     
@@ -190,7 +190,7 @@ def reconcile_dumps(options, cache_wrapper, now):
     import pymongo
     db = pymongo.Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
     
-    conditions = {'last_seen': {'$lt': now}, 'deleted': False}
+    conditions = {'last_seen': {'$lt': now}, 'deleted': False, 'source': 'regulations.gov'}
     if options.agency:
         conditions['agency'] = options.agency
     if options.docket:

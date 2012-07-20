@@ -105,14 +105,16 @@ class Doc(Document):
     last_seen = DateTimeField()
     entities_last_extracted = DateTimeField()
 
+    source = StringField(required=True, default="regulations.gov")
+
     meta = {
         'allow_inheritance': False,
         'collection': 'docs',
 
         'indexes': [
-            'agency',
             'docket_id',
-            ('deleted', 'scraped', 'agency'),
+            ('source', 'agency'),
+            ('source', 'deleted', 'scraped', 'agency'),
             ('deleted', 'views.downloaded', 'agency'),
             ('deleted', 'attachments.views.downloaded', 'agency'),
             ('deleted', 'views.downloaded', 'views.extracted', 'agency'),
@@ -120,4 +122,11 @@ class Doc(Document):
         ]
     }
 
-    source = StringField(required=True, default="requlations.gov")
+DOC_TYPES = {
+    'Public Submission': 'public_submission',
+    'Other': 'other',
+    'Supporting & Related Material': 'supporting_material',
+    'Notice': 'notice',
+    'Rule': 'rule',
+    'Proposed Rule': 'proposed_rule'
+}

@@ -111,7 +111,7 @@ def run(options, args):
         proc.start()
         processes.append(proc)
     
-    conditions = {'scraped': 'no', 'deleted': False}
+    conditions = {'scraped': 'no', 'deleted': False, 'source': 'regulations.gov'}
     if options.agency:
         conditions['agency'] = options.agency
     if options.docket:

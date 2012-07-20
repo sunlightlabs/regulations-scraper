@@ -51,6 +51,7 @@ def _get_extractor(status_func, verbose, filename, filetype=None, record=None):
             success = False
             error_message = None
             used_ocr = False
+            output_type = "text"
             for extractor in EXTRACTORS[local_filetype]:
                 try:
                     output = extractor(filename)

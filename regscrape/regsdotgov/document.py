@@ -59,7 +59,7 @@ def scrape_document(id):
         'title': doc['title'],
         'agency': doc['agencyId'],
         'docket_id': doc['docketId'],
-        'type': doc['documentType'].lower().replace(' ', '_'),
+        'type': DOC_TYPES[doc['documentType']],
         'topics': listify(doc['topics']) if 'topics' in doc and any(doc['topics']) else [],
         'fr_doc': doc['frDoc'],
         'scraped': 'yes',
@@ -81,7 +81,7 @@ def scrape_document(id):
         out['commentOn'] = {
             'agency': doc['commentOn']['agencyId'],
             'title': doc['commentOn']['title'],
-            'type': doc['commentOn']['documentType'].lower().replace(' ', '_'),
+            'type': DOC_TYPES[doc['commentOn']['documentType']],
             'fr_doc': doc['commentOn']['frDoc'],
             'document_id': doc['commentOn']['documentId']
         }

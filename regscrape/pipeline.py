@@ -41,6 +41,19 @@ def preexec_function():
     # signal handler SIG_IGN.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
+# start by resetting failures
+for agency_record in db.pipeline.find():
+    sequence = OVERRIDE_SEQUENCES.get(agency_record['_id'], DEFAULT_SEQUENCE)
+    completed = agency_record['completed']
+    failed_idxs = [i for i in xrange(len(sequence)) if sequence[i] in completed and type(completed[sequence[i]]) != dict]
+    if failed_idxs:
+        print "Resetting everything for agency %s after command %s" % (agency_record['_id'], sequence[failed_idxs[0]])
+        for command in sequence[failed_idxs[0]:]:
+            if command in completed:
+                print "Resetting %s" % command
+                del completed[command]
+        db.pipeline.update({'_id': agency_record['_id']}, {'$set': {'completed': completed}}, safe=True)
+
 while True:
     now = str(datetime.datetime.now())
     print "[%s] TICK %s" % (now, pid)
