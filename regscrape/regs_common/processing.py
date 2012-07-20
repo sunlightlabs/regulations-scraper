@@ -3,7 +3,6 @@
 from bson.code import Code
 from pymongo.errors import OperationFailure, InvalidDocument
 import subprocess, os, urlparse, json
-import gevsubprocess
 from gevent import Timeout
 from models import *
 from exceptions import ExtractionFailed, ChildTimeout
