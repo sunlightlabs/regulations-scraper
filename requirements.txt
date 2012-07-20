@@ -1,5 +1,4 @@
-gevent
--e hg+https://bitbucket.org/eriks5/gevent-subprocess#egg=gevsubprocess
+-e hg+https://bitbucket.org/denis/gevent@8c9722b1fc2a332fa1838e4751740cfa0f49526a#egg=gevent-dev
 pytz
 lxml
 PIL
@@ -17,3 +16,4 @@ isoweek
 redis
 
 mongoengine
+html2text
