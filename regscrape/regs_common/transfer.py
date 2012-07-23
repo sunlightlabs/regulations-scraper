@@ -1,6 +1,7 @@
 import urllib2
 import subprocess
 from gevent.pool import Pool
+import greenlet
 import settings
 import datetime
 import sys
@@ -16,7 +17,7 @@ def pump(input, output, chunk_size):
     return size
 
 def download(url, output_file, post_data=None, headers=None):
-    transfer = urllib2.urlopen(urllib2.Request(url, post_data, headers if headers else {})) if type(url) in (unicode, str) else url
+    transfer = urllib2.urlopen(urllib2.Request(url, post_data, headers if headers else {}), timeout=1) if type(url) in (unicode, str) else url
     
     out = open(output_file, 'wb')
     size = pump(transfer, out, 16 * 1024)
@@ -39,7 +40,7 @@ def download_wget(url, output_file):
 def _get_downloader(status_func, retries, verbose, min_size, url, filename, record=None):
     def download_file():
         for try_num in xrange(retries):
-            if verbose: print 'Downloading %s (try #%d)...' % (url, try_num)
+            if verbose: print 'Downloading %s (try #%d, downloader %s)...' % (url, try_num, hash(greenlet.getcurrent()))
             
             download_succeeded = False
             download_message = None
@@ -75,7 +76,7 @@ def _get_downloader(status_func, retries, verbose, min_size, url, filename, reco
     return download_file
 
 
-def bulk_download(download_iterable, status_func=None, retries=1, verbose=False, min_size=0):    
+def bulk_download(download_iterable, status_func=None, retries=3, verbose=False, min_size=0):
     workers = Pool(getattr(settings, 'DOWNLOADERS', 5))
     
     # keep the downloaders busy with tasks as long as there are more results

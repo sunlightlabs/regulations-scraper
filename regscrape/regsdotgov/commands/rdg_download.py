@@ -17,7 +17,7 @@ def run(options, args):
     import pymongo
     
     # ensure that our hash directories are all there
-    for hex_dir in [hex(i).split('x').pop().zfill(2) for i in range(255)]:
+    for hex_dir in [hex(i).split('x').pop().zfill(2) for i in range(256)]:
         dir_path = os.path.join(settings.DOWNLOAD_DIR, hex_dir)
         if not os.path.exists(dir_path):
             os.mkdir(dir_path)
