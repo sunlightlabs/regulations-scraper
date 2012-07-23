@@ -70,7 +70,7 @@ def run_for_view_type(view_label, find_func, update_func, options):
             stats['failed'] += 1
         update_func(**result)
     
-    bulk_download(download_generator(), status_func, verbose=True, min_size=MIN_SIZE)
+    bulk_download(download_generator(), status_func, verbose=not options.parsable, min_size=MIN_SIZE)
 
     print 'Done with %s.' % view_label
     
