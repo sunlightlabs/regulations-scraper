@@ -43,7 +43,8 @@ def reconcile_process(record, cache, db, now, repaired_counter, updated_counter,
     if new_record:
         # do we need to fix anything?
         statuses = [[view['downloaded'] for view in record.get('views', [])]] + [[view['downloaded'] for view in attachment.get('views', [])] for attachment in record.get('attachments', [])]
-        old_types = [set([view['type'] for view in record.get('views', [])])] + [set([view['type'] for view in attachment.get('views', [])]) for attachment in sorted(record.get('attachments', []), key=lambda a: a['object_id'])]
+        old_types = [set([view['type'] for view in record.get('views', [])])] + \
+            [set([view['type'] for view in attachment.get('views', [])]) for attachment in sorted(record.get('attachments', []), key=lambda a: a.get('object_id', a.get('title', '')))]
 
         main_views = [make_view(format) for format in listify(new_record.get('fileFormats', []))]
         new_types = [set([view.type for view in main_views])]
@@ -79,7 +80,7 @@ def reconcile_process(record, cache, db, now, repaired_counter, updated_counter,
                     new_attachment = attachment_meta[object_id]
                     db_attachment = Attachment(**{
                         'title': new_attachment['title'],
-                        'abstract': new_attachment['abstract'] if 'abstract' in new_attachment and new_attachment['abstract'] else None,
+                        'abstract': unicode(new_attachment['abstract']) if 'abstract' in new_attachment and new_attachment['abstract'] else None,
                         'views': new_views
                     })
                     if db_attachment.views:
@@ -154,15 +155,18 @@ def add_new_docs(cache_wrapper, now):
             for attachment in listify(doc['attachments']['attachment']):
                 db_attachment = Attachment(**{
                     'title': unicode(attachment['title']),
-                    'abstract': attachment['abstract'] if 'abstract' in attachment and attachment['abstract'] else None,
+                    'abstract': unicode(attachment['abstract']) if 'abstract' in attachment and attachment['abstract'] else None,
                     'views': [make_view(format) for format in listify(attachment.get('fileFormats', []))]
                 })
                 if db_attachment.views:
                     db_attachment.object_id = db_attachment.views[0].object_id
                 db_doc.attachments.append(db_attachment)
         
-        db_doc.save()
-        new += 1
+        try:
+            db_doc.save()
+            new += 1
+        except:
+            print "Failed to save document %s" % db_doc.id
     
     written = new
     print 'Wrote %s new documents.' % (written)
