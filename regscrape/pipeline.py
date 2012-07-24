@@ -74,7 +74,7 @@ while True:
 
     # start up new ones as necessary, assuming we're still going
     if enabled:
-        for agency_record in db.pipeline.find():
+        for agency_record in db.pipeline.find().sort('count'):
             agency = agency_record['_id']
 
             sequence = OVERRIDE_SEQUENCES.get(agency, DEFAULT_SEQUENCE)
