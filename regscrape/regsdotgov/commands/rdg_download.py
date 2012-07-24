@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import settings
-MIN_SIZE = getattr(settings, 'MIN_DOWNLOAD_SIZE', 1024)
+MIN_SIZE = getattr(settings, 'MIN_DOWNLOAD_SIZE', 512)
 
 from optparse import OptionParser
 arg_parser = OptionParser()
@@ -10,9 +10,9 @@ arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="str
 
 def run(options, args):
     # global imports hack so we don't mess up gevent loading
-    global bulk_download, settings, subprocess, os, urlparse, sys, traceback, datetime, pymongo, hashlib
+    global pooled_bulk_download, settings, subprocess, os, urlparse, sys, traceback, datetime, pymongo, hashlib
     from regs_common.processing import find_views, update_view, find_attachment_views, update_attachment_view
-    from regs_common.transfer import bulk_download
+    from regs_common.transfer import pooled_bulk_download
     import subprocess, os, urlparse, sys, traceback, datetime, hashlib
     import pymongo
     
@@ -70,7 +70,7 @@ def run_for_view_type(view_label, find_func, update_func, options):
             stats['failed'] += 1
         update_func(**result)
     
-    bulk_download(download_generator(), status_func, verbose=not options.parsable, min_size=MIN_SIZE)
+    pooled_bulk_download(download_generator(), status_func, verbose=not options.parsable, min_size=MIN_SIZE)
 
     print 'Done with %s.' % view_label
     

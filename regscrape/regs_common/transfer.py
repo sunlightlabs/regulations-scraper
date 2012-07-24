@@ -1,6 +1,7 @@
-import urllib2
+import urllib2, urllib3
 import subprocess
 from gevent.pool import Pool
+from gevent import Timeout
 import greenlet
 import settings
 import datetime
@@ -37,7 +38,31 @@ def download_wget(url, output_file):
             raise urllib2.HTTPError(url, error_groups[0], error_groups[1], {}, None)
     raise Exception("Something went wrong with the download.")
 
-def _get_downloader(status_func, retries, verbose, min_size, url, filename, record=None):
+# pooled and timed-out versions of the transfer code
+def tpump(input, output, chunk_size):
+    size = 0
+    while True:
+        timeout = Timeout.start_new(2)
+        chunk = input.read(chunk_size)
+        timeout.cancel()
+
+        if not chunk: break
+        output.write(chunk)
+        size += len(chunk)
+    return size
+
+def download_pooled(url, output_file):
+    transfer = CPOOL.urlopen("GET", url, timeout=1, preload_content=False)
+    if transfer.status != 200:
+        raise urllib2.HTTPError(url, transfer.status, transfer.reason, transfer.headers, None)
+
+    out = open(output_file, 'wb')
+    size = tpump(transfer, out, 16 * 1024)
+    out.close()
+
+    return size
+
+def _get_downloader(status_func, download_func, retries, verbose, min_size, url, filename, record=None):
     def download_file():
         for try_num in xrange(retries):
             if verbose: print 'Downloading %s (try #%d, downloader %s)...' % (url, try_num, hash(greenlet.getcurrent()))
@@ -47,12 +72,14 @@ def _get_downloader(status_func, retries, verbose, min_size, url, filename, reco
             size = 0
             try:
                 start = datetime.datetime.now()
-                size = download(url, filename)
+                size = download_func(url, filename)
                 download_succeeded = True
                 elapsed = datetime.datetime.now() - start
             except urllib2.HTTPError as e:
                 if verbose: print 'Download of %s failed due to error %s.' % (url, e.code)
                 download_message = e.code
+            except Timeout as e:
+                if verbose: print 'Download of %s timed out.' % url
             except:
                 exc = sys.exc_info()
                 if verbose: print traceback.print_tb(exc[2])
@@ -66,6 +93,7 @@ def _get_downloader(status_func, retries, verbose, min_size, url, filename, reco
                 else:
                     download_succeeded = False
                     download_message = "Resulting file was smaller than the minimum file size."
+                    if verbose: print download_message
         
         status_func(
             (download_succeeded, download_message),
@@ -81,7 +109,24 @@ def bulk_download(download_iterable, status_func=None, retries=3, verbose=False,
     
     # keep the downloaders busy with tasks as long as there are more results
     for download_record in download_iterable:
-        workers.spawn(_get_downloader(status_func, retries, verbose, min_size, *download_record))
+        workers.spawn(_get_downloader(status_func, download, retries, verbose, min_size, *download_record))
+    
+    workers.join()
+    
+    return
+
+CPOOL = None
+def pooled_bulk_download(download_iterable, status_func=None, retries=3, verbose=False, min_size=0):
+    num_downloaders = getattr(settings, 'DOWNLOADERS', 5)
+    global CPOOL
+    if not CPOOL:
+        CPOOL = urllib3.PoolManager(num_pools=2, maxsize=num_downloaders * 2)
+
+    workers = Pool(num_downloaders)
+    
+    # keep the downloaders busy with tasks as long as there are more results
+    for download_record in download_iterable:
+        workers.spawn(_get_downloader(status_func, download_pooled, retries, verbose, min_size, *download_record))
     
     workers.join()
     
