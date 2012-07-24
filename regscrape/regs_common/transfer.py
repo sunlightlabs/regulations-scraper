@@ -42,9 +42,13 @@ def download_wget(url, output_file):
 def tpump(input, output, chunk_size):
     size = 0
     while True:
-        timeout = Timeout.start_new(2)
-        chunk = input.read(chunk_size)
-        timeout.cancel()
+        try:
+            timeout = Timeout.start_new(2)
+            chunk = input.read(chunk_size)
+            timeout.cancel()
+        except Timeout:
+            input.release_conn()
+            raise
 
         if not chunk: break
         output.write(chunk)
@@ -116,7 +120,7 @@ def bulk_download(download_iterable, status_func=None, retries=3, verbose=False,
     return
 
 CPOOL = None
-def pooled_bulk_download(download_iterable, status_func=None, retries=3, verbose=False, min_size=0):
+def pooled_bulk_download(download_iterable, status_func=None, retries=5, verbose=False, min_size=0):
     num_downloaders = getattr(settings, 'DOWNLOADERS', 5)
     global CPOOL
     if not CPOOL:

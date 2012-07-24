@@ -137,7 +137,7 @@ def add_new_docs(cache_wrapper, now):
 
         db_doc = Doc(**{
             'id': doc['documentId'],
-            'title': unicode(doc['title']),
+            'title': unicode(doc.get('title', '')),
             'docket_id': doc['docketId'],
             'agency': doc['agency'],
             'type': DOC_TYPES[doc['documentType']],
