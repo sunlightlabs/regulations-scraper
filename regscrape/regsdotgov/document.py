@@ -1,5 +1,5 @@
 import re
-import urllib2
+import urllib2, urllib3
 import json
 from regs_common.exceptions import DoesNotExist
 from pytz import timezone
@@ -28,15 +28,17 @@ def check_date(value):
     
     return value
 
-def get_document(id):
+def get_document(id, cpool=None):
     url_args = {
         'api_key': RDG_API_KEY,
         'D': id
     }
     
-    return urllib2.urlopen(
-        "http://regulations.gov/api/getdocument/v1.json?" + '&'.join(['%s=%s' % arg for arg in url_args.items()])
-    )
+    url = "http://regulations.gov/api/getdocument/v1.json?" + '&'.join(['%s=%s' % arg for arg in url_args.items()])
+    if cpool:
+        return cpool.urlopen("GET", url, preload_content=False)
+    else:
+        return urllib2.urlopen(url)
 
 FORMAT_PARSER = re.compile(r"http://www\.regulations\.gov/api/contentStreamer\?objectId=(?P<object_id>[0-9a-z]+)&disposition=attachment&contentType=(?P<type>[0-9a-z]+)")
 def make_view(format):
@@ -45,8 +47,8 @@ def make_view(format):
     return View(**match)
 
 NON_LETTERS = re.compile('[^a-zA-Z]+')
-def scrape_document(id):
-    raw = json.load(get_document(id))
+def scrape_document(id, cpool=None):
+    raw = json.load(get_document(id, cpool))
 
     if 'error' in raw:
         raise DoesNotExist
@@ -56,7 +58,7 @@ def scrape_document(id):
     out = {
         # basic metadata
         'id': doc['documentId'],
-        'title': doc['title'],
+        'title': unicode(doc.get('title', '')),
         'agency': doc['agencyId'],
         'docket_id': doc['docketId'],
         'type': DOC_TYPES[doc['documentType']],
@@ -77,8 +79,10 @@ def scrape_document(id):
         out['object_id'] = out['views'][0].object_id
     
     # conditional fields
-    if 'commentOn' in doc and doc['commentOn'] and 'documentId' in doc['commentOn'] and doc['commentOn']['documentId']:
-        out['commentOn'] = {
+    if 'commentOn' in doc and doc['commentOn'] and \
+        'documentId' in doc['commentOn'] and doc['commentOn']['documentId'] and \
+        'documentType' in doc['commentOn'] and doc['commentOn']['documentType']:
+        out['comment_on'] = {
             'agency': doc['commentOn']['agencyId'],
             'title': doc['commentOn']['title'],
             'type': DOC_TYPES[doc['commentOn']['documentType']],
@@ -93,8 +97,8 @@ def scrape_document(id):
         attachments = []
         for attachment in listify(doc['attachments']['attachment']):
             attachment = Attachment(**{
-                'title': attachment['title'],
-                'abstract': attachment['abstract'],
+                'title': unicode(attachment.get('title', '')),
+                'abstract': unicode(attachment.get('abstract', '')),
                 'views': [make_view(format) for format in listify(attachment['fileFormats'])] if 'fileFormats' in attachment and attachment['fileFormats'] else []
             })
             if attachment.views:

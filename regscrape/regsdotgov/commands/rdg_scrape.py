@@ -3,7 +3,7 @@ GEVENT = False
 import settings
 from models import *
 from regsdotgov.document import scrape_document
-import urllib2
+import urllib2, urllib3
 import sys
 import os
 import traceback
@@ -20,7 +20,7 @@ arg_parser.add_option("-m", "--multi", dest="multi", action="store", type="int",
 arg_parser.add_option("-a", "--agency", dest="agency", action="store", type="string", default=None, help="Specify an agency to which to limit the dump.")
 arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="string", default=None, help="Specify a docket to which to limit the dump.")
 
-def process_record(record, num_succeeded, num_failed):
+def process_record(record, num_succeeded, num_failed, cpool):
     if record is None:
         return
     
@@ -30,7 +30,7 @@ def process_record(record, num_succeeded, num_failed):
         error = None
         removed = False
         try:
-            new_doc = scrape_document(record.id)
+            new_doc = scrape_document(record.id, cpool)
             new_doc.last_seen = record.last_seen
             print '[%s] Scraped doc %s...' % (os.getpid(), new_doc.id)
 
@@ -57,7 +57,7 @@ def process_record(record, num_succeeded, num_failed):
     if new_doc and (not error) and (not removed) and new_doc.id != record.id:
         renamed_to = new_doc.id
         new_doc = Doc.objects(id=record.id)[0]
-        new_doc.scraped = True
+        new_doc.scraped = 'yes'
         new_doc.attachments = []
         new_doc.views = []
         new_doc.details['renamed_to'] = renamed_to
@@ -82,13 +82,14 @@ def process_record(record, num_succeeded, num_failed):
 
 def worker(todo_queue, num_succeeded, num_failed):
     pid = os.getpid()
+    cpool = urllib3.PoolManager(maxsize=2)
     
     print '[%s] Worker started.' % pid
             
     while True:
-        record = todo_queue.get()
+        record = Doc._from_son(todo_queue.get())
         
-        process_record(record, num_succeeded, num_failed)
+        process_record(record, num_succeeded, num_failed, cpool)
         
         todo_queue.task_done()
 
@@ -116,7 +117,7 @@ def run(options, args):
         conditions['agency'] = options.agency
     if options.docket:
         conditions['docket_id'] = options.docket
-    to_scrape = Doc.objects(**conditions).only('id', 'last_seen')
+    to_scrape = Doc.objects(**conditions).only('id', 'last_seen', 'views', 'attachments')
     
     while True:
         try:
@@ -127,7 +128,7 @@ def run(options, args):
         except StopIteration:
             break
             
-        todo_queue.put(record)
+        todo_queue.put(record.to_mongo())
     
     todo_queue.join()
     
