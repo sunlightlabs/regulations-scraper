@@ -18,7 +18,7 @@ def pump(input, output, chunk_size):
     return size
 
 def download(url, output_file, post_data=None, headers=None):
-    transfer = urllib2.urlopen(urllib2.Request(url, post_data, headers if headers else {}), timeout=1) if type(url) in (unicode, str) else url
+    transfer = urllib2.urlopen(urllib2.Request(url, post_data, headers if headers else {}), timeout=10) if type(url) in (unicode, str) else url
     
     out = open(output_file, 'wb')
     size = pump(transfer, out, 16 * 1024)
@@ -43,7 +43,7 @@ def tpump(input, output, chunk_size):
     size = 0
     while True:
         try:
-            timeout = Timeout.start_new(2)
+            timeout = Timeout.start_new(5)
             chunk = input.read(chunk_size)
             timeout.cancel()
         except Timeout:
@@ -56,7 +56,7 @@ def tpump(input, output, chunk_size):
     return size
 
 def download_pooled(url, output_file):
-    transfer = CPOOL.urlopen("GET", url, timeout=1, preload_content=False)
+    transfer = CPOOL.urlopen("GET", url, timeout=10, preload_content=False)
     if transfer.status != 200:
         raise urllib2.HTTPError(url, transfer.status, transfer.reason, transfer.headers, None)
 
