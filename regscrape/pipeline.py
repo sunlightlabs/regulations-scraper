@@ -95,4 +95,4 @@ while True:
         print 'Nothing left to do; exiting.'
         break
 
-    time.sleep(2)
+    time.sleep(1)
