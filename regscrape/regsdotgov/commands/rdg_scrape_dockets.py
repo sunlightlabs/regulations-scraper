@@ -2,7 +2,7 @@ GEVENT = False
 
 import settings
 from regsdotgov.document import scrape_docket
-import urllib2
+import urllib2, urllib3
 import sys
 import os
 import traceback
@@ -20,7 +20,7 @@ arg_parser.add_option("-m", "--multi", dest="multi", action="store", type="int",
 arg_parser.add_option("-a", "--agency", dest="agency", action="store", type="string", default=None, help="Specify an agency to which to limit the dump.")
 arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="string", default=None, help="Specify a docket to which to limit the dump.")
 
-def process_record(record, num_succeeded, num_failed):
+def process_record(record, num_succeeded, num_failed, cpool):
     if record is None:
         return
     
@@ -29,8 +29,9 @@ def process_record(record, num_succeeded, num_failed):
     for i in range(3):
         error = None
         try:
-            docket = scrape_docket(record.id)
+            docket = scrape_docket(record.id, cpool)
             docket._created = record._created
+            docket.stats = record.stats
             print '[%s] Scraped docket %s...' % (os.getpid(), docket.id)
             num_succeeded.increment()
             break
@@ -59,6 +60,7 @@ def process_record(record, num_succeeded, num_failed):
 
 def worker(todo_queue, num_succeeded, num_failed):
     pid = os.getpid()
+    cpool = urllib3.PoolManager(maxsize=2)
     
     print '[%s] Worker started.' % pid
     
@@ -69,7 +71,7 @@ def worker(todo_queue, num_succeeded, num_failed):
             print '[%s] Processing complete.' % pid
             return
         
-        process_record(record, num_succeeded, num_failed)
+        process_record(record, num_succeeded, num_failed, cpool)
         
         todo_queue.task_done()
 

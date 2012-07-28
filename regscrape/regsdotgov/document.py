@@ -114,18 +114,20 @@ def scrape_document(id, cpool=None):
 DOCKET_REQUEST_URL = "7|0|9|http://www.regulations.gov/Regs/|C006AEC3A690AD65DC608DB5A8DBA002|com.gwtplatform.dispatch.shared.DispatchService|execute|java.lang.String/2004016611|com.gwtplatform.dispatch.shared.Action|6dfecc389e4d86b4e63e6b459bfa29e673a88555d93b469fc5ed362134c31079.e38Sb3aKaN8Oe3uRai0|gov.egov.erule.regs.shared.action.LoadDocketFolderMetadataAction/386901167|%s|1|2|3|4|2|5|6|7|8|9|"
 DOCKET_YEAR_FINDER = re.compile("[_-](\d{4})[_-]")
 
-def get_docket(id):
+def get_docket(id, cpool=None):
     url_args = {
         'api_key': RDG_API_KEY,
         'D': id
     }
     
-    return urllib2.urlopen(
-        "http://regulations.gov/api/getdocket/v1.json?" + '&'.join(['%s=%s' % arg for arg in url_args.items()])
-    )
+    url = "http://regulations.gov/api/getdocket/v1.json?" + '&'.join(['%s=%s' % arg for arg in url_args.items()])
+    if cpool:
+        return cpool.urlopen("GET", url, preload_content=False)
+    else:
+        return urllib2.urlopen(url)
 
-def scrape_docket(id):
-    raw = json.load(get_docket(id))
+def scrape_docket(id, cpool=None):
+    raw = json.load(get_docket(id, cpool))
 
     if 'error' in raw:
         raise DoesNotExist
