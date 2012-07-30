@@ -90,7 +90,7 @@ def scrape_document(id, cpool=None):
         }
     
     if 'commentText' in doc and doc['commentText']:
-        out['abstract'] = doc['commentText']
+        out['abstract'] = unicode(doc['commentText'])
     
     if 'attachments' in doc and doc['attachments']:
         attachments = []
