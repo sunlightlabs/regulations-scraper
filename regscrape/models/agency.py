@@ -1,8 +1,10 @@
 from mongoengine import *
 
 class Agency(Document):
-    abbreviation = StringField(required=True, primary_key=True)
+    id = StringField(required=True, primary_key=True)
     name = StringField()
+
+    rdg_participating = BooleanField(default=False)
 
     stats = DictField()
 
