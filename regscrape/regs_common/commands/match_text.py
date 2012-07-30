@@ -13,6 +13,13 @@ from models import *
 
 from oxtail.matching import match
 
+# arguments
+from optparse import OptionParser
+arg_parser = OptionParser()
+arg_parser.add_option("-a", "--agency", dest="agency", action="store", type="string", default=None, help="Specify an agency to which to limit the dump.")
+arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="string", default=None, help="Specify a docket to which to limit the dump.")
+arg_parser.add_option("-A", "--all", dest="process_all", action="store_true", default=False, help="Force a re-extraction of all documents in the system.")
+
 def get_text(view):
     if not view.content:
         return ''
@@ -73,7 +80,7 @@ def process_worker(todo_queue):
         
         todo_queue.task_done()
 
-def run():
+def run(options, args):
     from regs_common.entities import load_trie_from_mongo
     import time
 
@@ -85,8 +92,15 @@ def run():
     load_trie_from_mongo()
     print '[%s] Loaded trie in %s seconds.' % (pid, time.time() - import_start)
 
-    Doc._get_db()
-    cursor = Doc.objects(scraped="yes", deleted=False)
+    query = {'deleted': False, 'scraped': 'yes', '$nor': [{'views.extracted': 'no'},{'attachments.views.extracted':'no'}]}
+    if options.agency:
+        query['agency'] = options.agency
+    if options.docket:
+        query['docket_id'] = options.docket
+    if not options.process_all:
+        query['entities_last_extracted'] = {'$exists': False}
+    
+    cursor = Doc.objects(__raw__=query)
     
     run_start = time.time()
     print '[%s] Starting analysis...' % pid

@@ -26,7 +26,7 @@ class View(EmbeddedDocument):
     )
     extracted = StringField(
         default="no",
-        choices=["no", "failed_extraction", "failed_ocr", "yes"]
+        choices=["no", "failed_no_extractor", "failed_extraction", "failed_ocr", "yes"]
     )
     ocr=BooleanField(default=False)
 
@@ -98,6 +98,7 @@ class Doc(Document):
     renamed = BooleanField(default=False)
     in_search_index = BooleanField(default=False)
     in_aggregates = BooleanField(default=False)
+    in_cluster_db = BooleanField(default=False)
     fr_doc = BooleanField(default=False)
     
     # dates
@@ -106,6 +107,9 @@ class Doc(Document):
     entities_last_extracted = DateTimeField()
 
     source = StringField(required=True, default="regulations.gov")
+
+    # aggregate dict for FR docs
+    stats = DictField()
 
     meta = {
         'allow_inheritance': False,

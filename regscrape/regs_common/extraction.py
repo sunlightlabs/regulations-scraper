@@ -92,6 +92,16 @@ def _get_extractor(status_func, verbose, filename, filetype=None, record=None):
                 used_ocr,
                 record
             )
+        else:
+            status_func(
+                (False, "no extractor for type %s" % local_filetype),
+                None,
+                filename,
+                local_filetype,
+                "text",
+                False,
+                record
+            )
     return extract
 
 def bulk_extract(extract_iterable, status_func=None, verbose=False):
