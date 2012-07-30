@@ -9,7 +9,6 @@ from models import *
 from regs_common.util import listify
 
 DATE_FORMAT = re.compile('^(?P<month>\w+) (?P<day>\d{2}) (?P<year>\d{4}), at (?P<hour>\d{2}):(?P<minute>\d{2}) (?P<ampm>\w{2}) (?P<timezone>[\w ]+)$')
-DOCUMENT_REQUEST_URL = "7|0|10|http://www.regulations.gov/Regs/|C006AEC3A690AD65DC608DB5A8DBA002|com.gwtplatform.dispatch.shared.DispatchService|execute|java.lang.String/2004016611|com.gwtplatform.dispatch.shared.Action|6dfecc389e4d86b4e63e6b459bfa29e673a88555d93b469fc5ed362134c31079.e38Sb3aKaN8Oe3uRai0|gov.egov.erule.regs.shared.action.LoadDocumentDetailAction/1304900391|d|%s|1|2|3|4|2|5|6|7|8|9|10|"
 
 def check_date(value):
     # is it a date?
@@ -111,7 +110,6 @@ def scrape_document(id, cpool=None):
     
     return Doc(**out)
 
-DOCKET_REQUEST_URL = "7|0|9|http://www.regulations.gov/Regs/|C006AEC3A690AD65DC608DB5A8DBA002|com.gwtplatform.dispatch.shared.DispatchService|execute|java.lang.String/2004016611|com.gwtplatform.dispatch.shared.Action|6dfecc389e4d86b4e63e6b459bfa29e673a88555d93b469fc5ed362134c31079.e38Sb3aKaN8Oe3uRai0|gov.egov.erule.regs.shared.action.LoadDocketFolderMetadataAction/386901167|%s|1|2|3|4|2|5|6|7|8|9|"
 DOCKET_YEAR_FINDER = re.compile("[_-](\d{4})[_-]")
 
 def get_docket(id, cpool=None):

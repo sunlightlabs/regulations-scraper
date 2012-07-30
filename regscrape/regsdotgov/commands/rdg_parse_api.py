@@ -230,7 +230,7 @@ def reconcile_dumps(options, cache_wrapper, now):
 
 def parser_process(file, cache):    
     docs = parse(os.path.join(settings.DUMP_DIR, file))
-    print '[%s] Done with GWT decode.' % os.getpid()
+    print '[%s] Done with JSON decode.' % os.getpid()
     
     for doc in listify(docs['searchresult']['documents']['document']):
         cache.set(doc['documentId'], doc)
