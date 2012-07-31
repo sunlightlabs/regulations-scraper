@@ -1,4 +1,4 @@
-import pymongo, bson
+import pymongo, bson, json
 QUERY = {'deleted': False}
 FIELDS = [
     '_id',
@@ -11,20 +11,22 @@ FIELDS = [
     'type',
     'views.entities',
     'attachments.views.entities',
-    'submitter_entities'
+    'submitter_entities',
+    'comment_on.document_id'
 ]
 
 # class to work around the mincemeat requirement that the data be structured as a dictionary
 class MongoSource(object):
-    def __init__(self, db):
+    def __init__(self, db, query=QUERY):
         self.cache = {}
         self.db = db
+        self.mongo_query = query
 
     def __iter__(self):
         _cache = self.cache
 
         def gen():
-            for doc in self.db.docs.find(QUERY, FIELDS):
+            for doc in self.db.docs.find(self.mongo_query, FIELDS):
                 doc_id = str(doc['_id'])
                 _cache[doc_id] = doc
                 yield doc_id
@@ -82,6 +84,15 @@ def mapfn(key, document):
         'submitter_entities': {}
     }
 
+    ### COLLECTION: docs (only writes to FR docs, only emits from public submissions) ###
+    doc_info = {
+        'count': 1,
+        'weeks': [(doc_week_range, 1)],
+        'date_range': [doc_date, doc_date],
+        'text_entities': {},
+        'submitter_entities': {}
+    }
+
     # entity data for dockets and agencies
     # text entities
     views = itertools.chain.from_iterable([document.get('views', [])] + [attachment.get('views', []) for attachment in document.get('attachments', [])])
@@ -89,14 +100,20 @@ def mapfn(key, document):
         for entity in view.get('entities', []):
             docket_info['text_entities'][entity] = 1
             agency_info['text_entities'][entity] = 1
+            doc_info['text_entities'][entity] = 1
 
     # submitters
     for entity in document.get('submitter_entities', []):
         docket_info['submitter_entities'][entity] = 1
         agency_info['submitter_entities'][entity] = 1
+        doc_info['submitter_entities'][entity] = 1
 
     yield ('dockets', document['docket_id']), docket_info
     yield ('agencies', document.get('agency', None)), agency_info
+
+    comment_on_id = document.get('comment_on', {}).get('document_id', None)
+    if document['type'] == 'public_submission' and comment_on_id:
+        yield ('docs', comment_on_id), doc_info
 
     ### COLLECTION: entities ###
     entities = set(docket_info['text_entities'].keys())
@@ -216,8 +233,38 @@ def reducefn(key, documents):
         out['months'] = sorted(out['months'].items(), key=lambda x: x[0] if x[0] else datetime.date.min.isoformat())
         return out
 
+    ### COLLECTION: docs ###
+    if key[0] == 'docs':
+        out = {
+            'count': 0,
+            'weeks': defaultdict(int),
+            'date_range': [None, None],
+            'text_entities': defaultdict(int),
+            'submitter_entities': defaultdict(int)
+        }
+        if documents:
+            out['date_range'] = documents[0]['date_range']
+
+        for value in documents:
+            out['count'] += value['count']
+            
+            for week, count in dict(value['weeks']).iteritems():
+                out['weeks'][week] += count
+
+            for entity, count in value['text_entities'].iteritems():
+                out['text_entities'][entity] += count
+
+            for entity, count in value['submitter_entities'].iteritems():
+                out['submitter_entities'][entity] += count
+
+            out['date_range'][0] = min_date(out['date_range'][0], value['date_range'][0])
+            out['date_range'][1] = max_date(out['date_range'][1], value['date_range'][1])
+
+        out['weeks'] = sorted(out['weeks'].items(), key=lambda x: x[0][0] if x[0] else datetime.date.min.isoformat())
+        return out
+
     ### COLLECTION: entities ###
-    elif key[0] == 'entities':
+    if key[0] == 'entities':
         out = {
             'text_mentions': {
                 'count': 0,
@@ -255,34 +302,72 @@ def reducefn(key, documents):
         
         return out
 
-if __name__ == '__main__':
-    db = pymongo.Connection().regulations_models
+def run_aggregates(options):
+    db = pymongo.Connection().regulations_demo
+
+    conditions = {'deleted': False, 'entities_last_extracted': {'$exists': True}}
+    if options.agency:
+        conditions['agency'] = options.agency
+    if options.docket:
+        conditions['docket_id'] = options.docket
+    if not options.process_all:
+        conditions['in_aggregates'] = False
 
     import mincemeat
     s = mincemeat.BatchSqliteServer('/tmp/test.db', 1000)
     s.mapfn = mapfn
     s.reducefn = reducefn
-    s.datasource = MongoSource(db)
+    s.datasource = MongoSource(db, conditions)
 
     results = s.run_server()
 
-    for key, value in results:
-        collection = key[0]
-        _id = key[1]
-        if not _id:
-            continue
+    if options.process_all:
+        for key, value in results:
+            collection = key[0]
+            _id = key[1]
+            if not _id:
+                continue
 
-        try:
-            db[collection].update(
-                {
-                    '_id': _id
-                },
-                {
-                    '$set': {'stats': value}
-                },
-                upsert=True,
-                safe=True
-            )
-        except bson.errors.InvalidDocument:
-            print value
-            raise
+            try:
+                db[collection].update(
+                    {
+                        '_id': _id
+                    },
+                    {
+                        '$set': {'stats': value}
+                    },
+                    upsert=True,
+                    safe=True
+                )
+            except bson.errors.InvalidDocument:
+                print 'invalid'
+                print value
+                raise
+    else:
+        for key, value in results:
+            collection = key[0]
+            _id = key[1]
+            if not _id:
+                continue
+
+            original = list(db[collection].find({'_id': _id}))
+            if original and 'stats' in original[0] and original[0]['stats']:
+                stats = reducefn(key, [original[0]['stats'], value])
+            else:
+                stats = value
+
+            try:
+                db[collection].update(
+                    {
+                        '_id': _id
+                    },
+                    {
+                        '$set': {'stats': stats}
+                    },
+                    upsert=True,
+                    safe=True
+                )
+            except bson.errors.InvalidDocument:
+                print 'invalid'
+                print stats
+                raise
