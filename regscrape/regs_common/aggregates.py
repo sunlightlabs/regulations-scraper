@@ -29,6 +29,8 @@ class MongoSource(object):
             for doc in self.db.docs.find(self.mongo_query, FIELDS):
                 doc_id = str(doc['_id'])
                 _cache[doc_id] = doc
+
+                self.db.docs.update({'_id': doc_id}, {'$set': {'in_aggregates': True}}, multi=True, safe=True)
                 yield doc_id
 
         return gen()
