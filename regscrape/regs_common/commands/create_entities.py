@@ -1,6 +1,6 @@
 GEVENT = False
 
-from models import *
+from regs_models import *
 
 def run():
     import settings

@@ -9,7 +9,7 @@ import traceback
 import os
 import multiprocessing
 from Queue import Empty
-from models import *
+from regs_models import *
 
 from oxtail.matching import match
 

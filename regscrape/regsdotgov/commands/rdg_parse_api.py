@@ -14,7 +14,7 @@ from regs_common.tmp_redis import TmpRedis
 from regs_common.mp_types import Counter
 from regs_common.util import listify
 from regsdotgov.document import make_view
-from models import *
+from regs_models import *
 
 
 import multiprocessing

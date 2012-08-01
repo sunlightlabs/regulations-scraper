@@ -4,7 +4,7 @@ arg_parser.add_option("-a", "--agency", dest="agency", action="store", type="str
 arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="string", default=None, help="Specify a docket to which to limit the dump.")
 
 def run(options, args):
-    import models
+    import regs_models as models
     from collections import defaultdict
 
     db = models.Docket._get_db()

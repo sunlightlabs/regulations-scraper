@@ -5,7 +5,7 @@ from regs_common.exceptions import DoesNotExist
 from pytz import timezone
 import datetime
 from settings import RDG_API_KEY
-from models import *
+from regs_models import *
 from regs_common.util import listify
 
 DATE_FORMAT = re.compile('^(?P<month>\w+) (?P<day>\d{2}) (?P<year>\d{4}), at (?P<hour>\d{2}):(?P<minute>\d{2}) (?P<ampm>\w{2}) (?P<timezone>[\w ]+)$')

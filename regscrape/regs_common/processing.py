@@ -4,7 +4,7 @@ from bson.code import Code
 from pymongo.errors import OperationFailure, InvalidDocument
 import subprocess, os, urlparse, json
 from gevent import Timeout
-from models import *
+from regs_models import *
 from exceptions import ExtractionFailed, ChildTimeout
 import os
 import re

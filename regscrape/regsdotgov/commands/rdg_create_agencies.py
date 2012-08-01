@@ -1,7 +1,7 @@
 GEVENT = False
 
 def run():
-    from models import Agency
+    from regs_models import Agency
     import subprocess, re, urllib2
 
     BAD_SPACES = re.compile("(\xc2\xa0|\r)")

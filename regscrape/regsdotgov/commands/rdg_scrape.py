@@ -1,7 +1,7 @@
 GEVENT = False
 
 import settings
-from models import *
+from regs_models import *
 from regsdotgov.document import scrape_document
 import urllib2, urllib3
 import sys

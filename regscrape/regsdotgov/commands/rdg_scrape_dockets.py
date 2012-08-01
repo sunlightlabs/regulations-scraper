@@ -6,7 +6,7 @@ import urllib2, urllib3
 import sys
 import os
 import traceback
-from models import *
+from regs_models import *
 import pymongo
 
 import multiprocessing
