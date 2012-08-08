@@ -17,10 +17,11 @@ FIELDS = [
 
 # class to work around the mincemeat requirement that the data be structured as a dictionary
 class MongoSource(object):
-    def __init__(self, db, query=QUERY):
+    def __init__(self, db, query=QUERY, pretend=False):
         self.cache = {}
         self.db = db
         self.mongo_query = query
+        self.pretend = pretend
 
     def __iter__(self):
         _cache = self.cache
@@ -30,7 +31,8 @@ class MongoSource(object):
                 doc_id = str(doc['_id'])
                 _cache[doc_id] = doc
 
-                self.db.docs.update({'_id': doc_id}, {'$set': {'in_aggregates': True}}, multi=True, safe=True)
+                if not self.pretend:
+                    self.db.docs.update({'_id': doc_id}, {'$set': {'in_aggregates': True}}, multi=True, safe=True)
                 yield doc_id
 
         return gen()
@@ -305,7 +307,9 @@ def reducefn(key, documents):
         return out
 
 def run_aggregates(options):
-    db = pymongo.Connection().regulations
+    import settings
+
+    db = pymongo.Connection(**settings.DB_SETTINGS)[settings.DB_NAME]
 
     conditions = {'deleted': False, 'entities_last_extracted': {'$exists': True}}
     if options.agency:
@@ -323,7 +327,12 @@ def run_aggregates(options):
 
     results = s.run_server()
 
-    if options.process_all:
+    if options.pretend:
+        for key, value in results:
+            print key, value
+        print 'Results printed.'
+
+    elif options.process_all:
         for key, value in results:
             collection = key[0]
             _id = key[1]
@@ -345,6 +354,8 @@ def run_aggregates(options):
                 print 'invalid'
                 print value
                 raise
+        print 'Results written.'
+
     else:
         for key, value in results:
             collection = key[0]
@@ -373,4 +384,4 @@ def run_aggregates(options):
                 print 'invalid'
                 print stats
                 raise
-    print 'Results written.'
+        print 'Results incorporated.'

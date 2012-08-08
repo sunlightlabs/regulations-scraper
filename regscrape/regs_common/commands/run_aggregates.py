@@ -5,6 +5,7 @@ arg_parser = OptionParser()
 arg_parser.add_option("-a", "--agency", dest="agency", action="store", type="string", default=None, help="Specify an agency to which to limit the dump.")
 arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="string", default=None, help="Specify a docket to which to limit the dump.")
 arg_parser.add_option("-A", "--all", dest="process_all", action="store_true", default=False, help="Replace existing MR data with new data.")
+arg_parser.add_option("-p", "--pretend", dest="pretend", action="store_true", default=False, help="Don't actually write anything to the database.")
 
 import multiprocessing
 
