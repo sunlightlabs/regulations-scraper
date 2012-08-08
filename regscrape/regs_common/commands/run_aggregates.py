@@ -34,16 +34,15 @@ def run(options, args):
 
     num_workers = multiprocessing.cpu_count()
 
-    pool = multiprocessing.Pool(num_workers + 1)
+    pool = multiprocessing.Pool(num_workers)
 
     for i in range(num_workers):
         pool.apply_async(run_client)
 
     from aggregates import run_aggregates
-    pool.apply_async(run_aggregates, [options])
+    run_aggregates(options)
 
-    pool.close()
-    pool.join()
+    pool.terminate()
 
     print "Aggregates complete."
     

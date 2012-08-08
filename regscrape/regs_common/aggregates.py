@@ -305,7 +305,7 @@ def reducefn(key, documents):
         return out
 
 def run_aggregates(options):
-    db = pymongo.Connection().regulations_demo
+    db = pymongo.Connection().regulations
 
     conditions = {'deleted': False, 'entities_last_extracted': {'$exists': True}}
     if options.agency:
@@ -315,8 +315,8 @@ def run_aggregates(options):
     if not options.process_all:
         conditions['in_aggregates'] = False
 
-    import mincemeat
-    s = mincemeat.BatchSqliteServer('/tmp/test.db', 1000)
+    import os, mincemeat
+    s = mincemeat.BatchSqliteServer('/tmp/test_%s.db' % os.getpid(), 1000)
     s.mapfn = mapfn
     s.reducefn = reducefn
     s.datasource = MongoSource(db, conditions)
@@ -373,3 +373,4 @@ def run_aggregates(options):
                 print 'invalid'
                 print stats
                 raise
+    print 'Results written.'

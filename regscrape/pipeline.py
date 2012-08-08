@@ -15,7 +15,9 @@ DEFAULT_SEQUENCE = [
     'rdg_download',
     'extract',
     'create_dockets',
-    'rdg_scrape_dockets'
+    'rdg_scrape_dockets',
+    'add_to_search',
+    'run_aggregates'    
 ]
 OVERRIDE_SEQUENCES = {}
 FLAGS = {
