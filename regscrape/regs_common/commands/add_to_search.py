@@ -7,10 +7,18 @@ arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="str
 arg_parser.add_option("-A", "--all", dest="process_all", action="store_true", default=False, help="Replace existing search data with new data.")
 
 from regs_models import *
-import urllib2, json, traceback, datetime, zlib
+import urllib2, json, traceback, datetime, zlib, pymongo
 import pyes
 
 def run(options, args):
+    while True:
+        try:
+            return add_to_search(options, args)
+        except (pymongo.errors.OperationFailure, pyes.exceptions.NoServerAvailable):
+            print "Resetting..."
+            continue
+
+def add_to_search(options, args):
     es = pyes.ES(['localhost:9500'], timeout=30.0)
 
     now = datetime.datetime.now()
