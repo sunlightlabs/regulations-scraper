@@ -6,6 +6,7 @@ arg_parser.add_option("-a", "--agency", dest="agency", action="store", type="str
 arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="string", default=None, help="Specify a docket to which to limit the dump.")
 arg_parser.add_option("-A", "--all", dest="process_all", action="store_true", default=False, help="Replace existing MR data with new data.")
 arg_parser.add_option("-p", "--pretend", dest="pretend", action="store_true", default=False, help="Don't actually write anything to the database.")
+arg_parser.add_option("-n", "--no-children", dest="no_children", action="store_true", default=False, help="Don't spawn child processes.")
 
 import multiprocessing
 
@@ -37,8 +38,9 @@ def run(options, args):
 
     pool = multiprocessing.Pool(num_workers)
 
-    for i in range(num_workers):
-        pool.apply_async(run_client)
+    if not options.no_children:
+        for i in range(num_workers):
+            pool.apply_async(run_client)
 
     from aggregates import run_aggregates
     run_aggregates(options)

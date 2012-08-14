@@ -7,7 +7,7 @@ FIELDS = [
     'title',
     'details.Date_Posted',
     'details.Comment_Start_Date',
-    'details.Comment_End_Date',
+    'details.Comment_Due_Date',
     'type',
     'views.entities',
     'attachments.views.entities',
@@ -56,8 +56,8 @@ def mapfn(key, document):
     doc_week_range = (doc_week.monday().isoformat(), doc_week.sunday().isoformat()) if doc_week else None
     doc_month = doc_date.isoformat()[:7] if doc_date else None
     
-    if 'Comment_Start_Date' in details and 'Comment_End_Date' in details:
-        comment_date_range = [details['Comment_Start_Date'].date().isoformat(), details['Comment_End_Date'].date().isoformat()]
+    if 'Comment_Start_Date' in details and 'Comment_Due_Date' in details:
+        comment_date_range = [details['Comment_Start_Date'].date().isoformat(), details['Comment_Due_Date'].date().isoformat()]
     else:
         comment_date_range = None
 
@@ -65,13 +65,25 @@ def mapfn(key, document):
     docket_info = {
         'count': 1,
         'type_breakdown': {str(doc_type): 1},
-        'fr_docs': [{
-            'date': doc_date.date().isoformat() if doc_date else None,
-            'comment_date_range': comment_date_range,
-            'type': doc_type,
-            'id': document['_id'],
-            'title': document['title']
-        }] if doc_type in ['notice', 'rule', 'proposed_rule'] else [],
+        'doc_info': {
+            'fr_docs': [{
+                'date': doc_date.date().isoformat() if doc_date else None,
+                'comment_date_range': comment_date_range,
+                'type': doc_type,
+                'id': document['_id'],
+                'title': document['title']
+            }] if doc_type in ['notice', 'rule', 'proposed_rule'] else [],
+            'supporting_material': [{
+                'date': doc_date.date().isoformat() if doc_date else None,
+                'title': document['title'],
+                'id': document['_id']
+            }] if doc_type == 'supporting_material' else [],
+            'other': [{
+                'date': doc_date.date().isoformat() if doc_date else None,
+                'title': document['title'],
+                'id': document['_id']
+            }] if doc_type == 'other' else []
+        },
         'weeks': [(doc_week_range, 1)],
         'date_range': [doc_date, doc_date],
         'text_entities': {},
@@ -169,7 +181,11 @@ def reducefn(key, documents):
         out = {
             'count': 0,
             'type_breakdown': defaultdict(int),
-            'fr_docs': [],
+            'doc_info': {
+                'fr_docs': [],
+                'supporting_material': [],
+                'other': []
+            },
             'weeks': defaultdict(int),
             'date_range': [None, None],
             'text_entities': defaultdict(int),
@@ -184,7 +200,8 @@ def reducefn(key, documents):
             for doc_type, count in value['type_breakdown'].iteritems():
                 out['type_breakdown'][doc_type] += count
             
-            out['fr_docs'].extend(value['fr_docs'])
+            for doc_type in ['fr_docs', 'supporting_material', 'other']:
+                out['doc_info'][doc_type].extend(value['doc_info'][doc_type])
             
             for week, count in dict(value['weeks']).iteritems():
                 out['weeks'][week] += count
@@ -198,7 +215,9 @@ def reducefn(key, documents):
             out['date_range'][0] = min_date(out['date_range'][0], value['date_range'][0])
             out['date_range'][1] = max_date(out['date_range'][1], value['date_range'][1])
 
-        out['fr_docs'] = sorted(out['fr_docs'], key=lambda x: x['date'])
+        out['doc_info']['fr_docs'] = sorted(out['doc_info']['fr_docs'], key=lambda x: x['date'], reverse=True)
+        out['doc_info']['supporting_material'] = sorted(out['doc_info']['supporting_material'], key=lambda x: x['date'], reverse=True)[:3]
+        out['doc_info']['other'] = sorted(out['doc_info']['other'], key=lambda x: x['date'], reverse=True)[:3]
 
         out['weeks'] = sorted(out['weeks'].items(), key=lambda x: x[0][0] if x[0] else datetime.date.min.isoformat())
         return out
