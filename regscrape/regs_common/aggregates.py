@@ -106,7 +106,12 @@ def mapfn(key, document):
         'weeks': [(doc_week_range, 1)],
         'date_range': [doc_date, doc_date],
         'text_entities': {},
-        'submitter_entities': {}
+        'submitter_entities': {},
+        'recent_comments': [{
+            'date': doc_date.date().isoformat() if doc_date else None,
+            'title': document['title'],
+            'id': document['_id']
+        }] if doc_type == 'public_submission' else []
     }
 
     # entity data for dockets and agencies
@@ -154,7 +159,12 @@ def mapfn(key, document):
                 'dockets': {document['docket_id']: submitter_count},
                 'months': [(doc_month, submitter_count)],
                 'agencies_by_month': {document.get('agency', None): [(doc_month, submitter_count)]},
-                'date_range': [doc_date, doc_date] if submitter_count else [None, None]
+                'date_range': [doc_date, doc_date] if submitter_count else [None, None],
+                'recent_comments': [{
+                    'date': doc_date.date().isoformat() if doc_date else None,
+                    'title': document['title'],
+                    'id': document['_id']
+                }] if doc_type == 'public_submission' and submitter_count else []
             }
         }
         yield ('entities', entity), entity_info
@@ -265,7 +275,8 @@ def reducefn(key, documents):
             'weeks': defaultdict(int),
             'date_range': [None, None],
             'text_entities': defaultdict(int),
-            'submitter_entities': defaultdict(int)
+            'submitter_entities': defaultdict(int),
+            'recent_comments': []
         }
         if documents:
             out['date_range'] = documents[0]['date_range']
@@ -282,9 +293,12 @@ def reducefn(key, documents):
             for entity, count in value['submitter_entities'].iteritems():
                 out['submitter_entities'][entity] += count
 
+            out['recent_comments'].extend(value['recent_comments'])
+
             out['date_range'][0] = min_date(out['date_range'][0], value['date_range'][0])
             out['date_range'][1] = max_date(out['date_range'][1], value['date_range'][1])
 
+        out['recent_comments'] = sorted(out['recent_comments'], key=lambda x: x['date'], reverse=True)[:5]
         out['weeks'] = sorted(out['weeks'].items(), key=lambda x: x[0][0] if x[0] else datetime.date.min.isoformat())
         return out
 
@@ -305,7 +319,8 @@ def reducefn(key, documents):
                 'dockets': defaultdict(int),
                 'months': defaultdict(int),
                 'agencies_by_month': defaultdict(lambda: defaultdict(int)),
-                'date_range': [None, None]
+                'date_range': [None, None],
+                'recent_comments': []
             }
         }
         for value in documents:
@@ -329,12 +344,16 @@ def reducefn(key, documents):
                 out[mention_type]['date_range'][0] = min_date(out[mention_type]['date_range'][0], value[mention_type]['date_range'][0])
                 out[mention_type]['date_range'][1] = max_date(out[mention_type]['date_range'][1], value[mention_type]['date_range'][1])
 
+            out['submitter_mentions']['recent_comments'].extend(value['submitter_mentions']['recent_comments'])
+
         for mention_type in ['text_mentions', 'submitter_mentions']:
             out[mention_type]['months'] = sorted(out[mention_type]['months'].items(), key=lambda x: x[0] if x[0] else datetime.date.min.isoformat())
             for agency in out[mention_type]['agencies_by_month'].keys():
                 out[mention_type]['agencies_by_month'][agency] = sorted(out[mention_type]['agencies_by_month'][agency].items(), key=lambda x: x[0] if x[0] else datetime.date.min.isoformat())
             # hack to make this defaultdict picklable
             out[mention_type]['agencies_by_month'] = dict(out[mention_type]['agencies_by_month'])
+
+        out['submitter_mentions']['recent_comments'] = sorted(out['submitter_mentions']['recent_comments'], key=lambda x: x['date'], reverse=True)[:5]
         
         return out
 
