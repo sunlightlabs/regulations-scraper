@@ -145,6 +145,7 @@ def mapfn(key, document):
                 'agencies': {document.get('agency', None): text_count},
                 'dockets': {document['docket_id']: text_count},
                 'months': [(doc_month, text_count)],
+                'agencies_by_month': {document.get('agency', None): [(doc_month, text_count)]},
                 'date_range': [doc_date, doc_date] if text_count else [None, None]
             },
             'submitter_mentions': {
@@ -152,6 +153,7 @@ def mapfn(key, document):
                 'agencies': {document.get('agency', None): submitter_count},
                 'dockets': {document['docket_id']: submitter_count},
                 'months': [(doc_month, submitter_count)],
+                'agencies_by_month': {document.get('agency', None): [(doc_month, submitter_count)]},
                 'date_range': [doc_date, doc_date] if submitter_count else [None, None]
             }
         }
@@ -294,6 +296,7 @@ def reducefn(key, documents):
                 'agencies': defaultdict(int),
                 'dockets': defaultdict(int),
                 'months': defaultdict(int),
+                'agencies_by_month': defaultdict(lambda: defaultdict(int)),
                 'date_range': [None, None]
             },
             'submitter_mentions': {
@@ -301,6 +304,7 @@ def reducefn(key, documents):
                 'agencies': defaultdict(int),
                 'dockets': defaultdict(int),
                 'months': defaultdict(int),
+                'agencies_by_month': defaultdict(lambda: defaultdict(int)),
                 'date_range': [None, None]
             }
         }
@@ -317,11 +321,20 @@ def reducefn(key, documents):
                 for month, count in months_dict.iteritems():
                     if months_dict[month]:
                         out[mention_type]['months'][month] += months_dict[month]
+                for agency, agency_months in value[mention_type]['agencies_by_month'].items():
+                    agency_months_dict = dict(value[mention_type]['agencies_by_month'][agency])
+                    for month, count in agency_months_dict.iteritems():
+                        if agency_months_dict[month]:
+                            out[mention_type]['agencies_by_month'][agency][month] += agency_months_dict[month]
                 out[mention_type]['date_range'][0] = min_date(out[mention_type]['date_range'][0], value[mention_type]['date_range'][0])
                 out[mention_type]['date_range'][1] = max_date(out[mention_type]['date_range'][1], value[mention_type]['date_range'][1])
 
         for mention_type in ['text_mentions', 'submitter_mentions']:
             out[mention_type]['months'] = sorted(out[mention_type]['months'].items(), key=lambda x: x[0] if x[0] else datetime.date.min.isoformat())
+            for agency in out[mention_type]['agencies_by_month'].keys():
+                out[mention_type]['agencies_by_month'][agency] = sorted(out[mention_type]['agencies_by_month'][agency].items(), key=lambda x: x[0] if x[0] else datetime.date.min.isoformat())
+            # hack to make this defaultdict picklable
+            out[mention_type]['agencies_by_month'] = dict(out[mention_type]['agencies_by_month'])
         
         return out
 
