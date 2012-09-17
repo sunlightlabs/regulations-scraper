@@ -163,7 +163,7 @@ def binary_extractor(binary, error=None, append=[], output_type="text"):
             interpreter.kill()
             raise
         
-        if (output_type == 'text' and not output.strip()) or (output_type == 'html' and not strip_tags(output).strip()) or (error and (error in output or error in run_error)):
+        if (output_type == 'text' and not output.strip()) or (output_type == 'html' and not html_is_empty(output)) or (error and (error in output or error in run_error)):
             raise ExtractionFailed()
         elif output_type == 'html':
             # strip non-breaking spaces
@@ -187,6 +187,23 @@ def script_extractor(script, error=None, output_type="text"):
 _tag_stripper = re.compile(r'<[^>]*?>')
 def strip_tags(text):
     return _tag_stripper.sub('', text)
+
+_body_finder = re.compile(r"<body[^>]*>(.*)</body>", re.I | re.DOTALL)
+_outline_finder = re.compile(r'<a name="outline"></a>\s*<h1>Document Outline</h1>\s*<ul>.*</ul>', re.I | re.DOTALL)
+def html_is_empty(text):
+    # grab the body
+    body = _body_finder.findall(text)
+    if not body:
+        return True
+    
+    # explicitly strip out pdftohtml's document outlines
+    without_outline = _outline_finder.sub("", body[0])
+    
+    body_text = strip_tags(without_outline).strip()
+    if not body_text:
+        return True
+    
+    return False
 
 def ocr_scrub(text):
     lines = re.split(r'\n', text)
