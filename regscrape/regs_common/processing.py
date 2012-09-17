@@ -163,7 +163,7 @@ def binary_extractor(binary, error=None, append=[], output_type="text"):
             interpreter.kill()
             raise
         
-        if (output_type == 'text' and not output.strip()) or (output_type == 'html' and not html_is_empty(output)) or (error and (error in output or error in run_error)):
+        if (output_type == 'text' and not output.strip()) or (output_type == 'html' and html_is_empty(output)) or (error and (error in output or error in run_error)):
             raise ExtractionFailed()
         elif output_type == 'html':
             # strip non-breaking spaces

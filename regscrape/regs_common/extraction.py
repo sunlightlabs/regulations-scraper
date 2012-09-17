@@ -11,7 +11,7 @@ EXTRACTORS = {
     'pdf': [
         binary_extractor(['pdftohtml', '-noframes', '-i', '-stdout'], error='PDF file is damaged', output_type="html"),
         binary_extractor('pdftotext', append=['-'], error='PDF file is damaged'),
-        binary_extractor('ps2ascii', error='Unrecoverable error'),
+#        binary_extractor('ps2ascii', error='Unrecoverable error'),
 #        pdf_ocr
     ],
     
