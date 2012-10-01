@@ -35,6 +35,8 @@ def add_to_search(options, args):
         print 'trying', doc.id
         if doc.renamed:
             print 'renamed', doc.id
+            doc.in_search_index = True
+            doc.save()
             continue
         
         # build initial ES document
@@ -51,8 +53,8 @@ def add_to_search(options, args):
             'files': []
         }
 
-        # add views
-        for view in doc.views:
+        # add views (max of 5 to avoid pathological cases)
+        for view in doc.views[:5]:
             if not view.content:
                 continue
             es_doc['files'].append({
@@ -65,9 +67,9 @@ def add_to_search(options, args):
                 "entities": view.entities
             })
 
-        # add attachments
-        for attachment in doc.attachments:
-            for view in attachment.views:
+        # add attachments (max of 10 to avoid pathological cases)
+        for attachment in doc.attachments[:10]:
+            for view in attachment.views[:5]:
                 if not view.content:
                     continue
                 es_doc['files'].append({
