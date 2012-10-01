@@ -63,7 +63,7 @@ def add_to_search(options, args):
                 "object_id": doc.object_id,
                 "file_type": view.type,
                 "view_type": "document_view",
-                "text": view.as_text(),
+                "text": view.as_text()[:100000],
                 "entities": view.entities
             })
 
@@ -78,7 +78,7 @@ def add_to_search(options, args):
                     "object_id": attachment.object_id,
                     "file_type": view.type,
                     "view_type": "attachment_view",
-                    "text": view.as_text(),
+                    "text": view.as_text()[:100000],
                     "entities": view.entities
                 })
 
