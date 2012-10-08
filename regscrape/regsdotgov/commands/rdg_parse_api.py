@@ -89,6 +89,11 @@ def reconcile_process(record, cache, db, now, repaired_counter, updated_counter,
             
             # update the last-seen date
             db_doc.last_seen = now
+
+            # reset a couple of flags to trigger reprocessing
+            db_doc.in_search_index = False
+            db_doc.in_cluster_db = False
+            db_doc.entities_last_extracted = None
             
             # do save
             db_doc.save()
