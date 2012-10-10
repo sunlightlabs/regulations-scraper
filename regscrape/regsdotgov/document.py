@@ -11,6 +11,9 @@ from regs_common.util import listify
 DATE_FORMAT = re.compile('^(?P<month>\w+) (?P<day>\d{2}) (?P<year>\d{4}), at (?P<hour>\d{2}):(?P<minute>\d{2}) (?P<ampm>\w{2}) (?P<timezone>[\w ]+)$')
 
 def check_date(value):
+    if not value:
+        return value
+    
     # is it a date?
     date_match = DATE_FORMAT.match(value)
     if date_match:
@@ -139,7 +142,7 @@ def scrape_docket(id, cpool=None):
         
         # details
         'details': dict(
-            [(NON_LETTERS.sub('_', meta['@name']), check_date(meta['$'])) for meta in listify(docket['metadata']['entry'])]
+            [(NON_LETTERS.sub('_', meta['@name']), check_date(meta.get('$', None))) for meta in listify(docket['metadata']['entry'])]
         ) if docket['metadata'] and 'entry' in docket['metadata'] else {},
         
         'scraped': "yes",
