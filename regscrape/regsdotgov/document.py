@@ -83,7 +83,7 @@ def scrape_document(id, cpool=None):
         'documentType' in doc['commentOn'] and doc['commentOn']['documentType']:
         out['comment_on'] = {
             'agency': doc['commentOn']['agencyId'],
-            'title': doc['commentOn']['title'],
+            'title': unicode(doc['commentOn']['title']),
             'type': DOC_TYPES[doc['commentOn']['documentType']],
             'fr_doc': doc['commentOn']['frDoc'],
             'document_id': doc['commentOn']['documentId']
@@ -134,8 +134,8 @@ def scrape_docket(id, cpool=None):
 
     out = {
         'id': docket['docketId'],
-        'agency': docket['agencyId'],
-        'title': docket['title'],
+        'agency': docket['agency'],
+        'title': unicode(docket['title']),
         
         # details
         'details': dict(

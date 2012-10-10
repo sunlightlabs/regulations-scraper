@@ -78,7 +78,7 @@ def reconcile_process(record, cache, db, now, repaired_counter, updated_counter,
                 else:
                     new_attachment = attachment_meta[object_id]
                     db_attachment = Attachment(**{
-                        'title': new_attachment['title'],
+                        'title': unicode(new_attachment['title']),
                         'abstract': unicode(new_attachment['abstract']) if 'abstract' in new_attachment and new_attachment['abstract'] else None,
                         'views': new_views
                     })
@@ -96,8 +96,11 @@ def reconcile_process(record, cache, db, now, repaired_counter, updated_counter,
             db_doc.entities_last_extracted = None
             
             # do save
-            db_doc.save()
-            repaired_counter.increment()
+            try:
+                db_doc.save()
+                repaired_counter.increment()
+            except:
+                print "Failed to repair %s" % db_doc.id
         else:
             # we don't need a full repair, so just do an update on the date
             Doc.objects(id=record['_id']).update_one(set__last_seen=now)
