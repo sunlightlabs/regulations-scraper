@@ -42,7 +42,6 @@ class MongoSource(object):
         del self.cache[key]
         return out
 
-
 def mapfn(key, document):
     import isoweek
     from collections import defaultdict
@@ -187,6 +186,13 @@ def reducefn(key, documents):
             return None
         else:
             return max(a)
+    
+    # Mongo loses track of the tuple-vs-list distinction, so fix that if necessary so dict() doesn't break
+    def tf_dict(l):
+        try:
+            return dict(l)
+        except TypeError:
+            return dict([(tuple(k), v) for k, v in l])
 
     ### COLLECTION: dockets ###
     if key[0] == 'dockets':
@@ -215,7 +221,7 @@ def reducefn(key, documents):
             for doc_type in ['fr_docs', 'supporting_material', 'other']:
                 out['doc_info'][doc_type].extend(value['doc_info'][doc_type])
             
-            for week, count in dict(value['weeks']).iteritems():
+            for week, count in tf_dict(value['weeks']).iteritems():
                 out['weeks'][week] += count
 
             for entity, count in value['text_entities'].iteritems():
@@ -253,7 +259,7 @@ def reducefn(key, documents):
             for doc_type, count in value['type_breakdown'].iteritems():
                 out['type_breakdown'][doc_type] += count
                         
-            for month, count in dict(value['months']).iteritems():
+            for month, count in tf_dict(value['months']).iteritems():
                 out['months'][month] += count
 
             for entity, count in value['text_entities'].iteritems():
@@ -284,7 +290,7 @@ def reducefn(key, documents):
         for value in documents:
             out['count'] += value['count']
             
-            for week, count in dict(value['weeks']).iteritems():
+            for week, count in tf_dict(value['weeks']).iteritems():
                 out['weeks'][week] += count
 
             for entity, count in value['text_entities'].iteritems():
@@ -332,12 +338,12 @@ def reducefn(key, documents):
                 for docket, count in value[mention_type]['dockets'].iteritems():
                     if value[mention_type]['dockets'][docket]:
                         out[mention_type]['dockets'][docket] += value[mention_type]['dockets'][docket]
-                months_dict = dict(value[mention_type]['months'])
+                months_dict = tf_dict(value[mention_type]['months'])
                 for month, count in months_dict.iteritems():
                     if months_dict[month]:
                         out[mention_type]['months'][month] += months_dict[month]
                 for agency, agency_months in value[mention_type]['agencies_by_month'].items():
-                    agency_months_dict = dict(value[mention_type]['agencies_by_month'][agency])
+                    agency_months_dict = tf_dict(value[mention_type]['agencies_by_month'][agency])
                     for month, count in agency_months_dict.iteritems():
                         if agency_months_dict[month]:
                             out[mention_type]['agencies_by_month'][agency][month] += agency_months_dict[month]
@@ -351,7 +357,7 @@ def reducefn(key, documents):
             for agency in out[mention_type]['agencies_by_month'].keys():
                 out[mention_type]['agencies_by_month'][agency] = sorted(out[mention_type]['agencies_by_month'][agency].items(), key=lambda x: x[0] if x[0] else datetime.date.min.isoformat())
             # hack to make this defaultdict picklable
-            out[mention_type]['agencies_by_month'] = dict(out[mention_type]['agencies_by_month'])
+            out[mention_type]['agencies_by_month'] = tf_dict(out[mention_type]['agencies_by_month'])
 
         out['submitter_mentions']['recent_comments'] = sorted(out['submitter_mentions']['recent_comments'], key=lambda x: x['date'], reverse=True)[:5]
         
@@ -371,7 +377,9 @@ def run_aggregates(options):
         conditions['in_aggregates'] = False
 
     import os, mincemeat
-    s = mincemeat.BatchSqliteServer('/tmp/test_%s.db' % os.getpid(), 1000)
+    db_file = options.resume_db if options.resume_db else '/tmp/test_%s.db' % os.getpid()
+    print "Using file %s..." % db_file
+    s = mincemeat.BatchSqliteServer(db_file, 1000, resume=bool(options.resume_db))
     s.mapfn = mapfn
     s.reducefn = reducefn
     s.datasource = MongoSource(db, conditions)
@@ -384,6 +392,7 @@ def run_aggregates(options):
         print 'Results printed.'
 
     elif options.process_all:
+        print 'Writing results'
         for key, value in results:
             collection = key[0]
             _id = key[1]

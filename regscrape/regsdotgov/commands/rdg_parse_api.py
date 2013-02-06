@@ -29,6 +29,8 @@ arg_parser.add_option("-A", "--add-only", dest="add_only", action="store_true", 
 arg_parser.add_option("-a", "--agency", dest="agency", action="store", type="string", default=None, help="Specify an agency to which to limit the dump.")
 arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="string", default=None, help="Specify a docket to which to limit the dump.")
 
+FR_DOC_TYPES = set(['notice', 'rule', 'proposed_rule'])
+
 def repair_views(old_views, new_views):
     for new_view in new_views:
         already_exists = [view for view in old_views if view.type == new_view.type]
@@ -43,24 +45,13 @@ def reconcile_process(record, cache, db, now, repaired_counter, updated_counter,
     if new_record:
         # do we need to fix anything?
         statuses = [[view['downloaded'] for view in record.get('views', [])]] + [[view['downloaded'] for view in attachment.get('views', [])] for attachment in record.get('attachments', [])]
-        old_types = [set([view['type'] for view in record.get('views', [])])] + \
-            [set([view['type'] for view in attachment.get('views', [])]) for attachment in sorted(record.get('attachments', []), key=lambda a: a.get('object_id', a.get('title', '')))]
+        old_types = [set([view['type'] for view in record.get('views', [])])]
 
         main_views = [make_view(format) for format in listify(new_record.get('fileFormats', []))]
         new_types = [set([view.type for view in main_views])]
-
-        attachment_views = {}
-        attachment_meta = {}
-        for attachment in listify(new_record.get('attachments', {}).get('attachment', [])):
-            a_views = [make_view(format) for format in listify(attachment.get('fileFormats', []))]
-            if a_views:
-                attachment_views[a_views[0].object_id] = a_views
-                attachment_meta[a_views[0].object_id] = attachment
-
-        new_types = new_types + [set([view.type for view in item[1]]) for item in sorted(attachment_views.items(), key=lambda a: a[0])]
         
-        if record['scraped'] == 'failed' or 'failed' in reduce(operator.add, statuses, []) or old_types != new_types:
-            # needs a repair; grab the full document        
+        if record['scraped'] == 'failed' or 'failed' in reduce(operator.add, statuses, []) or old_types != new_types or len(record.get('attachments', [])) != new_record.get('attachmentCount', 0):
+            # needs a repair; grab the full document
             current_docs = Doc.objects(id=record['_id'])
             
             db_doc = current_docs[0]
@@ -69,23 +60,6 @@ def reconcile_process(record, cache, db, now, repaired_counter, updated_counter,
             
             # rebuild views
             repair_views(db_doc.views, main_views)
-        
-            # rebuild attachments
-            for object_id, new_views in attachment_views.items():
-                existing_attachment = [attachment for attachment in db_doc.attachments if attachment.object_id == object_id]
-                if existing_attachment:
-                    repair_views(existing_attachment[0].views, new_views)
-                else:
-                    new_attachment = attachment_meta[object_id]
-                    db_attachment = Attachment(**{
-                        'title': unicode(new_attachment['title']),
-                        'abstract': unicode(new_attachment['abstract']) if 'abstract' in new_attachment and new_attachment['abstract'] else None,
-                        'views': new_views
-                    })
-                    if db_attachment.views:
-                        db_attachment.object_id = db_attachment.views[0].object_id
-                    db_doc.attachments.append(db_attachment)
-
             
             # update the last-seen date
             db_doc.last_seen = now
@@ -148,7 +122,7 @@ def add_new_docs(cache_wrapper, now):
             'docket_id': doc['docketId'],
             'agency': doc['agency'],
             'type': DOC_TYPES[doc['documentType']],
-            'fr_doc': doc['isFrDoc'],
+            'fr_doc': DOC_TYPES[doc['documentType']] in FR_DOC_TYPES,
             'last_seen': now,
             'created': now
         })

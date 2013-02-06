@@ -7,6 +7,7 @@ arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="str
 arg_parser.add_option("-A", "--all", dest="process_all", action="store_true", default=False, help="Replace existing MR data with new data.")
 arg_parser.add_option("-p", "--pretend", dest="pretend", action="store_true", default=False, help="Don't actually write anything to the database.")
 arg_parser.add_option("-n", "--no-children", dest="no_children", action="store_true", default=False, help="Don't spawn child processes.")
+arg_parser.add_option("-r", "--resume", dest="resume_db", action="store", type="string", default=None, help="Resume a previous aggregation task (HERE BE DRAGONS)")
 
 import multiprocessing
 
