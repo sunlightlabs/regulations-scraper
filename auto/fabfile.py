@@ -6,13 +6,16 @@ import os, sys, json
 VERBOSE = False
 
 TASKS = [
-    ('local', ['dump_api']),
-    ('remote', ['parse_api', '-m 8']),
-    ('remote', ['scrape', '-m 8']),
-    ('local', ['download']),
-    ('remote', ['extract']),
+    ('local', ['rdg_dump_api']),
+    ('local', ['rdg_parse_api']),
+    ('local', ['rdg_scrape']),
+    ('local', ['rdg_download']),
+    ('local', ['extract']),
     ('local', ['create_dockets']),
-    ('remote', ['scrape_dockets', '-m 8'])
+    ('local', ['rdg_scrape_dockets']),
+    ('local', ['match_text']),
+    ('local', ['add_to_search']),
+    ('local', ['run_aggregates'])
 ]
 
 ADMINS = []
@@ -66,8 +69,8 @@ def release_lock():
     lock_path = os.path.join(LOCK_DIR, 'regs.lock')
     os.unlink(lock_path)
 
-@hosts(ssh_config('scraper'))
-def run_regs(start_with='dump_api', end_with='scrape_dockets'):
+@hosts(ssh_config('regs-fe'))
+def run_regs(start_with='rdg_dump_api', end_with='run_aggregates'):
     try:
         # use a lock file to keep multiple instances from trying to run simultaneously, which, among other things, consumes all of the memory on the high-CPU instance
         acquire_lock()
