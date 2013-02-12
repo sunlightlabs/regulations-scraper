@@ -382,39 +382,39 @@ def run_aggregates(options):
     s = mincemeat.BatchSqliteServer(db_file, 1000, resume=bool(options.resume_db))
     s.mapfn = mapfn
     s.reducefn = reducefn
-    s.datasource = MongoSource(db, conditions)
+    s.datasource = MongoSource(db, conditions, pretend=options.pretend)
 
     results = s.run_server()
 
-    if options.pretend:
-        for key, value in results:
-            print key, value
-        print 'Results printed.'
+    if options.process_all:
+        if options.pretend:
+            for key, value in results:
+                print key, value
+            print 'Results printed.'
+        else:
+            print 'Writing results'
+            for key, value in results:
+                collection = key[0]
+                _id = key[1]
+                if not _id:
+                    continue
 
-    elif options.process_all:
-        print 'Writing results'
-        for key, value in results:
-            collection = key[0]
-            _id = key[1]
-            if not _id:
-                continue
-
-            try:
-                db[collection].update(
-                    {
-                        '_id': _id
-                    },
-                    {
-                        '$set': {'stats': value}
-                    },
-                    upsert=True,
-                    safe=True
-                )
-            except bson.errors.InvalidDocument:
-                print 'invalid'
-                print value
-                raise
-        print 'Results written.'
+                try:
+                    db[collection].update(
+                        {
+                            '_id': _id
+                        },
+                        {
+                            '$set': {'stats': value}
+                        },
+                        upsert=True,
+                        safe=True
+                    )
+                except bson.errors.InvalidDocument:
+                    print 'invalid'
+                    print value
+                    raise
+            print 'Results written.'
 
     else:
         for key, value in results:
@@ -429,19 +429,25 @@ def run_aggregates(options):
             else:
                 stats = value
 
-            try:
-                db[collection].update(
-                    {
-                        '_id': _id
-                    },
-                    {
-                        '$set': {'stats': stats}
-                    },
-                    upsert=True,
-                    safe=True
-                )
-            except bson.errors.InvalidDocument:
-                print 'invalid'
-                print stats
-                raise
-        print 'Results incorporated.'
+            if options.pretend:
+                print key, stats
+            else:
+                try:
+                    db[collection].update(
+                        {
+                            '_id': _id
+                        },
+                        {
+                            '$set': {'stats': stats}
+                        },
+                        upsert=True,
+                        safe=True
+                    )
+                except bson.errors.InvalidDocument:
+                    print 'invalid'
+                    print stats
+                    raise
+        if options.pretend:
+            print 'Incorporated results printed.'
+        else:
+            print 'Results incorporated.'
