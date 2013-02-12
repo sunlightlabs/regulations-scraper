@@ -1,4 +1,4 @@
--e hg+https://bitbucket.org/denis/gevent#egg=gevent-dev
+-e git+https://github.com/SiteSupport/gevent.git#egg=gevent
 pytz
 lxml
 PIL
