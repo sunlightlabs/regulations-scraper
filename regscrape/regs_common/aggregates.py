@@ -189,10 +189,12 @@ def reducefn(key, documents):
     
     # Mongo loses track of the tuple-vs-list distinction, so fix that if necessary so dict() doesn't break
     def tf_dict(l):
+        if not l:
+            return {}
         try:
             return dict(l)
         except TypeError:
-            return dict([(tuple(k), v) for k, v in l])
+            return dict([(tuple(k) if type(k) == list else k, v) for k, v in l])
 
     ### COLLECTION: dockets ###
     if key[0] == 'dockets':
