@@ -65,11 +65,7 @@ def worker(todo_queue, num_succeeded, num_failed):
     print '[%s] Worker started.' % pid
     
     while True:
-        try:
-            record = todo_queue.get(timeout=5)
-        except Empty:
-            print '[%s] Processing complete.' % pid
-            return
+        record = todo_queue.get()
         
         process_record(record, num_succeeded, num_failed, cpool)
         
@@ -88,9 +84,11 @@ def run(options, args):
     num_succeeded = Counter()
     num_failed = Counter()
     
+    processes = []
     for i in range(num_workers):
         proc = multiprocessing.Process(target=worker, args=(todo_queue, num_succeeded, num_failed))
         proc.start()
+        processes.append(proc)
         
     conditions = {'scraped': 'no'}
     if options.agency:
@@ -112,7 +110,9 @@ def run(options, args):
     
     todo_queue.join()
     
-    print 'Scrape complete.'
+    for proc in processes:
+        print 'Terminating worker %s...' % proc.pid
+        proc.terminate()
     
     print 'Scrape complete with %s successes and %s failures.' % (num_succeeded.value, num_failed.value)
     return {'scraped': num_succeeded.value, 'failed': num_failed.value}
