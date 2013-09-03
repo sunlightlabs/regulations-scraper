@@ -7,6 +7,7 @@ import settings
 import pymongo
 import traceback
 import os
+import re
 import multiprocessing
 from Queue import Empty
 from regs_models import *
@@ -20,6 +21,9 @@ arg_parser.add_option("-a", "--agency", dest="agency", action="store", type="str
 arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="string", default=None, help="Specify a docket to which to limit the dump.")
 arg_parser.add_option("-A", "--all", dest="process_all", action="store_true", default=False, help="Force a re-extraction of all documents in the system.")
 
+# regex to find titles that are likely to have submitter names
+NAME_FINDER = re.compile(r"^(public )?(comment|submission)s? (by|from) (?P<name>.*)$", re.I)
+
 def get_text(view):
     if not view.content:
         return ''
@@ -31,29 +35,37 @@ def process_doc(doc):
     for view in doc.views:
         if view.extracted == 'yes':
             view_matches = match(get_text(view), multiple=True)
-            if view_matches:
-                view.entities = list(view_matches.keys())
+            view.entities = list(view_matches.keys()) if view_matches else []
 
     for attachment in doc.attachments:
         for view in attachment.views:
             if view.extracted == 'yes':
                 view_matches = match(get_text(view), multiple=True)
-                if view_matches:
-                    view.entities = list(view_matches.keys())
+                view.entities = list(view_matches.keys()) if view_matches else []
     
     # submitter matches
+    #   check if there's submitter stuff in the title
+    title_match = NAME_FINDER.match(doc.title)
+
+    #   next check details, which is where most title stuff lives
     details = doc.details
-    submitter_matches = match('\n'.join([
+    #   stick "XXXX" between tokens because it doesn't occur in entity names
+    submitter_matches = match(' XXXX '.join([
         # organization
         details.get('Organization_Name', ''),
         
         # submitter name
         ' '.join(
             filter(bool, [details.get('First_Name', ''), details.get('Last_Name', '')])
-        )
+        ),
+
+        # submitter representative
+        details.get('Submitter_s_Representative', ''),
+
+        # title_match if we found one
+        title_match.groupdict()['name'] if title_match else '',
     ]))
-    if submitter_matches:
-        doc.submitter_entities = list(submitter_matches.keys())
+    doc.submitter_entities = list(submitter_matches.keys()) if submitter_matches else []
 
     doc.entities_last_extracted = datetime.datetime.now()
         

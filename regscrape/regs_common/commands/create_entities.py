@@ -7,7 +7,8 @@ arg_parser = OptionParser()
 arg_parser.add_option("-U", "--update", dest="update", action="store_true", default=False, help="Check if entities already existing before creating (slower)")
 
 def run(options, args):
-    import settings
+    import settings, regs_common
+    import os
 
     # if we're updating
     if options.update:
@@ -19,7 +20,13 @@ def run(options, args):
 
     # grab a dictionary
     word_file = getattr(settings, 'WORD_FILE', '/usr/share/dict/words')
-    english_words = set([word.strip() for word in open(word_file, 'r') if word and word[0] == word[0].lower()])
+    name_file = os.path.join(os.path.abspath(os.path.dirname(regs_common.__file__)), "data", "names.dat")
+
+    # filtered_words is a set of English words, plus common first and last names, and single letters
+    filtered_words = set((word.strip() for word in open(word_file, 'r') if word and word[0] == word[0].lower()))
+    filtered_words.update((name.strip().lower() for name in open(name_file, 'r') if name.strip() and not name.startswith('#')))
+    filtered_words.update(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'])
+
 
     from influenceexplorer import InfluenceExplorer
     api = InfluenceExplorer(settings.API_KEY, getattr(settings, 'AGGREGATES_API_BASE_URL', "http://transparencydata.com/api/1.0/"))
@@ -36,9 +43,9 @@ def run(options, args):
             'id': entity['id'],
             'td_type': entity['type'],
             'td_name': entity['name'],
-            'aliases': normalize_list([entity['name']] + entity['aliases'], entity['type'])
+            'aliases': [name.strip() for name in normalize_list([entity['name']] + entity['aliases'], entity['type'])]
         }
-        record['filtered_aliases'] = [alias for alias in record['aliases'] if alias.lower() not in english_words]
+        record['filtered_aliases'] = [alias for alias in record['aliases'] if alias.lower() not in filtered_words]
                 
         if options.update and record['id'] in current:
             Entity.objects(id=record['id']) \
