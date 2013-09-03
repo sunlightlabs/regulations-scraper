@@ -378,7 +378,7 @@ def run_aggregates(options):
     if not options.process_all:
         conditions['in_aggregates'] = False
 
-    import os, mincemeat
+    import os, mincemeat, datetime
     db_file = options.resume_db if options.resume_db else '/tmp/test_%s.db' % os.getpid()
     print "Using file %s..." % db_file
     s = mincemeat.BatchSqliteServer(db_file, 1000, resume=bool(options.resume_db))
@@ -388,6 +388,7 @@ def run_aggregates(options):
 
     results = s.run_server()
 
+    stats_last_updated = datetime.datetime.now()
     if options.process_all:
         if options.pretend:
             for key, value in results:
@@ -402,6 +403,7 @@ def run_aggregates(options):
                     continue
 
                 try:
+                    value['stats_last_updated'] = stats_last_updated
                     db[collection].update(
                         {
                             '_id': _id
@@ -418,6 +420,24 @@ def run_aggregates(options):
                     raise
             print 'Results written.'
 
+            # since we've done everything, we know anything we haven't touched no longer has relevant stats
+            print 'Deleting stats on entries that weren\'t updated.'
+            for collection in ['dockets', 'docs', 'agencies', 'entities']:
+                db[collection].update(
+                    {
+                        'stats': {'$exists': 1},
+                        '$or': [
+                            {'stats.stats_last_updated': {'$exists': 0}},
+                            {'stats.stats_last_updated': {'$lt': stats_last_updated}}
+                        ]
+                    },
+                    {
+                        '$unset': {'stats': 1}
+                    },
+                    safe=True,
+                    multi=True
+                )
+            print 'Stale stats deleted.'
     else:
         for key, value in results:
             collection = key[0]
@@ -434,6 +454,7 @@ def run_aggregates(options):
             if options.pretend:
                 print key, stats
             else:
+                stats['stats_last_updated'] = stats_last_updated
                 try:
                     db[collection].update(
                         {
