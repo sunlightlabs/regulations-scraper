@@ -1,6 +1,6 @@
 {
-    "document" : {
-        "properties" : {
+    "docket": {
+        "properties": {
             "_id": {
                 "type": "string",
                 "index": "not_analyzed"
@@ -12,9 +12,27 @@
                 "type": "string",
                 "index": "not_analyzed"
             },
-            "docket_id": {
-                "type" : "string",
-                "index" : "not_analyzed"
+            "identifiers": {
+                "type": "string",
+                "index": "not_analyzed"
+            }
+        }
+    },
+    "document": {
+        "_parent": {
+            "type": "docket"
+        },
+        "properties": {
+            "_id": {
+                "type": "string",
+                "index": "not_analyzed"
+            },
+            "title": {
+                "type": "string"
+            },
+            "agency": {
+                "type": "string",
+                "index": "not_analyzed"
             },
             "comment_on": {
                 "type": "string",
@@ -34,6 +52,14 @@
                 "type": "string"
             },
             "submitter_entities": {
+                "type": "string",
+                "index": "not_analyzed"
+            },
+            "analyses": {
+                "type": "string",
+                "index": "not_analyzed"
+            },
+            "identifiers": {
                 "type": "string",
                 "index": "not_analyzed"
             },

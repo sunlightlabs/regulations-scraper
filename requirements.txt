@@ -19,3 +19,4 @@ redis
 mongoengine
 html2text
 urllib3
+rawes

@@ -1,6 +1,7 @@
 TARGET_SERVER = 'www.regulations.gov'
 DEBUG = True
 DB_NAME = 'regulations'
+ES_HOST = 'thrift://localhost:9500'
 DATA_DIR = '/data'
 EXTRACTORS = 2
 
