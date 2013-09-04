@@ -21,10 +21,15 @@ def run(options, args):
 def add_to_search(options, args):
     import settings
 
-    es = rawes.Elastic(getattr(settings, "ES_HOST", 'thrift://localhost:9500'), timeout=30.0)
+    es = rawes.Elastic(getattr(settings, "ES_HOST", 'thrift://localhost:9500'), timeout=60.0)
 
     now = datetime.datetime.now()
 
+    querysets = {}
+    builders = {}
+    metadata = {}
+
+    PER_REQUEST = 200
 
     ### Dockets ###
 
@@ -36,10 +41,10 @@ def add_to_search(options, args):
     if not options.process_all:
         query['in_search_index'] = False
 
-    print "Adding dockets..."
+    querysets['docket'] = Docket.objects(__raw__=query)
 
-    for docket in Docket.objects(__raw__=query):
-        print 'trying', docket.id
+    def build_docket(docket):
+        print 'preparing docket', docket.id
 
         # build initial ES document
         es_doc = {
@@ -52,17 +57,13 @@ def add_to_search(options, args):
         if docket.rin and docket.rin != "Not Assigned":
             es_doc['identifiers'].append(docket.rin)
 
-        # save to es
-        es_status = es.regulations.docket[str(docket.id)].put(data=es_doc)
-        print 'saved %s to ES as %s' % (docket.id, es_status['_id'])
+        return es_doc
 
-        # update main mongo doc
-        docket.in_search_index = True
+    def get_docket_metadata(docket):
+        return {'_index': 'regulations', '_type': 'docket', '_id': docket.id}
 
-        # save back to Mongo
-        docket.save()
-        print "saved %s back to mongo" % docket.id
-
+    builders['docket'] = build_docket
+    metadata['docket'] = get_docket_metadata
 
     ### Documents ###
 
@@ -74,15 +75,15 @@ def add_to_search(options, args):
     if not options.process_all:
         query['in_search_index'] = False
 
-    print "Adding documents..."
+    querysets['document'] = Doc.objects(__raw__=query)
 
-    for doc in Doc.objects(__raw__=query):
-        print 'trying', doc.id
+    def build_document(doc):
+        print 'preparing document', doc.id
         if doc.renamed:
-            print 'renamed', doc.id
+            print 'preparing', doc.id
             doc.in_search_index = True
             doc.save()
-            continue
+            return None
         
         # build initial ES document
         es_doc = {
@@ -139,13 +140,46 @@ def add_to_search(options, args):
         if doc.details.get('FR_Citation', None):
             es_doc['identifiers'].append(doc.details['FR_Citation'].replate(' ', ''))
 
-        # save to es
-        es_status = es.regulations.document[str(doc.id)].put(data=es_doc, params={'parent': doc.docket_id})
-        print 'saved %s to ES as %s' % (doc.id, es_status['_id'])
+        return es_doc
 
-        # update main mongo doc
-        doc.in_search_index = True
+    def get_document_metadata(doc):
+        return {'_index': 'regulations', '_type': 'document', '_id': doc.id, '_parent': doc.docket_id}
 
-        # save back to Mongo
-        doc.save()
-        print "saved %s back to mongo" % doc.id
+    builders['document'] = build_document
+    metadata['document'] = get_document_metadata
+
+    ### Actually do everything ###
+    def flush(queue, ids, collection):
+        # save current queue to ES
+        es_status = es._bulk.post(data="\n".join(queue))
+        print 'saved %s to ES' % ", ".join(ids)
+
+        # update mongo docs
+        collection.update({'_id': {'$in': ids}}, {'$set': {'in_search_index': True}}, multi=True, safe=True)
+
+        print "saved %s back to mongo" % ", ".join(ids)
+    
+    counts = {'docket': 0, 'document': 0}
+    for datatype in ('docket', 'document'):
+        queue = []
+        ids = []
+        max_length = PER_REQUEST * 2
+        for item in querysets[datatype]:
+            record = builders[datatype](item)
+            meta = metadata[datatype](item)
+
+            if record:
+                queue.append(json.dumps({'index':meta}))
+                queue.append(json.dumps(record, default=es.json_encoder))
+                ids.append(item.id)
+
+            if len(queue) >= max_length:
+                flush(queue, ids, querysets[datatype]._collection)
+                counts[datatype] += len(ids)
+                queue = []
+                ids = []
+        flush(queue, ids, querysets[datatype]._collection)
+        counts[datatype] += len(ids)
+
+    print "Done adding things to search: %s docket entries and %s document entries." % (counts['docket'], counts['document'])
+    return counts
