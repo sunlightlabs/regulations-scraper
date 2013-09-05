@@ -23,3 +23,8 @@ def run(options, args):
         mapping_data = json.load(open(mapping_file))
         es.regulations.put(data={'mappings': mapping_data})
         print "Index created."
+
+    stats = es._stats.get()
+    print json.dumps(stats, indent=4)
+
+    return stats
