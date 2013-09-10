@@ -362,6 +362,7 @@ def reducefn(key, documents):
             out[mention_type]['agencies_by_month'] = tf_dict(out[mention_type]['agencies_by_month'])
 
         out['submitter_mentions']['recent_comments'] = sorted(out['submitter_mentions']['recent_comments'], key=lambda x: x['date'], reverse=True)[:5]
+        out['count'] = out['text_mentions']['count'] + out['submitter_mentions']['count']
         
         return out
 
