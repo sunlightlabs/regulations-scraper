@@ -51,7 +51,13 @@ def run(options, args):
             Entity.objects(id=record['id']) \
                   .update(safe_update=True, set__td_type=record['td_type'], set__td_name=record['td_name'], set__aliases=record['aliases'], set__filtered_aliases=record['filtered_aliases'])
             print "Updated %s as existing record %s" % (record['aliases'][0], record['id'])
+            current.remove(record['id'])
         else:
             db_entity = Entity(**record)
             db_entity.save()
             print "Saved %s as new record %s" % (record['aliases'][0], record['id'])
+
+    if options.update:
+        print "Deleting %s no-longer-existing records..." % len(current)
+        db = Entity._get_db()
+        db.entities.remove({'_id': {'$in': list(current)}})
