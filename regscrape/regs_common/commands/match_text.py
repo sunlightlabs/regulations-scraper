@@ -20,6 +20,7 @@ arg_parser = OptionParser()
 arg_parser.add_option("-a", "--agency", dest="agency", action="store", type="string", default=None, help="Specify an agency to which to limit the dump.")
 arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="string", default=None, help="Specify a docket to which to limit the dump.")
 arg_parser.add_option("-A", "--all", dest="process_all", action="store_true", default=False, help="Force a re-extraction of all documents in the system.")
+arg_parser.add_option("-m", "--multi", dest="multi", action="store", type="int", default=multiprocessing.cpu_count(), help="Set number of worker processes.  Defaults to number of cores if not specified.")
 
 # regex to find titles that are likely to have submitter names
 NAME_FINDER = re.compile(r"^(public )?(comment|submission)s? (by|from) (?P<name>.*)$", re.I)
@@ -117,7 +118,7 @@ def run(options, args):
     run_start = time.time()
     print '[%s] Starting analysis...' % pid
 
-    num_workers = multiprocessing.cpu_count()
+    num_workers = options.multi
     
     todo_queue = multiprocessing.JoinableQueue(num_workers * 3)
     

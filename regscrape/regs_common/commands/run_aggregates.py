@@ -1,5 +1,7 @@
 GEVENT = False
 
+import multiprocessing
+
 from optparse import OptionParser
 arg_parser = OptionParser()
 arg_parser.add_option("-a", "--agency", dest="agency", action="store", type="string", default=None, help="Specify an agency to which to limit the dump.")
@@ -8,8 +10,7 @@ arg_parser.add_option("-A", "--all", dest="process_all", action="store_true", de
 arg_parser.add_option("-p", "--pretend", dest="pretend", action="store_true", default=False, help="Don't actually write anything to the database.")
 arg_parser.add_option("-n", "--no-children", dest="no_children", action="store_true", default=False, help="Don't spawn child processes.")
 arg_parser.add_option("-r", "--resume", dest="resume_db", action="store", type="string", default=None, help="Resume a previous aggregation task (HERE BE DRAGONS)")
-
-import multiprocessing
+arg_parser.add_option("-m", "--multi", dest="multi", action="store", type="int", default=multiprocessing.cpu_count(), help="Set number of worker processes.  Defaults to number of cores if not specified.")
 
 def run_client():
     from mincemeat import Client, DEFAULT_PORT
@@ -35,7 +36,7 @@ def run_client():
 def run(options, args):
     print 'Running aggregates...'
 
-    num_workers = multiprocessing.cpu_count()
+    num_workers = options.multi
 
     pool = multiprocessing.Pool(num_workers)
 
