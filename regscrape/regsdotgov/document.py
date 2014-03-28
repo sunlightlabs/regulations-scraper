@@ -141,8 +141,8 @@ def _v1_scrape_document(id, cpool=None):
     
     return Doc(**out)
 
-DETAILS_SPECIAL = set(('title', 'docketId', 'docketTitle', 'docketType', 'documentId', 'documentType', 'agencyName', 'agencyAcronym', 'submitterName', 'rin', 'comment', 'attachmentCount', 'numItemsRecieved'))
-DETAIL_NAMES = {'docSubType': 'Document_Subtype', 'trackingNumber': 'Tracking_Number', 'cfrPart': 'CFR', 'organization': 'Organization_Name', 'zip': 'ZIP_Postal_Code', 'commentCategory': 'Category', 'govAgencyType': 'Government_Agency_Type'}
+DOC_DETAILS_SPECIAL = set(('title', 'docketId', 'docketTitle', 'docketType', 'documentId', 'documentType', 'agencyName', 'agencyAcronym', 'submitterName', 'rin', 'comment', 'attachmentCount', 'numItemsRecieved'))
+DOC_DETAIL_NAMES = {'docSubType': 'Document_Subtype', 'trackingNumber': 'Tracking_Number', 'cfrPart': 'CFR', 'organization': 'Organization_Name', 'zip': 'ZIP_Postal_Code', 'commentCategory': 'Category', 'govAgencyType': 'Government_Agency_Type'}
 INCONSISTENT_DOC_TYPES = dict(DOC_TYPES, **{'PROPOSED_RULES': 'proposed_rule', 'RULES': 'rule', 'NOTICES': 'notice'})
 def _v2v3_scrape_document(id, cpool=None):
     doc2 = json.load(_v2_get_document(id, cpool))
@@ -157,10 +157,10 @@ def _v2v3_scrape_document(id, cpool=None):
     detail_template = set(['label', 'value'])
     for key, contents in doc3.iteritems():
         if type(contents) is dict and set(contents.keys()) == detail_template:
-            if key in DETAILS_SPECIAL:
+            if key in DOC_DETAILS_SPECIAL:
                 special[key] = contents['value']
             else:
-                detail_name = DETAIL_NAMES.get(key, NON_LETTERS.sub('_', contents['label']))
+                detail_name = DOC_DETAIL_NAMES.get(key, NON_LETTERS.sub('_', contents['label']))
                 details[detail_name] = contents['value']
 
     # deal with submitter name
@@ -243,7 +243,7 @@ scrape_document = _v2v3_scrape_document
 
 DOCKET_YEAR_FINDER = re.compile("[_-](\d{4})[_-]")
 
-def get_docket(id, cpool=None):
+def _v1_get_docket(id, cpool=None):
     url_args = {
         'api_key': RDG_API_KEY,
         'D': id
@@ -255,8 +255,21 @@ def get_docket(id, cpool=None):
     else:
         return urllib2.urlopen(url)
 
-def scrape_docket(id, cpool=None):
-    raw = json.load(get_docket(id, cpool))
+def _v3_get_docket(id, cpool=None):
+    url_args = {
+        'api_key': DDG_API_KEY,
+        'docketId': id
+    }
+    
+    url = "http://api.data.gov/regulations/beta/docket.json?" + '&'.join(['%s=%s' % arg for arg in url_args.items()])
+    if cpool:
+        return cpool.urlopen("GET", url, headers={'Accept': 'application/json,*/*'}, preload_content=False)
+    else:
+        req = urllib2.Request(url, headers={'Accept': 'application/json,*/*'})
+        return urllib2.urlopen(req)
+
+def _v1_scrape_docket(id, cpool=None):
+    raw = json.load(_v1_get_docket(id, cpool))
 
     if 'error' in raw:
         raise DoesNotExist
@@ -265,7 +278,7 @@ def scrape_docket(id, cpool=None):
 
     out = {
         'id': docket['docketId'],
-        'agency': docket['agency'],
+        'agency': docket['agencyAcronym'],
         'title': unicode(docket['title']),
         
         # details
@@ -287,3 +300,48 @@ def scrape_docket(id, cpool=None):
         print 'Couldn\'t determine a date for docket %s' % id
     
     return Docket(**out)
+
+DOCKET_DETAILS_SPECIAL = set(('agency', 'agencyAcronym'))
+DOCKET_DETAIL_NAMES = {}
+def _v3_scrape_docket(id, cpool=None):
+    docket = json.loads(_v3_get_docket(id, cpool).read())
+
+    if 'code' in docket:
+        raise DoesNotExist
+
+    # pull out what used to be called 'details'
+    details = {}
+    special = {}
+    detail_template = set(['label', 'value'])
+    for key, contents in docket.iteritems():
+        if type(contents) is dict and set(contents.keys()) == detail_template:
+            if key in DOCKET_DETAILS_SPECIAL:
+                special[key] = contents['value']
+            else:
+                detail_name = DOCKET_DETAIL_NAMES.get(key, NON_LETTERS.sub('_', contents['label']))
+                details[detail_name] = contents['value']
+
+    out = {
+        'id': docket['docketId'],
+        'agency': docket.get('agencyAcronym', ''),
+        'title': unicode(docket['title']),
+        
+        # details
+        'details': details,
+        
+        'scraped': "yes",
+    }
+    
+    if 'rin' in docket and docket['rin']:
+        out['rin'] = docket['rin']
+    
+    year_match = DOCKET_YEAR_FINDER.search(id)
+    if year_match and year_match.groups():
+        out['year'] = int(year_match.groups()[0])
+    else:
+        out['year'] = None
+        print 'Couldn\'t determine a date for docket %s' % id
+    
+    return Docket(**out)
+
+scrape_docket = _v3_scrape_docket
