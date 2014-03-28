@@ -3,10 +3,12 @@ import urllib2, urllib3
 import json
 from regs_common.exceptions import DoesNotExist
 from pytz import timezone
+import dateutil.parser
 import datetime
-from settings import RDG_API_KEY
+from settings import RDG_API_KEY, DDG_API_KEY
 from regs_models import *
 from regs_common.util import listify
+from name_cleaver import IndividualNameCleaver
 
 DATE_FORMAT = re.compile('^(?P<month>\w+) (?P<day>\d{2}) (?P<year>\d{4}), at (?P<hour>\d{2}):(?P<minute>\d{2}) (?P<ampm>\w{2}) (?P<timezone>[\w ]+)$')
 
@@ -30,7 +32,7 @@ def check_date(value):
     
     return value
 
-def get_document(id, cpool=None):
+def _v1_get_document(id, cpool=None):
     url_args = {
         'api_key': RDG_API_KEY,
         'D': id
@@ -42,6 +44,32 @@ def get_document(id, cpool=None):
     else:
         return urllib2.urlopen(url)
 
+def _v2_get_document(id, cpool=None):
+    url_args = {
+        'api_key': DDG_API_KEY,
+        'D': id
+    }
+    
+    url = "http://api.data.gov/regulations/v2/document.json?" + '&'.join(['%s=%s' % arg for arg in url_args.items()])
+    if cpool:
+        return cpool.urlopen("GET", url, headers={'Accept': 'application/json'}, preload_content=False)
+    else:
+        req = urllib2.Request(url, headers={'Accept': 'application/json'})
+        return urllib2.urlopen(req)
+
+def _v3_get_document(id, cpool=None):
+    url_args = {
+        'api_key': DDG_API_KEY,
+        'documentId': id
+    }
+    
+    url = "http://api.data.gov/regulations/beta/document.json?" + '&'.join(['%s=%s' % arg for arg in url_args.items()])
+    if cpool:
+        return cpool.urlopen("GET", url, headers={'Accept': 'application/json,*/*'}, preload_content=False)
+    else:
+        req = urllib2.Request(url, headers={'Accept': 'application/json,*/*'})
+        return urllib2.urlopen(req)
+
 FORMAT_PARSER = re.compile(r"http://www\.regulations\.gov/api/contentStreamer\?objectId=(?P<object_id>[0-9a-z]+)&disposition=attachment&contentType=(?P<type>[0-9a-z]+)")
 def make_view(format):
     match = FORMAT_PARSER.match(format).groupdict()
@@ -49,8 +77,8 @@ def make_view(format):
     return View(**match)
 
 NON_LETTERS = re.compile('[^a-zA-Z]+')
-def scrape_document(id, cpool=None):
-    raw = json.load(get_document(id, cpool))
+def _v1_scrape_document(id, cpool=None):
+    raw = json.load(_v1_get_document(id, cpool))
 
     if 'error' in raw:
         raise DoesNotExist
@@ -112,6 +140,106 @@ def scrape_document(id, cpool=None):
         out['rin'] = doc['rin']
     
     return Doc(**out)
+
+DETAILS_SPECIAL = set(('title', 'docketId', 'docketTitle', 'docketType', 'documentId', 'documentType', 'agencyName', 'agencyAcronym', 'submitterName', 'rin', 'comment', 'attachmentCount', 'numItemsRecieved'))
+DETAIL_NAMES = {'docSubType': 'Document_Subtype', 'trackingNumber': 'Tracking_Number', 'cfrPart': 'CFR', 'organization': 'Organization_Name', 'zip': 'ZIP_Postal_Code', 'commentCategory': 'Category', 'govAgencyType': 'Government_Agency_Type'}
+INCONSISTENT_DOC_TYPES = dict(DOC_TYPES, **{'PROPOSED_RULES': 'proposed_rule', 'RULES': 'rule', 'NOTICES': 'notice'})
+def _v2v3_scrape_document(id, cpool=None):
+    doc2 = json.load(_v2_get_document(id, cpool))
+    doc3 = json.load(_v3_get_document(id, cpool))
+
+    if 'code' in doc3:
+        raise DoesNotExist
+
+    # pull out what used to be called 'details'
+    details = {}
+    special = {}
+    detail_template = set(['label', 'value'])
+    for key, contents in doc3.iteritems():
+        if type(contents) is dict and set(contents.keys()) == detail_template:
+            if key in DETAILS_SPECIAL:
+                special[key] = contents['value']
+            else:
+                detail_name = DETAIL_NAMES.get(key, NON_LETTERS.sub('_', contents['label']))
+                details[detail_name] = contents['value']
+
+    # deal with submitter name
+    if 'submitterName' in special:
+        parsed = IndividualNameCleaver(special['submitterName']).parse()
+        if parsed.first is not None:
+            details['First_Name'] = parsed.first
+        if parsed.last is not None:
+            details['Last_Name'] = parsed.last
+        if parsed.middle is not None:
+            middle = NON_LETTERS.sub('', parsed.middle)
+            details['Middle_Name' if len(middle) > 1 else 'Middle_Initial'] = parsed.middle
+
+    # deal with date types
+    for new_label, old_label in (('commentDueDate', 'Comment_Due_Date'), ('commentStartDate', 'Comment_Start_Date'), ('postedDate', 'Date_Posted'), ('receivedDate', 'Received_Date'), ('effectiveDate', 'Effective_Date'), ('postMarkDate', 'Post_Mark_Date')):
+        if new_label in doc3 and doc3[new_label]:
+            details[old_label] = dateutil.parser.parse(doc3[new_label])
+
+    # a couple of special cases
+    if 'status' in doc3:
+        details['Status'] = doc3['status']
+    
+    out = {
+        # basic metadata
+        'id': special['documentId'],
+        'title': unicode(special.get('title', '')),
+        'agency': special.get('agencyAcronym', ''),
+        'docket_id': special.get('docketId', ''),
+        'type': INCONSISTENT_DOC_TYPES[special['documentType']],
+        'topics': doc3.get('topics', []),
+        'scraped': 'yes',
+        'deleted': False,
+        
+        # details
+        'details': details,
+        
+        # views
+        'views': [make_view(format) for format in doc2['renditionTypes']] if 'renditionTypes' in doc2 and doc2['renditionTypes'] else []
+    }
+    out['fr_doc'] = out['type'] in set(('rule', 'proposed_rule', 'notice'))
+    if out['views']:
+        out['object_id'] = out['views'][0].object_id
+    
+    # conditional fields
+    if 'commentOnDoc' in doc3 and doc3['commentOnDoc'] and \
+        'documentId' in doc3['commentOnDoc'] and doc3['commentOnDoc']['documentId'] and \
+        'documentType' in doc3['commentOnDoc'] and doc3['commentOnDoc']['documentType']:
+        out['comment_on'] = {
+            'agency': doc3['commentOnDoc']['documentId'].split('-')[0],
+            'title': unicode(doc3['commentOnDoc']['title']),
+            'type': INCONSISTENT_DOC_TYPES[doc3['commentOnDoc']['documentType']],
+            'document_id': doc3['commentOnDoc']['documentId']
+        }
+        out['comment_on']['fr_doc'] =  out['comment_on']['type'] in set(('rule', 'proposed_rule', 'notice'))
+    
+    if 'comment' in special and special['comment']:
+        out['abstract'] = unicode(special['comment'])
+    
+    if 'attachments' in doc2 and doc2['attachments']:
+        attachments = []
+        for attachment in doc2['attachments']:
+            attachment = Attachment(**{
+                'title': unicode(attachment.get('title', '')),
+                'abstract': unicode(attachment.get('abstract', '')),
+                'views': [make_view(format) for format in attachment['formats']] if 'formats' in attachment and attachment['formats'] else []
+            })
+            if attachment.views:
+                attachment.object_id = attachment.views[0].object_id
+            attachments.append(attachment)
+        out['attachments'] = attachments
+    
+    if 'rin' in special and special['rin']:
+        out['rin'] = special['rin']
+    
+    return Doc(**out)
+
+scrape_document = _v2v3_scrape_document
+
+
 
 DOCKET_YEAR_FINDER = re.compile("[_-](\d{4})[_-]")
 
