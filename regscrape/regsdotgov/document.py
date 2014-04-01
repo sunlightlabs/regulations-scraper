@@ -1,7 +1,7 @@
 import re
 import urllib2, urllib3
 import json
-from regs_common.exceptions import DoesNotExist
+from regs_common.exceptions import DoesNotExist, RateLimitException
 from pytz import timezone
 import dateutil.parser
 import datetime
@@ -32,6 +32,24 @@ def check_date(value):
     
     return value
 
+RATE_CODES = set([503, 429])
+def ddg_request(url, cpool=None):
+    if cpool:
+        response = cpool.urlopen("GET", url, headers={'Accept': 'application/json,*/*'}, preload_content=False)
+        if response.status in RATE_CODES:
+            if 'rate' in response.read().lower():
+                raise RateLimitException()
+        return response
+    else:
+        req = urllib2.Request(url, headers={'Accept': 'application/json,*/*'})
+        try:
+            response = urllib2.urlopen(req)
+            return response
+        except urllib2.HTTPError as e:
+            if e.code in RATE_CODES and 'rate' in e.read().lower():
+                raise RateLimitException()
+            raise
+
 def _v1_get_document(id, cpool=None):
     url_args = {
         'api_key': RDG_API_KEY,
@@ -51,11 +69,7 @@ def _v2_get_document(id, cpool=None):
     }
     
     url = "http://api.data.gov/regulations/v2/document.json?" + '&'.join(['%s=%s' % arg for arg in url_args.items()])
-    if cpool:
-        return cpool.urlopen("GET", url, headers={'Accept': 'application/json'}, preload_content=False)
-    else:
-        req = urllib2.Request(url, headers={'Accept': 'application/json'})
-        return urllib2.urlopen(req)
+    return ddg_request(url, cpool)
 
 def _v3_get_document(id, cpool=None):
     url_args = {
@@ -64,11 +78,7 @@ def _v3_get_document(id, cpool=None):
     }
     
     url = "http://api.data.gov/regulations/beta/document.json?" + '&'.join(['%s=%s' % arg for arg in url_args.items()])
-    if cpool:
-        return cpool.urlopen("GET", url, headers={'Accept': 'application/json,*/*'}, preload_content=False)
-    else:
-        req = urllib2.Request(url, headers={'Accept': 'application/json,*/*'})
-        return urllib2.urlopen(req)
+    return ddg_request(url, cpool)
 
 FORMAT_PARSER = re.compile(r"http://www\.regulations\.gov/api/contentStreamer\?objectId=(?P<object_id>[0-9a-z]+)&disposition=attachment&contentType=(?P<type>[0-9a-z]+)")
 def make_view(format):
@@ -262,11 +272,7 @@ def _v3_get_docket(id, cpool=None):
     }
     
     url = "http://api.data.gov/regulations/beta/docket.json?" + '&'.join(['%s=%s' % arg for arg in url_args.items()])
-    if cpool:
-        return cpool.urlopen("GET", url, headers={'Accept': 'application/json,*/*'}, preload_content=False)
-    else:
-        req = urllib2.Request(url, headers={'Accept': 'application/json,*/*'})
-        return urllib2.urlopen(req)
+    return ddg_request(url, cpool)
 
 def _v1_scrape_docket(id, cpool=None):
     raw = json.load(_v1_get_docket(id, cpool))

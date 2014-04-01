@@ -8,11 +8,12 @@ import sys
 import os
 import traceback
 import pymongo
+import time
 
 import multiprocessing
 from Queue import Empty
 from regs_common.mp_types import Counter
-from regs_common.exceptions import DoesNotExist
+from regs_common.exceptions import DoesNotExist, RateLimitException
 
 from optparse import OptionParser
 arg_parser = OptionParser()
@@ -34,12 +35,6 @@ def process_record(record, num_succeeded, num_failed, cpool):
             new_doc.last_seen = record.last_seen
             print '[%s] Scraped doc %s...' % (os.getpid(), new_doc.id)
 
-            if record.views:
-                new_doc.views = record.views
-
-            if record.attachments:
-                new_doc.attachments = record.attachments
-
             num_succeeded.increment()
             break
         except DoesNotExist:
@@ -48,6 +43,9 @@ def process_record(record, num_succeeded, num_failed, cpool):
             break
         except KeyboardInterrupt:
             raise
+        except RateLimitException:
+            print '### Warning: scrape failed on try %s because of RATE LIMIT' % i
+            time.sleep(3600)
         except:
             print 'Warning: scrape failed on try %s' % i
             error = sys.exc_info()

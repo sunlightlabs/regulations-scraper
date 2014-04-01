@@ -6,3 +6,6 @@ class DoesNotExist(Exception):
 
 class ChildTimeout(Exception):
     pass
+
+class RateLimitException(Exception):
+    pass

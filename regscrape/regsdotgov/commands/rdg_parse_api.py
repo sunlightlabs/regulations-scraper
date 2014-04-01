@@ -3,7 +3,7 @@ GEVENT = False
 import os
 import settings
 import sys
-from search import parse
+from search import parse, iter_parse
 import pytz
 import datetime
 import operator
@@ -45,12 +45,10 @@ def reconcile_process(record, cache, db, now, repaired_counter, updated_counter,
     if new_record:
         # do we need to fix anything?
         statuses = [[view['downloaded'] for view in record.get('views', [])]] + [[view['downloaded'] for view in attachment.get('views', [])] for attachment in record.get('attachments', [])]
-        old_types = [set([view['type'] for view in record.get('views', [])])]
 
-        main_views = [make_view(format) for format in listify(new_record.get('fileFormats', []))]
-        new_types = [set([view.type for view in main_views])]
+        #main_views = [make_view(format) for format in listify(new_record.get('fileFormats', []))]
         
-        if record['scraped'] == 'failed' or 'failed' in reduce(operator.add, statuses, []) or old_types != new_types or len(record.get('attachments', [])) != new_record.get('attachmentCount', 0):
+        if record['scraped'] == 'failed' or 'failed' in reduce(operator.add, statuses, []) or (record['scraped'] == 'yes' and len(record.get('attachments', [])) != new_record.get('attachmentCount', 0)):
             # needs a repair; grab the full document
             current_docs = Doc.objects(id=record['_id'])
             
@@ -59,7 +57,7 @@ def reconcile_process(record, cache, db, now, repaired_counter, updated_counter,
             db_doc.scraped = "no"
             
             # rebuild views
-            repair_views(db_doc.views, main_views)
+            #repair_views(db_doc.views, main_views)
             
             # update the last-seen date
             db_doc.last_seen = now
@@ -120,27 +118,12 @@ def add_new_docs(cache_wrapper, now):
             'id': doc['documentId'],
             'title': unicode(doc.get('title', '')),
             'docket_id': doc['docketId'],
-            'agency': doc['agency'],
+            'agency': doc['agencyAcronym'],
             'type': DOC_TYPES[doc['documentType']],
             'fr_doc': DOC_TYPES[doc['documentType']] in FR_DOC_TYPES,
             'last_seen': now,
             'created': now
         })
-
-        if 'fileFormats' in doc and doc['fileFormats']:
-            for format in listify(doc.get('fileFormats', [])):
-                db_doc.views.append(make_view(format))
-            db_doc.object_id = db_doc.views[0].object_id
-
-        for attachment in listify(doc.get('attachments', {}).get('attachment', [])):
-            db_attachment = Attachment(**{
-                'title': unicode(attachment['title']),
-                'abstract': unicode(attachment['abstract']) if 'abstract' in attachment and attachment['abstract'] else None,
-                'views': [make_view(format) for format in listify(attachment.get('fileFormats', []))]
-            })
-            if db_attachment.views:
-                db_attachment.object_id = db_attachment.views[0].object_id
-            db_doc.attachments.append(db_attachment)
         
         try:
             db_doc.save()
@@ -210,14 +193,16 @@ def reconcile_dumps(options, cache_wrapper, now):
     
     return {'updated': num_updated, 'repaired': num_repaired, 'deleted': num_deleted}
 
-def parser_process(file, cache):    
-    docs = parse(os.path.join(settings.DUMP_DIR, file))
+def parser_process(file, cache):
+    docs = iter_parse(os.path.join(settings.DUMP_DIR, file))
     print '[%s] Done with JSON decode.' % os.getpid()
     
-    for doc in listify(docs['searchresult']['documents']['document']):
+    count = 0
+    for doc in docs:
         cache.set(doc['documentId'], doc)
+        count += 1
     
-    return {'docs': len(docs)}
+    return {'docs': count}
 
 def parser_worker(todo_queue, done_queue, cache_wrapper):
     pid = os.getpid()

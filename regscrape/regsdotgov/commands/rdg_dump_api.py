@@ -4,7 +4,7 @@ arg_parser.add_option("-a", "--agency", dest="agency", action="store", type="str
 arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="string", default=None, help="Specify a docket to which to limit the dump.")
 
 def run(options, args):
-    import urllib2
+    import urllib2, httplib
     import settings
     import os, time, sys
     from regsdotgov.search import search, parsed_search
@@ -29,7 +29,7 @@ def run(options, args):
     
     # start new dumps
     position = 0
-    total = parsed_search(1, 0, **search_args)['searchresult']['recordCount']
+    total = parsed_search(1, 0, **search_args)['totalNumRecords']
     num_digits = len(str(settings.DUMP_END))
     while position <= total:
         for i in range(3):
@@ -43,10 +43,14 @@ def run(options, args):
                 )
                 stats['downloaded'] += 1
                 break
-            except urllib2.HTTPError:
+            except (urllib2.HTTPError, httplib.HTTPException) as e:
                 if i < 2:
-                    print 'Download failed; will retry in 10 seconds...'
-                    time.sleep(10)
+                    if hasattr(e, code) and e.code in (503, 429) and 'rate' in e.read().lower():
+                        print 'Download failed because of rate limiting; will retry in an hour...'
+                        time.sleep(3600)
+                    else:
+                        print 'Download failed; will retry in 10 seconds...'
+                        time.sleep(10)
                 else:
                     print 'System troubles; giving up.'
                     raise
