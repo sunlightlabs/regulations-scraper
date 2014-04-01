@@ -138,7 +138,7 @@ def add_to_search(options, args):
             es_doc['identifiers'].append(doc.details['Federal_Register_Number'])
 
         if doc.details.get('FR_Citation', None):
-            es_doc['identifiers'].append(doc.details['FR_Citation'].replate(' ', ''))
+            es_doc['identifiers'].append(doc.details['FR_Citation'].replace(' ', ''))
 
         return es_doc
 
@@ -150,6 +150,10 @@ def add_to_search(options, args):
 
     ### Actually do everything ###
     def flush(queue, ids, collection):
+        # no need to do anything if there aren't any docs to add
+        if not ids:
+            return
+        
         # save current queue to ES
         es_status = es._bulk.post(data="\n".join(queue))
         print 'saved %s to ES' % ", ".join(ids)

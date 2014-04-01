@@ -10,7 +10,7 @@ def run():
         'td_type': 'organization',
         'stats.count': {'$gt': 0},
         'searchable': False
-    }).update(set__searchable=True, safe_update=True, multi=True)
+    }).update(set__searchable=True, multi=True)
 
     # mark the ones that are searchable but shouldn't be unsearchable
     Entity.objects(__raw__={
@@ -19,6 +19,6 @@ def run():
             {'stats.count': {'$not': {'$gt': 0}}}
         ],
         'searchable': True
-    }).update(set__searchable=False, safe_update=True, multi=True)
+    }).update(set__searchable=False, multi=True)
 
     print "Update complete."
