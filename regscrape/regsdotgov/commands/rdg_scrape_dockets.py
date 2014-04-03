@@ -41,6 +41,9 @@ def process_record(record, num_succeeded, num_failed, cpool):
             print 'Warning: scrape failed on try %s with server exception: %s' % (i, error[1])
         except KeyboardInterrupt:
             raise
+        except RateLimitException:
+            print '### Warning: scrape failed on try %s because of RATE LIMIT' % i
+            time.sleep(3600)
         except:
             error = sys.exc_info()
             print 'Warning: scrape failed on try %s' % i
