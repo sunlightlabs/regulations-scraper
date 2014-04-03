@@ -12,7 +12,7 @@ import pymongo
 import multiprocessing
 from Queue import Empty
 from regs_common.mp_types import Counter
-from regs_common.exceptions import DoesNotExist
+from regs_common.exceptions import DoesNotExist, RateLimitException
 
 from optparse import OptionParser
 arg_parser = OptionParser()
@@ -37,8 +37,9 @@ def process_record(record, num_succeeded, num_failed, cpool):
             break
         except DoesNotExist:
             error = sys.exc_info()
-            # treat like any other error
             print 'Warning: scrape failed on try %s with server exception: %s' % (i, error[1])
+            # no need to try three times
+            break
         except KeyboardInterrupt:
             raise
         except RateLimitException:
