@@ -33,6 +33,7 @@ def process_record(record, num_succeeded, num_failed, cpool):
         try:
             new_doc = scrape_document(record.id, cpool)
             new_doc.last_seen = record.last_seen
+            new_doc.created = record.created
             print '[%s] Scraped doc %s...' % (os.getpid(), new_doc.id)
 
             num_succeeded.increment()
@@ -115,13 +116,13 @@ def run(options, args):
         conditions['agency'] = options.agency
     if options.docket:
         conditions['docket_id'] = options.docket
-    to_scrape = Doc.objects(**conditions).only('id', 'last_seen', 'views', 'attachments')
+    to_scrape = Doc.objects(**conditions).only('id', 'last_seen', 'created', 'views', 'attachments')
     
     while True:
         try:
             record = to_scrape.next()
         except pymongo.errors.OperationFailure:
-            to_scrape = Doc.objects(**conditions).only('id', 'last_seen', 'views', 'attachments')
+            to_scrape = Doc.objects(**conditions).only('id', 'last_seen', 'created', 'views', 'attachments')
             continue
         except StopIteration:
             break
