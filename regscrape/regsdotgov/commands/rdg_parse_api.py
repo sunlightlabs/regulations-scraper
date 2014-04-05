@@ -3,7 +3,7 @@ GEVENT = False
 import os
 import settings
 import sys
-from search import parse, iter_parse
+from search import parse, iter_parse, result_to_model
 import pytz
 import datetime
 import operator
@@ -28,8 +28,6 @@ arg_parser.add_option("-u", "--use-cache", dest="use_cache", action="store", def
 arg_parser.add_option("-A", "--add-only", dest="add_only", action="store_true", default=False, help="Skip reconciliation, assume that all records are new, and go straight to the add step.")
 arg_parser.add_option("-a", "--agency", dest="agency", action="store", type="string", default=None, help="Specify an agency to which to limit the dump.")
 arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="string", default=None, help="Specify a docket to which to limit the dump.")
-
-FR_DOC_TYPES = set(['notice', 'rule', 'proposed_rule'])
 
 def repair_views(old_views, new_views):
     for new_view in new_views:
@@ -114,16 +112,7 @@ def add_new_docs(cache_wrapper, now):
         if doc.get('documentStatus', None) == "Withdrawn":
             continue
 
-        db_doc = Doc(**{
-            'id': doc['documentId'],
-            'title': unicode(doc.get('title', '')),
-            'docket_id': doc['docketId'],
-            'agency': doc['agencyAcronym'],
-            'type': DOC_TYPES[doc['documentType']],
-            'fr_doc': DOC_TYPES[doc['documentType']] in FR_DOC_TYPES,
-            'last_seen': now,
-            'created': now
-        })
+        db_doc = result_to_model(doc, now=now)
         
         try:
             db_doc.save()

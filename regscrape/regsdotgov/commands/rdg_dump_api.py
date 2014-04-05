@@ -45,7 +45,7 @@ def run(options, args):
                 break
             except (urllib2.HTTPError, httplib.HTTPException) as e:
                 if i < 2:
-                    if hasattr(e, code) and e.code in (503, 429) and 'rate' in e.read().lower():
+                    if hasattr(e, 'code') and e.code in (503, 429) and 'rate' in e.read().lower():
                         print 'Download failed because of rate limiting; will retry in an hour...'
                         time.sleep(3600)
                     else:
