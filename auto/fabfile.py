@@ -5,9 +5,7 @@ import os, sys, json
 
 VERBOSE = False
 
-TASKS = [
-    ('local', ['rdg_dump_api']),
-    ('local', ['rdg_parse_api']),
+TASKS_ALWAYS = [
     ('local', ['rdg_scrape']),
     ('local', ['rdg_download']),
     ('local', ['extract']),
@@ -15,13 +13,28 @@ TASKS = [
     ('local', ['rdg_scrape_dockets']),
     ('local', ['match_text']),
     ('local', ['add_to_search']),
-    ('local', ['run_aggregates'])
 ]
+
+TASK_SETS = {
+    'major': [
+        ('local', ['rdg_dump_api']),
+        ('local', ['rdg_parse_api']),
+    ] + TASKS_ALWAYS + [
+        ('local', ['run_aggregates', '-A'])
+    ],
+
+    'minor': [
+        ('local', ['rdg_simple_update']),
+    ] + TASKS_ALWAYS + [
+        ('local', ['run_aggregates'])
+    ]
+}
 
 ADMINS = []
 EMAIL_SENDER = ''
 EMAIL_API_KEY = ''
 LOCK_DIR = '/tmp'
+LOG_DIR = '/var/log/scrape'
 
 try:
     from local_settings import *
@@ -70,7 +83,7 @@ def release_lock():
     os.unlink(lock_path)
 
 @hosts(ssh_config('regs-fe'))
-def run_regs(start_with='rdg_dump_api', end_with='run_aggregates'):
+def run_regs(start_with=None, end_with=None, task_set=None):
     try:
         # use a lock file to keep multiple instances from trying to run simultaneously, which, among other things, consumes all of the memory on the high-CPU instance
         acquire_lock()
@@ -80,10 +93,33 @@ def run_regs(start_with='rdg_dump_api', end_with='run_aggregates'):
             send_email(ADMINS, "Aborting: can't acquire lock", "Can't start processing due to inability to acquire lock.")
         
         sys.exit(1)
+
+    # get some logging stuff ready
+    now = datetime.datetime.now()
+    today = now.date().isoformat()
+    month = today.rsplit('-', 1)[0]
+    month_log_path = os.path.join(LOG_DIR, month)
+    if not os.path.exists(month_log_path):
+        os.mkdir(month_log_path)
+
+    if not (task_set and task_set in TASK_SETS):
+        # is it Sunday?
+        is_sunday = now.weekday() == 6
+
+        # have we run already today?
+        run_already = len([log_file for log_file in os.listdir(month_log_path) if log_file.startswith(today)]) > 0
+
+        if is_sunday and not run_already:
+            task_set = 'major'
+        else:
+            task_set = 'minor'
+    all_tasks = TASK_SETS[task_set]
+
+    print 'Starting task set "%s"...' % task_set
     
-    first_task_idx = [i for i in range(len(TASKS)) if TASKS[i][1][0] == start_with][0]
-    last_task_idx = [i for i in range(len(TASKS)) if TASKS[i][1][0] == end_with][0]
-    tasks = TASKS[first_task_idx:(last_task_idx+1)]
+    first_task_idx = [i for i in range(len(all_tasks)) if all_tasks[i][1][0] == start_with][0]
+    last_task_idx = [i for i in range(len(all_tasks)) if all_tasks[i][1][0] == end_with][0]
+    tasks = all_tasks[first_task_idx:(last_task_idx+1)]
     runners = {
         'remote': run_remote,
         'local': run_local
@@ -103,5 +139,9 @@ def run_regs(start_with='rdg_dump_api', end_with='run_aggregates'):
             handle_completion('Aborting at step: %s' % command[0], results)
             sys.exit(1)
     handle_completion('All steps completed.', results)
+
+    logfile = open(os.path.join(month_log_path, now.isoformat() + ".json"), "w")
+    logfile.write(json.dumps(results, indent=4))
+    logfile.close()
 
     release_lock()
