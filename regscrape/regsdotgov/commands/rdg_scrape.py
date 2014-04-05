@@ -27,7 +27,7 @@ def process_record(record, num_succeeded, num_failed, cpool):
     
     new_doc = None
     
-    for i in range(3):
+    for i in range(2):
         error = None
         removed = False
         try:

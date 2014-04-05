@@ -27,7 +27,7 @@ def process_record(record, num_succeeded, num_failed, cpool):
     
     docket = None
     
-    for i in range(3):
+    for i in range(2):
         error = None
         try:
             docket = scrape_docket(record.id, cpool)
