@@ -1,7 +1,7 @@
 from fabric.api import *
 from ssh_util import *
 from collections import OrderedDict
-import os, sys, json
+import os, sys, json, datetime
 
 VERBOSE = False
 
@@ -116,6 +116,9 @@ def run_regs(start_with=None, end_with=None, task_set=None):
     all_tasks = TASK_SETS[task_set]
 
     print 'Starting task set "%s"...' % task_set
+    
+    start_with = start_with if start_with is not None else all_tasks[0][1][0]
+    end_with = end_with if end_with is not None else all_tasks[-1][1][0]
     
     first_task_idx = [i for i in range(len(all_tasks)) if all_tasks[i][1][0] == start_with][0]
     last_task_idx = [i for i in range(len(all_tasks)) if all_tasks[i][1][0] == end_with][0]
