@@ -22,6 +22,8 @@ def run(options, args):
     # once 2.2 is final, this can trivially be replaced with a $group + $addToSet pipeline using the new aggregation framework
     dockets = defaultdict(set)
     for doc in db.docs.find(conditions, fields=['docket_id', 'agency']):
+        if 'docket_id' not in doc:
+            continue
         dockets[doc['docket_id']].add(doc['agency'])
 
     for docket_id, agencies in dockets.iteritems():
