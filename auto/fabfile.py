@@ -20,13 +20,15 @@ TASK_SETS = {
         ('local', ['rdg_dump_api']),
         ('local', ['rdg_parse_api']),
     ] + TASKS_ALWAYS + [
-        ('local', ['run_aggregates', '-A'])
+        ('local', ['run_aggregates', '-A']),
+        ('remote', ['analyze_regs', '-F']),
     ],
 
     'minor': [
         ('local', ['rdg_simple_update']),
     ] + TASKS_ALWAYS + [
-        ('local', ['run_aggregates'])
+        ('local', ['run_aggregates']),
+        ('remote', ['analyze_regs', '-F']),
     ]
 }
 
@@ -58,8 +60,8 @@ def run_local(command):
     return out
 
 def run_remote(command):
-    with cd('~/regulations-scraper/regscrape'):
-        with prefix('source ~/.virtualenvs/scraper/bin/activate'):
+    with cd('~/sparerib'):
+        with prefix('source ~/.virtualenvs/sparerib_pypy/bin/activate'):
             return run(command)
 
 def handle_completion(message, results):
@@ -130,7 +132,7 @@ def run_regs(start_with=None, end_with=None, task_set=None):
     results = OrderedDict()
     for func, command in tasks:
         try:
-            output = runners[func](' '.join(['./run.py'] + command + ['--parsable']))
+            output = runners[func](' '.join(['./run.py' if func == 'local' else './manage.py'] + command + ['--parsable']))
             try:
                 results[command[0]] = json.loads(output)
             except ValueError:
