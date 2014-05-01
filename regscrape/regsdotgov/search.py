@@ -36,7 +36,7 @@ def _v3_search(per_page, position, **args):
     for key, value in args.items():
         url_args[ARG_NAMES.get(key, key)] = value
     
-    url = "http://api.data.gov/regulations/beta/documents.json?" + '&'.join(['%s=%s' % arg for arg in url_args.items()])
+    url = "http://api.data.gov/regulations/v3/documents.json?" + '&'.join(['%s=%s' % arg for arg in url_args.items()])
     req = urllib2.Request(url, headers={'Accept': 'application/json,*/*'})
     return urllib2.urlopen(req)
 

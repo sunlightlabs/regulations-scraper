@@ -77,7 +77,7 @@ def _v3_get_document(id, cpool=None):
         'documentId': id
     }
     
-    url = "http://api.data.gov/regulations/beta/document.json?" + '&'.join(['%s=%s' % arg for arg in url_args.items()])
+    url = "http://api.data.gov/regulations/v3/document.json?" + '&'.join(['%s=%s' % arg for arg in url_args.items()])
     return ddg_request(url, cpool)
 
 FORMAT_PARSER = re.compile(r"http://www\.regulations\.gov/api/contentStreamer\?objectId=(?P<object_id>[0-9a-z]+)&disposition=attachment&contentType=(?P<type>[0-9a-z]+)")
@@ -271,7 +271,7 @@ def _v3_get_docket(id, cpool=None):
         'docketId': id
     }
     
-    url = "http://api.data.gov/regulations/beta/docket.json?" + '&'.join(['%s=%s' % arg for arg in url_args.items()])
+    url = "http://api.data.gov/regulations/v3/docket.json?" + '&'.join(['%s=%s' % arg for arg in url_args.items()])
     return ddg_request(url, cpool)
 
 def _v1_scrape_docket(id, cpool=None):
