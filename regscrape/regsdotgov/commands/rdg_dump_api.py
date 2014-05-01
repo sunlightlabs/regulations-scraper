@@ -29,16 +29,17 @@ def run(options, args):
     
     # start new dumps
     position = 0
+    increment = 1000
     total = parsed_search(1, 0, **search_args)['totalNumRecords']
     num_digits = len(str(settings.DUMP_END))
     while position <= total:
         for i in range(3):
             try:
-                current_str = (position / settings.DUMP_INCREMENT) + 1
-                total_str = '?' if total == 1 else (total / settings.DUMP_INCREMENT) + 1
+                current_str = (position / increment) + 1
+                total_str = '?' if total == 1 else (total / increment) + 1
                 print "Downloading page %s of %s..." % (current_str, total_str)
                 download(
-                    search(settings.DUMP_INCREMENT, position, **search_args),
+                    search(increment, position, **search_args),
                     os.path.join(settings.DUMP_DIR, 'dump_%s_%s.json' % (id_string, str(position).zfill(num_digits))),
                 )
                 stats['downloaded'] += 1
@@ -55,6 +56,6 @@ def run(options, args):
                     print 'System troubles; giving up.'
                     raise
         
-        position += settings.DUMP_INCREMENT
+        position += increment
     
     return stats
