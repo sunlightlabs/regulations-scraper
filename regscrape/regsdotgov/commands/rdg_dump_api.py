@@ -10,15 +10,19 @@ def run(options, args):
     from regsdotgov.search import search, parsed_search
     from regs_common.transfer import download
 
-    search_args = {}
+    search_args = {
+        # order ascending by posted date to reduce pagination errors
+        "sb": "postedDate",
+        "so": "ASC"
+    }
     id_string = 'all'
     if options.agency and options.docket:
         raise Exception("Specify either an agency or a docket")
     elif options.agency:
-        search_args = {'agency': options.agency}
+        search_args['agency'] = options.agency
         id_string = 'agency_' + options.agency
     elif options.docket:
-        search_args = {'docket': options.docket}
+        search_args['docket'] = options.docket
         id_string = 'docket_' + options.docket.replace('-', '_')
 
     # delete old dumps
