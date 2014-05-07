@@ -19,7 +19,7 @@ from optparse import OptionParser
 arg_parser = OptionParser()
 arg_parser.add_option("-s", "--since", dest="since", action="store", type="string", default=None, help="Manually specify search start date.")
 
-def run():
+def run(options, args):
     print 'Retrieving current document IDs...'
     
     # HACK - pull ids via shell because doing it in Python is slow
