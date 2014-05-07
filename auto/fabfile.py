@@ -142,6 +142,8 @@ def run_regs(start_with=None, end_with=None, task_set=None):
         except SystemExit:
             results[command[0]] = 'failed'
             handle_completion('Aborting at step: %s' % command[0], results)
+            if command[0] == "rdg_simple_update":
+                release_lock()
             sys.exit(1)
     handle_completion('All steps completed.', results)
 
