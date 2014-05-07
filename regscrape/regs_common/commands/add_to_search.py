@@ -163,11 +163,11 @@ def add_to_search(options, args):
             print 'falling back to iterative save...'
             # iterate over the queue pair-wise
             for command, record in itertools.izip(*[iter(queue)]*2):
-                meta = command['index']
+                meta = json.loads(command)['index']
                 params = {'parent': meta['_parent']} if '_parent' in meta else {}
 
-                es_index = getattribute(es, meta['_index'])
-                es_type = getattribute(es_index, meta['_type'])
+                es_index = getattr(es, meta['_index'])
+                es_type = getattr(es_index, meta['_type'])
 
                 es_status = es_type[meta['_id']].put(data=record, params=params)
                 print 'saved %s to ES as %s' % (meta['_id'], es_status['_id'])
