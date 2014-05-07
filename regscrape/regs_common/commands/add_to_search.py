@@ -7,7 +7,7 @@ arg_parser.add_option("-d", "--docket", dest="docket", action="store", type="str
 arg_parser.add_option("-A", "--all", dest="process_all", action="store_true", default=False, help="Replace existing search data with new data.")
 
 from regs_models import *
-import urllib2, json, traceback, datetime, zlib, pymongo, pytz
+import urllib2, json, traceback, datetime, zlib, pymongo, pytz, itertools
 import rawes, requests, thrift
 
 def run(options, args):
@@ -155,9 +155,23 @@ def add_to_search(options, args):
             return
         
         # save current queue to ES
-        es_status = es._bulk.post(data="\n".join(queue))
-        print 'saved %s to ES' % ", ".join(ids)
+        try:
+            es_status = es._bulk.post(data="\n".join(queue))
+            print 'saved %s to ES' % ", ".join(ids)
+        except rawes.elastic_exception.ElasticException:
+            # sometimes the bulk save fails for some reason; fall back to traditional iterative safe if so
+            print 'falling back to iterative save...'
+            # iterate over the queue pair-wise
+            for command, record in itertools.izip(*[iter(queue)]*2):
+                meta = command['index']
+                params = {'parent': meta['_parent']} if '_parent' in meta else {}
 
+                es_index = getattribute(es, meta['_index'])
+                es_type = getattribute(es_index, meta['_type'])
+
+                es_status = es_type[meta['_id']].put(data=record, params=params)
+                print 'saved %s to ES as %s' % (meta['_id'], es_status['_id'])
+        
         # update mongo docs
         collection.update({'_id': {'$in': ids}}, {'$set': {'in_search_index': True}}, multi=True, safe=True)
 
