@@ -15,6 +15,10 @@ import itertools
 import urllib2, httplib
 from regs_models import *
 
+from optparse import OptionParser
+arg_parser = OptionParser()
+arg_parser.add_option("-s", "--since", dest="since", action="store", type="string", default=None, help="Manually specify search start date.")
+
 def run():
     print 'Retrieving current document IDs...'
     
@@ -27,23 +31,31 @@ def run():
     )
     ids = set(json.load(count_proc.stdout))
 
-    print "Retrieving date of most recent document..."
-    recent_agg = Doc._get_collection().aggregate([
-        {
-            "$group": {
-                "_id": 0,
-                "max": {
-                    "$max": "$details.Date_Posted"
+    now = datetime.datetime.now()
+
+    if options.since:
+        most_recent = datetime.datetime.strptime(options.since, "%Y-%m-%d")
+        print "Done; start date manually set to %s and total documents indexed is %s." % (most_recent.isoformat(), len(ids))
+    else:
+        print "Retrieving date of most recent document..."
+        recent_agg = Doc._get_collection().aggregate([
+            {
+                "$group": {
+                    "_id": 0,
+                    "max": {
+                        "$max": "$details.Date_Posted"
+                    }
                 }
             }
-        }
-    ]);
-    most_recent = recent_agg['result'][0]['max']
+        ]);
+        most_recent = recent_agg['result'][0]['max']
 
-    print "Done; last document is from %s and total documents indexed is %s." % (most_recent.isoformat(), len(ids))
-    
-    now = datetime.datetime.now()
-    
+        print "Done; last document is from %s and total documents indexed is %s." % (most_recent.isoformat(), len(ids))
+        
+        if most_recent > now:
+            most_recent = now
+            print "Overriding most recent to now."
+        
     search_args = {
         # date range from one day before the most recent until one day after now
         "pd": "-".join([d.strftime("%m/%d/%y") for d in (most_recent - datetime.timedelta(days=1), now + datetime.timedelta(days=1))]),
@@ -82,7 +94,7 @@ def run():
                     print 'System troubles; giving up.'
                     raise
 
-        for result in page['documents']:
+        for result in page.get('documents', []):
             if result['documentId'] in ids:
                 stats['existing_records'] += 1
             else:
