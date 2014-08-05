@@ -26,7 +26,7 @@ def run(options, args):
     count_proc = subprocess.Popen(
         ["mongo", settings.DB_NAME] +\
             list(itertools.chain.from_iterable([("--%s" % key, str(value)) for key, value in settings.DB_SETTINGS.items()])) +\
-            ["--quiet", "--eval", "printjson(db.docs.find({deleted:false},{_id:1}).map(function(i){return i._id;}))"],
+            ["--quiet", "--eval", "printjson(db.docs.find({source:'regulations.gov',deleted:false},{_id:1}).map(function(i){return i._id;}))"],
         stdout=subprocess.PIPE
     )
     ids = set(json.load(count_proc.stdout))
@@ -39,6 +39,12 @@ def run(options, args):
     else:
         print "Retrieving date of most recent document..."
         recent_agg = Doc._get_collection().aggregate([
+            {
+                "$match": {
+                    "source": "regulations.gov",
+                    "deleted": False
+                }
+            },
             {
                 "$group": {
                     "_id": 0,
