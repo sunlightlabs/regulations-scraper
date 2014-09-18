@@ -15,7 +15,7 @@ FILTER = {}
 INSTANCES = 2
 THREADS_PER_INSTANCE = 2
 
-SITES = ['regsdotgov']
+SITES = ['regsdotgov', 'sec_cftc']
 
 try:
     from local_settings import *
