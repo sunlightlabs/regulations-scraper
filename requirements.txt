@@ -1,7 +1,7 @@
--e git+https://github.com/SiteSupport/gevent.git#egg=gevent
+gevent
 pytz
 lxml
-PIL
+Pillow
 -e git+https://github.com/jodal/pykka.git@v0.12#egg=pykka
 pymongo
 -e git+https://github.com/mikemaccana/python-docx.git#egg=docx
@@ -13,10 +13,12 @@ pymongo
 isoweek
 
 # redis-based sync requirements
--e git+https://github.com/pietern/hiredis-py.git#egg=hiredis
+hiredis
 redis
 
 mongoengine
 html2text
 urllib3
 rawes
+
+pyquery

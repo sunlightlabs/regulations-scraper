@@ -1,6 +1,6 @@
 #!/bin/bash
 apt-get update
-apt-get install -y build-essential python2.7-dev git mercurial python-pip python-virtualenv virtualenvwrapper puf openbox libxslt1-dev libxml2-dev html2text poppler-utils ghostscript antiword catdoc libjpeg8-dev libwpd-tools unrtf
+apt-get install -y build-essential python2.7-dev git mercurial python-pip python-virtualenv virtualenvwrapper puf openbox libxslt1-dev libxml2-dev zlib1g-dev html2text poppler-utils ghostscript antiword catdoc libjpeg8-dev libwpd-tools unrtf
 
 mkdir /tmp/tesseract
 cd /tmp/tesseract
