@@ -1,6 +1,6 @@
 GEVENT = False
 
-import urllib2, re, json, os
+import urllib2, re, json, os, sys
 from pyquery import PyQuery as pq
 from lxml import etree
 from collections import OrderedDict, defaultdict
@@ -10,6 +10,46 @@ parser = etree.HTMLParser()
 
 def fix_spaces(text):
     return re.sub(u"[\s\xa0]+", " ", text)
+
+def check_date(date):
+    assert re.match("^\d+/\d+/\d+$", date), "expected date of form MM/DD/YYYY"
+
+def file_obj_from_url(url, existing_files=None):
+    # current style
+    matches = re.findall(r"CommentList.aspx\?id=(\d+)", url)
+    if matches:
+        return {
+            'url': url,
+            'id': matches[0],
+            'strategy': 'current'
+        }
+
+    # SIRT
+    matches = re.findall(r"sirt.aspx\?.*&Key=(\d+)", url)
+    if matches:
+        out = {
+            'url': url,
+            'id': "SIRT-%s" % matches[0],
+            'strategy': 'sirt'
+        }
+        if existing_files:
+            non_sirt = [f for f in existing_files if f['strategy'] != 'sirt']
+            if non_sirt:
+                out['parent'] = non_sirt[0]['id']
+        return out
+    elif 'sirt.cftc.gov' in url:
+        # this is broken input, but there's nothing we can do about it
+        return None
+    
+    assert matches, "no ID found: %s" % url
+
+def expand_comment_link(url):
+    if "://" in url:
+        return url
+    elif url.startswith("/"):
+        return "http://comments.cftc.gov%s" % url
+    else:
+        return "http://comments.cftc.gov/PublicComments/%s" % url
 
 def parse_current_listing(year):
     page_data = urllib2.urlopen(year['url']).read()
@@ -22,6 +62,7 @@ def parse_current_listing(year):
 
         main_link = row.find('p a[id*=ReleaseLink]')
         main_link_text = main_link.text().strip()
+        main_link_url = expand_comment_link(main_link.attr('href'))
         assert len(main_link) == 1, "found more than one main link"
         
         paras = []
@@ -33,24 +74,124 @@ def parse_current_listing(year):
         doc = {
             'doctype': doctype,
             'title': fix_spaces(paras[0]) if doctype != "General CFTC" else main_link_text,
-            'url': main_link.attr('href'),
+            'url': None,
             'description': (fix_spaces(paras[1]) if len(paras) > 1 else None) if doctype != "General CFTC" else fix_spaces(paras[0]),
-            'details': {}
+            'details': {},
+            'file_info': []
         }
 
+        pdf_link = row.find('p a[id*=PDFLink]')
+        if len(pdf_link):
+            doc['pdf_link'] = pdf_link.attr('href')
 
         if re.match("\d+ FR \d+", main_link_text):
             doc['details']['Federal Register Citation'] = main_link_text
 
-        fr_num_match = re.match('http://www.cftc.gov/LawRegulation/FederalRegister/[A-Za-z]+/(?P<fr_num>([A-Z0-9]+-)?(19|20)\d{2}-\d+)(-\d+)?.html', doc['url'])
+        fr_num_match = re.match('http://www.cftc.gov/LawRegulation/FederalRegister/[A-Za-z]+/(?P<fr_num>([A-Z0-9]+-)?(19|20)\d{2}-\d+)(-\d+)?.html', main_link_url)
         if fr_num_match:
             doc['details']['Federal Register Number'] = fr_num_match.groupdict()['fr_num']
 
+        open_date = row.find('div[id*=DateWrapper] div[id*=OpenDate]')
+        if len(open_date):
+            odate = open_date.text().split(":")[-1].strip()
+            check_date(odate)
 
-        print doc
+            doc['date'] = odate
+            doc['details']['Comment Start Date'] = odate
+
+        closing_date = row.find('div[id*=DateWrapper] div[id*=ClosingDate]')
+        if len(closing_date):
+            cdate = closing_date.text().split(":")[-1].strip()
+            check_date(cdate)
+
+            doc['details']['Comment Due Date'] = cdate
+
+        see_also = row.find('div[style*=border]')
+        if len(see_also):
+            doc['details']['See also'] = []
+        for sa_row in see_also.items():
+            sa_link = sa_row.find('a[id*=ReleaseLink]')
+            assert len(sa_link) == 1, "expected one release link; found %s" % len(sa_link)
+
+            doc['details']['See also'].append({
+                'url': expand_comment_link(sa_link.attr('href')),
+                'label': sa_link.text().strip()
+            })
+
+        view_comments_link = row.find('a[id*=ViewComment]')
+        assert len(view_comments_link) <= 1, "Too many comment links"
+        if len(view_comments_link):
+            url = expand_comment_link(view_comments_link.attr('href'))
+            assert 'sirt.cftc.gov' in url or 'CommentList.aspx' in url, 'unrecognized URL type'
+            obj = file_obj_from_url(url, doc['file_info'])
+            if obj:
+                doc['file_info'].append(obj)
+
+        if 'sirt.cftc.gov' in main_link_url:
+            # this is a link to a listing of documents, not to a document, so add it to the file_info listing if it's not already in there
+            if main_link_url not in [fi['url'] for fi in doc['file_info']]:
+                obj = file_obj_from_url(main_link_url, doc['file_info'])
+                if obj:
+                    doc['file_info'].append(obj)
+        else:
+            doc['url'] = main_link_url
+
+
+        print json.dumps(doc, indent=4)
 
 def parse_old_listing(year):
-    pass
+    page_data = urllib2.urlopen(year['url']).read()
+    page = pq(etree.fromstring(page_data, parser))
+
+    # iterate over fr doc groups
+    for row in page('.row .column-item').items():
+        links = row.find('a[href]')
+        assert len(links) in (1, 2), "Unexpected number of links: %s" % len(links)
+
+        paras = [para.strip() for para in re.sub("<br ?/>", "\n", re.sub("\s+", " ", row.html())).strip().split("\n\n")]
+
+        # what kind of link the first link is decides what we do with the rest of it
+        first_url = links.eq(0).attr('href')
+        print first_url.encode('utf8')
+
+        doctypes = re.findall(r"Comment File for ([^<\n]+)", paras[0])
+        if 'PublicComments' in first_url:
+            # it should have two links total, one to the comment list and one to the FR doc
+            assert len(links) == 2, "Unexpected number of links: %s" % len(links)
+            second_link = links.eq(1)
+            second_link_text = second_link.text().strip()
+
+            doc = {
+                'doctype': doctypes[0].strip() if doctypes else None,
+                'url': expand_comment_link(second_link.attr('href')),
+                'details': {},
+                'file_info': []
+            }
+
+            if re.match("\d+ FR \d+", second_link_text):
+                doc['title'] = fix_spaces(paras[1])
+                doc['description'] = None
+
+                doc['details']['Federal Register Citation'] = second_link_text
+                fr_matches = re.findall("^http://www.cftc.gov/LawRegulation/FederalRegister/([A-Za-z0-9-]+)$", doc['url'])
+                if fr_matches:
+                    doc['details']['Federal Register Number'] = fr_matches[0]
+            else:
+                # deal with this weird press release situation
+                doc['title'] = second_link_text
+                doc['description'] = paras[0].split("</a>")[-1].strip()
+
+            print doc
+
+        elif 'sirt.cftc.gov' in first_url or 'services.cftc.gov' in first_url:
+            # it should have just one link, to the document listing
+            assert len(links) == 1, "Unexpected number of links: %s" % len(links)
+
+        for date_type, label in (('Comment Start Date', 'Comments Open Date'), ('Comment Due Date', 'Comments Closing Date'), ('Extended Comment Due Date', 'Comments Extended Date')):
+            date_match = re.findall(label + ": (\d+/\d+/\d+)", paras[-1], flags=re.MULTILINE)
+            if date_match:
+                doc['details'][date_type] = date_match[0]
+        assert len(doc['details']) > 0, "expected to find some details"
 
 def parse_ancient_listing(year):
     pass
@@ -98,8 +239,10 @@ def run():
     fr_docs = []
     files = defaultdict(dict)
 
-    for year in get_year_urls(current_only=True):
+    for year in get_year_urls(current_only=False):
         print year
+        if year['strategy'] != "old":
+            continue
         globals()['parse_%s_listing' % year['strategy']](year)
         # year_data = parse_year(year, doctype)
     #     fr_docs += year_data['fr_docs']
