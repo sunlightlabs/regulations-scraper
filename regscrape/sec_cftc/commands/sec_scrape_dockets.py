@@ -1,10 +1,12 @@
 GEVENT = False
 
-import urllib2, re, json, os
+import urllib2, re, json, os, urlparse
 from pyquery import PyQuery as pq
 from lxml import etree
 from collections import OrderedDict, defaultdict
 import settings
+
+from regs_common.util import crockford_hash
 
 def next_node(n):
     siblings = n.parent().contents()
@@ -256,9 +258,8 @@ def parse_year(year, doctype):
 
     return {'fr_docs': fr_docs, 'files': files}
 
+parser = etree.HTMLParser()
 def get_years(doctype, current_only=False):
-    parser = etree.HTMLParser()
-
     years = []
 
     # grab the current year
@@ -280,6 +281,22 @@ def get_years(doctype, current_only=False):
 
     return years
 
+def get_df_files():
+    df_url = "http://www.sec.gov/spotlight/regreformcomments.shtml"
+    df_file = urllib2.urlopen(df_url).read()
+    page = pq(etree.fromstring(df_file, parser))
+
+    out = {}
+    for link in page('a[href*="comments/df"],a[href*="comments/other"]').items():
+        href = urlparse.urljoin(df_url, link.attr('href'))
+        dkt = {
+            'url': href,
+            'id': crockford_hash(href)[:5],
+            'type': 'nonrulemaking'
+        }
+        out[dkt['id']] = dkt
+    return out
+
 def run():
     fr_docs = []
     files = defaultdict(dict)
@@ -293,6 +310,12 @@ def run():
             fr_docs += year_data['fr_docs']
             for key, value in year_data['files'].iteritems():
                 files[key].update(value)
+                files[key]['type'] = 'rulemaking'
+    
+    # get Dodd-Frank non-rulemaking dockets
+    for key, value in get_df_files().iteritems():
+        files[key].update(value)
+
     print "Retrieved info on %s key documents and %s dockets." % (len(fr_docs), len(files))
 
     
