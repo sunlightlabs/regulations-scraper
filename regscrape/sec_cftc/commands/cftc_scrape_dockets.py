@@ -6,6 +6,8 @@ from lxml import etree
 from collections import OrderedDict, defaultdict
 import settings
 
+from regs_common.util import crockford_hash
+
 parser = etree.HTMLParser()
 
 def fix_spaces(text):
@@ -30,7 +32,7 @@ def file_obj_from_url(url, existing_files=None):
         gd = matches.groupdict()
         out = {
             'url': 'http://sirt.cftc.gov/sirt/sirt.aspx?Topic=%s&Key=%s' % (gd['topic'], gd['key']),
-            'id': "SIRT-%s" % gd['key'],
+            'id': "SIRT-%s-%s" % (crockford_hash(gd['topic'])[:4], gd['key']),
             'strategy': 'sirt'
         }
         if existing_files:

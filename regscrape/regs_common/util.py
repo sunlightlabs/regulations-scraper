@@ -6,6 +6,7 @@ from gevent_mongo import Mongo
 import urllib2
 import subprocess
 import re
+import hashlib, crockford
 
 def get_db():
     db_settings = getattr(settings, 'DB_SETTINGS', {})
@@ -24,3 +25,7 @@ def listify(item):
     if type(item) in (str, unicode, dict):
         return [item]
     return list(item)
+
+def crockford_hash(s):
+    h = hashlib.md5(s)
+    return crockford.b32encode(h.digest())
