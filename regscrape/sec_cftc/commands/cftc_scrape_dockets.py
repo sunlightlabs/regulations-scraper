@@ -300,7 +300,7 @@ def parse_ancient_listing(year):
                     elif text == "LINK TO FILE:":
                         doc['file_info'].append({
                             'url': urlparse.urljoin(page_url, cells.eq(i + 1).find('a').attr('href')),
-                            'id': doc['id'],
+                            'id': "AS-%s" % doc['id'],
                             'strategy': 'ancient',
                             'title': doc['title']
                         })

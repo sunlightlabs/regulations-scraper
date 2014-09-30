@@ -1,11 +1,14 @@
 GEVENT = False
 
-import urllib2, re, json, os, sys, operator, string, urlparse
+import urllib2, re, json, os, sys, operator, string, urlparse, urllib, cookielib
 from pyquery import PyQuery as pq
 from lxml import etree
 from collections import OrderedDict, defaultdict
 import settings
 from optparse import OptionParser
+
+from regs_common.util import crockford_hash
+from regs_common.exceptions import ExtractionFailed
 
 # arguments
 arg_parser = OptionParser()
@@ -128,7 +131,8 @@ def parse_old_docket(docket_record):
                 'date': date,
                 'url': urlparse.urljoin(docket_record['url'], link.attr('href')),
                 'title': re.split(r"<br ?/?>", desc.html().strip())[1].strip() if ll_is_id else link_label,
-                'details': {}
+                'details': {},
+                'doctype': 'public_submission'
             }
             if ll_is_id:
                 doc['id'] = link_label
@@ -142,17 +146,153 @@ def parse_old_docket(docket_record):
 
     return docket
 
+def is_ancient_label(text):
+    return re.match("[A-Z ]+:", text)
+
 def parse_ancient_docket(docket_record):
-    return docket_record
+    page_url = docket_record['url']
+    
+    docket = dict(docket_record)
+    docket['comments'] = []
+
+    while True:
+        page_data = urllib2.urlopen(page_url).read()
+        page = pq(etree.fromstring(page_data, parser))
+
+        groups = []
+        group = []
+        first_divider = False
+        for table in page('table').items():
+            divider = table.find('font[color*="#808000"]')
+            if len(divider) and re.match(r".*-{10,}.*", divider.text()):
+                if not first_divider:
+                    first_divider = True
+                    continue
+                if group:
+                    groups.append(group)
+                    group = []
+            elif first_divider:
+                group.append(table)
+
+        for group in groups:
+            cells = pq([g[0] for g in group]).find('td')
+
+            doc = {
+                'title': fix_spaces(" ".join([item.text() for item in pq([g[0] for g in group[1:]]).find('td[align=left] b font').items()])),
+                'details': {},
+                'url': None,
+            }
+
+            for i in range(len(cells)):
+                text = fix_spaces(cells.eq(i).text().strip())
+                if is_ancient_label(text):
+                    next_text = fix_spaces(cells.eq(i + 1).text().strip())
+                    next_text = next_text if not is_ancient_label(next_text) else None
+
+                    if next_text:
+                        if text == "DOCUMENT:":
+                            # we need yet another cell
+                            doc['id'] = next_text + fix_spaces(cells.eq(i + 2).text().strip())
+
+                            if 'CL' in doc['id']:
+                                doc['doctype'] = 'public_submission'
+                            elif 'NC' in doc['id']:
+                                doc['doctype'] = 'other'
+                            elif 'FR' in doc['id']:
+                                ltitle = doc['title'].lower()
+                                if 'proposed' in ltitle:
+                                    doc['doctype'] = 'proposed_rule'
+                                elif 'final' in ltitle:
+                                    doc['doctype'] = 'rule'
+                                else:
+                                    doc['doctype'] = 'notice'
+                        elif text == "DATE:":
+                            doc['date'] = next_text
+                        elif text == "FR PAGE:" and "N/A" not in next_text.upper():
+                            doc['details']['Federal Register Page'] = next_text
+                        elif text == "PAGES:":
+                            doc['details']['Pages'] = next_text
+                        elif text == "PDF SIZE:":
+                            doc['details']['PDF Size'] = next_text
+                        elif text == "PDF LINK:":
+                            link = cells.eq(i + 1).find('a')
+                            if len(link):
+                                doc['url'] = urlparse.urljoin(page_url, link.attr('href'))
+            docket['comments'].append(doc)
+
+        # grab the 'next' link
+        next_link = [a for a in page('a[href*=foi]').items() if 'Next' in a.text()]
+        if next_link:
+            next_url = urlparse.urljoin(page_url, next_link[0].attr('href'))
+            if next_url != page_url:
+                page_url = next_url
+            else:
+                # apparently sometimes "next" points to the current page -- bail if so
+                break
+        else:
+            break
+    return docket
 
 def parse_sirt_docket(docket_record):
-    return docket_record
+    # okay, this one requires loading a paginated version, then checking a box that says "show all" to get everything...
+    # which is arduous and stupid because it's a yucky ASP app.
+
+    cj = cookielib.CookieJar()
+    opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
+    initial = pq(opener.open(docket_record['url']).read())
+
+    error_header = initial("h4")
+    if len(error_header) and "sorry" in error_header.text().lower():
+        raise ExtractionFailed("This URL doesn't work.")
+
+    formdata = urllib.urlencode((
+            ('__EVENTTARGET', 'ctl00$cphContentMain$GenericWebUserControl$ShowAllCheckBox'),
+            ('__EVENTARGUMENT', ''),
+            ('__LASTFOCUS', ''),
+            ('__VIEWSTATE', initial('#__VIEWSTATE').val()),
+            ('__EVENTVALIDATION', initial('#__EVENTVALIDATION').val()),
+            ('ctl00$masterScriptManager', ''),
+            ('ctl00$cphContentMain$GenericWebUserControl$ShowAllCheckBox', 'on')
+        ))
+
+    page = pq(opener.open(docket_record['url'], data=formdata).read())
+
+    docket = dict(docket_record)
+
+    details = dict([re.split(r"\s*:\s*", row.strip()) for row in re.split(r"<br ?/?>", page('h5.QueryTitle').html()) if row.strip()])
+
+    if 'details' not in docket:
+        docket['details'] = {}
+
+    if 'Filing Description' in details:
+        docket['title'] = details['Filing Description']
+
+    if 'Organization' in details:
+        docket['details']['Organization Name'] = details['Organization']
+
+    if 'Status' in details:
+        docket['details']['Status'] = details['Status']
+
+    docket['comments'] = []
+
+    for link in page('.gradient-style tr td a').items():
+        doc = {
+            'url': urlparse.urljoin(docket_record['url'], link.attr('href')),
+            'title': fix_spaces(link.text().strip()),
+            'details': {},
+        }
+        doc['doctype'] = 'public_submission' if 'comment' in doc['title'].lower() else 'other'
+        doc['id'] = crockford_hash(doc['url'])
+
+        docket['comments'].append(doc)
+
+    return docket
 
 
 def run(options, args):
     dockets = json.load(open(os.path.join(settings.DUMP_DIR, "cftc_dockets.json")))
 
-    stats = {'fetched': 0, 'skipped': 0}
+    stats = {'fetched': 0, 'skipped': 0, 'failed': 0}
 
     docket_dir = os.path.join(settings.DUMP_DIR, "cftc_dockets")
     if not os.path.exists(docket_dir):
@@ -168,7 +308,12 @@ def run(options, args):
         if 'url' in docket:
             print 'Fetching %s...' % docket['id']
             print i, json.dumps(docket)
-            fetched = globals()['parse_%s_docket' % docket['strategy']](docket)
+            try:
+                fetched = globals()['parse_%s_docket' % docket['strategy']](docket)
+            except ExtractionFailed:
+                print "FAILED to scrape docket data for %s" % docket['id']
+                stats['failed'] += 1
+                continue
 
             if options.verbose:
                 print json.dumps(fetched, indent=4)
@@ -182,5 +327,5 @@ def run(options, args):
             print 'Skipping %s.' % docket['id']
             stats['skipped'] += 1
 
-    print "Fetched %s dockets; skipped %s dockets." % (stats['fetched'], stats['skipped'])
+    print "Fetched %s dockets; skipped %s dockets; failed on %s dockets." % (stats['fetched'], stats['skipped'], stats['failed'])
     return stats
