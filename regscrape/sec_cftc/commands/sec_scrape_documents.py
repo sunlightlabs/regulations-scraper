@@ -7,6 +7,8 @@ from collections import OrderedDict, defaultdict
 import settings
 from optparse import OptionParser
 
+from regs_common.util import crockford_hash
+
 # arguments
 arg_parser = OptionParser()
 arg_parser.add_option("-v", "--verbose", action="store_true", dest="verbose", default=False)
@@ -402,7 +404,7 @@ def parse_chunk(chunk):
                     if el is not None:
                         synth_chunk.append(pq(el).clone())
                 
-                out.append(parse_chunk(synth_chunk))
+                out += parse_chunk(synth_chunk)
             return out
         else:
             # this is the typical case
@@ -418,7 +420,7 @@ def parse_chunk(chunk):
                 if el is not None:
                     synth_chunk.append(pq(el).clone())
             
-            out.append(parse_chunk(synth_chunk))
+            out += parse_chunk(synth_chunk)
         return out
     else:
         # this is the old-style format
@@ -448,7 +450,7 @@ def parse_chunk(chunk):
                     if el is not None:
                         synth_chunk.append(pq(el).clone())
                 
-                out.append(parse_chunk(synth_chunk))
+                out += parse_chunk(synth_chunk)
             return out
 
     docket['comments'] = records
@@ -487,7 +489,41 @@ def fetch_docket(docket_record):
     
     docket['comment_groups'] = reduce(operator.add, [parse_chunk(chunk) for chunk in chunks])
 
-    print json.dumps(docket, indent=4)
+    return flatten_docket(docket)
+
+def flatten_docket(in_docket):
+    out_cmts = []
+    docket = dict(in_docket)
+
+    for group in in_docket['comment_groups']:
+        for heading, listing in group['comments'].iteritems():
+            for comment in listing:
+                if heading == "Other":
+                    comment['doctype'] = 'other'
+                else:
+                    comment['doctype'] = 'public_submission'
+                    if 'Comments' in heading:
+                        comment['subtype'] = 'comment'
+                    elif 'Meetings' in heading:
+                        comment['subtype'] = 'exparte'
+                    else:
+                        assert False, 'unrecognized header type'
+
+                if 'File No.' in group['details']:
+                    comment['file'] = group['details']['File No.']
+
+                # assign an ID if there isn't one
+                if 'id' not in comment and 'url' in comment and comment['url']:
+                    id_matches = re.findall("/[a-z]?\d+-(\d+).[a-z]+$", comment['url'])
+                    if id_matches:
+                        comment['id'] = id_matches[-1]
+                    else:
+                        comment['id'] = crockford_hash(comment['url'])
+
+                out_cmts.append(comment)
+
+    del docket['comment_groups']
+    docket['comments'] = out_cmts
 
     return docket
 
