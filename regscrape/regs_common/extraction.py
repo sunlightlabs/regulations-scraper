@@ -11,8 +11,6 @@ EXTRACTORS = {
     'pdf': [
         binary_extractor(['pdftohtml', '-noframes', '-i', '-stdout'], error='PDF file is damaged', output_type="html"),
         binary_extractor('pdftotext', append=['-'], error='PDF file is damaged'),
-#        binary_extractor('ps2ascii', error='Unrecoverable error'),
-#        pdf_ocr
     ],
     
     'msw8': [
@@ -42,6 +40,7 @@ EXTRACTORS['crtext'] = EXTRACTORS['xml']
 EXTRACTORS['html'] = EXTRACTORS['xml']
 EXTRACTORS['msw6'] = EXTRACTORS['msw8']
 EXTRACTORS['msw'] = EXTRACTORS['msw8']
+EXTRACTORS['xpdf'] = EXTRACTORS['pdf'] + [pdf_ocr]
 
 # extractor factory
 def _get_extractor(status_func, verbose, filename, filetype=None, record=None):

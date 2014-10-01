@@ -7,6 +7,7 @@ import settings
 import datetime
 import sys
 import traceback
+import time
 
 def pump(input, output, chunk_size):
     size = 0
@@ -82,6 +83,10 @@ def _get_downloader(status_func, download_func, retries, verbose, min_size, url,
             except urllib2.HTTPError as e:
                 if verbose: print 'Download of %s failed due to error %s.' % (url, e.code)
                 download_message = e.code
+                
+                if int(e.code) == 429:
+                    if verbose: print 'Error occurred due to rate limiting; waiting 10 minutes.'
+                    time.sleep(600)
             except Timeout as e:
                 if verbose: print 'Download of %s timed out.' % url
             except:
