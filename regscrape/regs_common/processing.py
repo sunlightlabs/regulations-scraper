@@ -274,6 +274,13 @@ def pdf_ocr(filename):
         out.write(ocr_file.read())
         out.write('\n')
     
-    return ocr_scrub(out.getvalue())
+    try:
+        return_data =  ocr_scrub(out.getvalue())
+    except ExtractionFailed:
+        cleanup()
+        raise
+    
+    cleanup()
+    return return_data
 pdf_ocr.__str__ = lambda: 'tesseract'
 pdf_ocr.ocr = True
