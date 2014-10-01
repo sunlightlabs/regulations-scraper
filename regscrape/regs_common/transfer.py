@@ -97,7 +97,7 @@ def _get_downloader(status_func, download_func, retries, verbose, min_size, url,
                 if size >= min_size:
                     # print status
                     ksize = int(round(size/1024.0))
-                    if verbose: print 'Downloaded %s: %sk in %s seconds (%sk/sec)' % (url, ksize, elapsed.seconds, round(float(ksize)/elapsed.seconds * 10)/10 if elapsed.seconds > 0 else '--')
+                    if verbose: print 'Downloaded %s to %s: %sk in %s seconds (%sk/sec)' % (url, filename, ksize, elapsed.seconds, round(float(ksize)/elapsed.seconds * 10)/10 if elapsed.seconds > 0 else '--')
                     break
                 else:
                     download_succeeded = False

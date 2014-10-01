@@ -117,6 +117,8 @@ def fr_doc_record_to_model(record, agency):
             if 'type' in v:
                 view.type = v['type']
             attachment.views.append(view)
+        if attachment.views:
+            attachment.object_id = attachment.views[0].object_id
         doc.attachments.append(attachment)
 
     return doc
@@ -171,6 +173,7 @@ def comment_record_to_model(record, agency, docket_id):
         attachment = Attachment()
         attachment.title = att['title']
         attachment.views.append(view_from_url(att['url']))
+        attachment.object_id = attachment.views[0].object_id
         doc.attachments.append(attachment)
 
     return doc
