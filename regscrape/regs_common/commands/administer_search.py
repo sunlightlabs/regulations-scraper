@@ -13,15 +13,16 @@ def run(options, args):
     import settings, regs_common
 
     es = rawes.Elastic(getattr(settings, "ES_HOST", 'thrift://localhost:9500'), timeout=30.0)
+    index = getattr(es, settings.ES_INDEX)
 
     if options.delete:
-        es.regulations.delete()
+        index.delete()
         print "Index deleted."
 
     if options.create:
         mapping_file = os.path.join(os.path.abspath(os.path.dirname(regs_common.__file__)), "data", "es_mapping.json")
         mapping_data = json.load(open(mapping_file))
-        es.regulations.put(data={'mappings': mapping_data})
+        index.put(data={'mappings': mapping_data})
         print "Index created."
 
     stats = es._stats.get()

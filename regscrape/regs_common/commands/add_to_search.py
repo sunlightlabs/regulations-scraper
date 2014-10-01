@@ -22,6 +22,7 @@ def add_to_search(options, args):
     import settings
 
     es = rawes.Elastic(getattr(settings, "ES_HOST", 'thrift://localhost:9500'), timeout=60.0)
+    index = getattr(es, settings.ES_INDEX)
 
     now = datetime.datetime.now()
 
@@ -60,7 +61,7 @@ def add_to_search(options, args):
         return es_doc
 
     def get_docket_metadata(docket):
-        return {'_index': 'regulations', '_type': 'docket', '_id': docket.id}
+        return {'_index': settings.ES_INDEX, '_type': 'docket', '_id': docket.id}
 
     builders['docket'] = build_docket
     metadata['docket'] = get_docket_metadata
@@ -143,7 +144,7 @@ def add_to_search(options, args):
         return es_doc
 
     def get_document_metadata(doc):
-        return {'_index': 'regulations', '_type': 'document', '_id': doc.id, '_parent': doc.docket_id}
+        return {'_index': ES_INDEX, '_type': 'document', '_id': doc.id, '_parent': doc.docket_id}
 
     builders['document'] = build_document
     metadata['document'] = get_document_metadata
