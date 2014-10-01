@@ -53,13 +53,14 @@ def docket_record_to_model(record, agency):
         dkt['details']['Source_URL'] = record['url']
 
     dkt.source = 'sec_cftc'
+    dkt.scraped = 'no'
 
     return dkt
 
 def view_from_url(url):
     view = View()
     # strip fragments
-    view.url = re.sub(r"#.*", "", url)
+    view.url = re.sub(r"#.*", "", url).strip()
 
     ext_matches = re.findall(r"\.([A-Za-z]+)$", view.url)
     if ext_matches:
@@ -92,8 +93,9 @@ def fr_doc_record_to_model(record, agency):
 
     doc.agency = agency
     doc.source = 'sec_cftc'
+    doc.scraped = 'yes'
 
-    doc.details = {k.replace(" ", "_"): v for k, v in record.get("details", {}).iteritems()}
+    doc.details = {k.replace(" ", "_").replace(".", ""): v for k, v in record.get("details", {}).iteritems()}
     if record.get('date', None) and record['date'].strip():
         doc.details['Date_Posted'] = parse_date(record['date'].strip())
 
@@ -142,7 +144,12 @@ def comment_record_to_model(record, agency, docket_id):
 
     doc.agency = agency
     doc.source = 'sec_cftc'
-
+    
+    if agency == 'CFTC' and 'comments.cftc.gov' in (record.get('url', '') or ''):
+        doc.scraped = 'no'
+    else:
+        doc.scraped = 'yes'
+    
     doc.details = {k.replace(" ", "_"): v for k, v in record.get("details", {}).iteritems()}
     if record.get('date', None) and record['date'].strip():
         try:
@@ -188,7 +195,7 @@ def run():
             if 'parent' in record:
                 dkt.details['Parent'] = record['parent']
             else:
-                dockets_for_saving.append(record)
+                dockets_for_saving.append(dkt)
 
         # next deal with the FR documents
         doc_by_identifier = {}
@@ -245,3 +252,12 @@ def run():
                 all_comments.append(cmt)
 
         print len(all_dockets), len(all_fr_docs), len(all_comments)
+        
+        for dkt in dockets_for_saving:
+            dkt.save()
+        
+        for fr_doc in all_fr_docs:
+            fr_doc.save()
+        
+        for cmt in all_comments:
+            cmt.save()
