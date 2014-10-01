@@ -34,7 +34,8 @@ def run(options, args):
         page_data = open(doc.views[0].file_path).read()
         page = pq(etree.fromstring(page_data, parser))
         
-        text = page('.dyn_wrap div.ClearBoth').html().strip()
+        text_block = page('.dyn_wrap div.ClearBoth')
+        text = text_block.html().strip() if len(text_block) else ""
         full_text = "<html><body>%s</body></html>" % text
         
         if doc.views[0].content:
