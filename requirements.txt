@@ -23,3 +23,5 @@ rawes
 
 pyquery
 crockford
+python-dateutil
+PyYAML

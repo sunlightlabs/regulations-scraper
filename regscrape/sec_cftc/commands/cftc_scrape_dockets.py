@@ -92,7 +92,8 @@ def parse_current_listing(year):
             'description': (fix_spaces(paras[1]) if len(paras) > 1 else None) if doctype != "General CFTC" else fix_spaces(paras[0]),
             'details': {},
             'file_info': [],
-            'year': year['year']
+            'year': year['year'],
+            'strategy': 'current'
         }
 
         pdf_link = row.find('p a[id*=PDFLink]')
@@ -188,7 +189,8 @@ def parse_old_listing(year):
                 'url': expand_comment_link(second_link.attr('href'), domain="www.cftc.gov"),
                 'details': {},
                 'file_info': [],
-                'year': year['year']
+                'year': year['year'],
+                'strategy': 'old'
             }
 
             if re.match("\d+ FR \d+", second_link_text):
@@ -219,7 +221,8 @@ def parse_old_listing(year):
                 'details': {},
                 'file_info': [file_obj_from_url(first_url)],
                 'id': links.eq(0).text().strip(),
-                'year': year['year']
+                'year': year['year'],
+                'strategy': 'old'
             }
             for para in paras:
                 if para.startswith("Description:"):
@@ -269,7 +272,8 @@ def parse_ancient_listing(year):
                 'details': {},
                 'file_info': [],
                 'url': None,
-                'year': year['year']
+                'year': year['year'],
+                'strategy': 'ancient'
             }
 
             for i in range(len(cells)):

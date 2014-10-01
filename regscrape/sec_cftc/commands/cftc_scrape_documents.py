@@ -28,7 +28,7 @@ def parse_current_docket(docket_record):
 
     docket = dict(docket_record)
 
-    docket['title'] = pq('.dyn_wrap h1').text().strip()
+    docket['title'] = page('.dyn_wrap h1').text().strip()
     assert docket['title'], 'no title found'
 
     headers = [item.text().strip() for item in page('.rgMasterTable thead th').items()]
@@ -51,7 +51,7 @@ def parse_current_docket(docket_record):
             'details': {},
             'release': [fix_spaces(cdata['Release'])],
             'date': cdata['Date Received'],
-            'type': 'public_submission',
+            'doctype': 'public_submission',
         }
 
         vc_matches = re.findall(r"ViewComment\.aspx\?id=(\d+)", doc['url'])
@@ -178,7 +178,7 @@ def parse_ancient_docket(docket_record):
             cells = pq([g[0] for g in group]).find('td')
 
             doc = {
-                'title': fix_spaces(" ".join([item.text() for item in pq([g[0] for g in group[1:]]).find('td[align=left] b font').items()])),
+                'title': fix_spaces(" ".join([item.text() for item in pq([g[0] for g in group[1:]]).find('td b font').items()])),
                 'details': {},
                 'url': None,
             }
