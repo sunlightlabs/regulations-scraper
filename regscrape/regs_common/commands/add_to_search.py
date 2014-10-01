@@ -144,7 +144,7 @@ def add_to_search(options, args):
         return es_doc
 
     def get_document_metadata(doc):
-        return {'_index': ES_INDEX, '_type': 'document', '_id': doc.id, '_parent': doc.docket_id}
+        return {'_index': settings.ES_INDEX, '_type': 'document', '_id': doc.id, '_parent': doc.docket_id}
 
     builders['document'] = build_document
     metadata['document'] = get_document_metadata
