@@ -65,6 +65,9 @@ def process_doc(doc):
 
         # title_match if we found one
         title_match.groupdict()['name'] if title_match else '',
+        
+        # just examine the whole title if it's from SEC or CFTC; the title is basically always submitter info
+        doc.title if doc.source == 'sec_cftc' and doc.type in ('public_submission', 'other') else ''
     ]))
     doc.submitter_entities = list(submitter_matches.keys()) if submitter_matches else []
 
