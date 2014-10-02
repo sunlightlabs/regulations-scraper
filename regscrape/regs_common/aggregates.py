@@ -28,7 +28,7 @@ class MongoSource(object):
 
         def gen():
             for doc in self.db.docs.find(self.mongo_query, FIELDS):
-                doc_id = str(doc['_id'])
+                doc_id = doc['_id'].encode('utf8')
                 _cache[doc_id] = doc
 
                 if not self.pretend:
@@ -46,7 +46,11 @@ def mapfn(key, document):
     import isoweek
     from collections import defaultdict
     import itertools
-
+    
+    import datetime
+    from dateutil.parser import parse as parse_date
+    force_date = lambda d: d if type(d) is datetime.datetime else parse_date(d)
+    
     # pre-computed date data
     doc_type = document.get('type', None)
     details = document.get('details', {})
@@ -56,7 +60,7 @@ def mapfn(key, document):
     doc_month = doc_date.isoformat()[:7] if doc_date else None
     
     if 'Comment_Start_Date' in details and 'Comment_Due_Date' in details:
-        comment_date_range = [details['Comment_Start_Date'].date().isoformat(), details['Comment_Due_Date'].date().isoformat()]
+        comment_date_range = [force_date(details['Comment_Start_Date']).date().isoformat(), force_date(details['Comment_Due_Date']).date().isoformat()]
     else:
         comment_date_range = None
 
