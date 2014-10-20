@@ -36,7 +36,6 @@ def strip_parenthesized_phrases(text):
     return re.sub("\(.*\)", "", text, flags=re.MULTILINE).strip()
 
 def parse_table(table, release_no=None):
-    rows = table.find('tr')
     records = defaultdict(list)
 
     # is it subdivided into headings?
@@ -46,6 +45,21 @@ def parse_table(table, release_no=None):
     else:
         # things aren't listed separately, so instead decide by title
         heading = True
+
+    # sometimes there's a breakage where a row tag isn't properly closed and you end up with rows inside other rows; if that happens, fix it before proceeding
+    nested_rows = table.find('tr tr')
+    if len(nested_rows):
+        for nrow in list(nested_rows.items()):
+            nparent = nrow.parent()
+            while True:
+                if nparent.parent().is_('table'):
+                    break
+                nparent = nparent.parent()
+
+            nrow.remove()
+            nparent.after(nrow)
+
+    rows = table.find('tr')
 
     # now iterate over the rows, first finding headings and then classifying the comments under them
     for row in rows:
@@ -113,6 +127,7 @@ def parse_table(table, release_no=None):
                         'title': plink.text(),
                         'url': canonicalize_url(plink.attr('href'))
                     })
+                assert len(doc['attachments']) <= 10, "whoa, too many attachments"
             
             if heading is True:
                 # decide by title
@@ -257,6 +272,7 @@ def parse_list(rowlist, release_no=None):
                     'title': palink.text().strip(" []()"),
                     'url': canonicalize_url(palink.attr('href'))
                 })
+            assert len(doc['attachments']) <= 10, "whoa, too many attachments"
 
         if rgroup['title'].lower().startswith("memorandum"):
             records['Meetings with SEC Officials'].append(doc)
@@ -459,6 +475,10 @@ def parse_chunk(chunk):
 
 def fetch_docket(docket_record):
     docket_file = urllib2.urlopen(docket_record['url']).read()
+
+    # fix a tag-closure problem, first spotted in http://www.sec.gov/comments/s7-14-08/s71408.shtml
+    docket_file = re.sub("</tr\s+<tr", "</tr><tr", docket_file)
+
     page = pq(etree.fromstring(docket_file, parser))
 
     docket = dict(docket_record)
