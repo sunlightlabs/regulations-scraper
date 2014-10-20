@@ -479,3 +479,7 @@ def run_aggregates(options):
             print 'Incorporated results printed.'
         else:
             print 'Results incorporated.'
+    
+    # clean up
+    print "Deleting %s." % db_file
+    os.unlink(db_file)
