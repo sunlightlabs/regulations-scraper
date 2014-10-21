@@ -5,6 +5,14 @@ import datetime
 import settings
 from regs_models import *
 from regs_common.util import *
+from pymongo.errors import DuplicateKeyError
+
+from optparse import OptionParser
+
+# arguments
+arg_parser = OptionParser()
+arg_parser.add_option("-v", "--verbose", action="store_true", dest="verbose", default=False)
+arg_parser.add_option("-u", "--update", dest="update", action="store_true", default=False, help="Update existing records.")
 
 GEVENT = False
 
@@ -140,6 +148,7 @@ def comment_record_to_model(record, agency, docket_id):
             parts.append(record['details']['First Name'] + (" " + record['details']['Last Name']) if 'Last Name' in record['details'] else "")
         if 'Organization Name' in record['details']:
             parts.append(record['details']['Organization Name'])
+        doc.title = "Comment from %s" % ", ".join(parts)
     
     if not doc.title:
         doc.title = record['id']
@@ -178,7 +187,7 @@ def comment_record_to_model(record, agency, docket_id):
 
     return doc
 
-def run():
+def run(options, args):
     for agency in ('CFTC', 'SEC'):
         lagency = agency.lower()
 
@@ -257,10 +266,28 @@ def run():
         print len(all_dockets), len(all_fr_docs), len(all_comments)
         
         for dkt in dockets_for_saving:
-            dkt.save()
+            try:
+                dkt.save(force_insert=True)
+            except DuplicateKeyError:
+                pass
         
-        for fr_doc in all_fr_docs:
-            fr_doc.save()
-        
-        for cmt in all_comments:
-            cmt.save()
+        for doc_set in (all_fr_docs, all_comments):
+            for doc_obj in doc_set:
+                try:
+                    doc_obj.save(force_insert=True)
+                except DuplicateKeyError:
+                    if options.update:
+                        print "Fetching %s for update..." % doc_obj.id
+
+                        # fetch the current one
+                        current = Doc.objects.get(id=doc_obj.id)
+                        current.title = doc_obj.title
+                        current.details = doc_obj.details
+
+                        if len(current.views) != len(doc_obj.views):
+                            current.views = doc_obj.views
+
+                        if len(current.attachments) != len(doc_obj.attachments):
+                            current.attachments = doc_obj.attachments
+
+                        current.save()
