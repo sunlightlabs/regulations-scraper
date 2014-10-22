@@ -174,6 +174,9 @@ def comment_record_to_model(record, agency, docket_id):
         except:
             pass
 
+    if 'num_received' in record.get("details", {}):
+        doc.details['Number_of_Duplicate_Submissions'] = record['details']['num_received']
+
     if record.get('description', None):
         doc.abstract = record['description']
 
