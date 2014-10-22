@@ -281,20 +281,21 @@ def get_years(doctype, current_only=False):
 
     return years
 
-def get_df_files():
-    df_url = "http://www.sec.gov/spotlight/regreformcomments.shtml"
-    df_file = urllib2.urlopen(df_url).read()
-    page = pq(etree.fromstring(df_file, parser))
-
+def get_spotlight_files():
     out = {}
-    for link in page('a[href*="comments/df"],a[href*="comments/other"]').items():
-        href = urlparse.urljoin(df_url, link.attr('href'))
-        dkt = {
-            'url': href,
-            'id': crockford_hash(href)[:5],
-            'type': 'nonrulemaking'
-        }
-        out[dkt['id']] = dkt
+    for spotlight_type, spot_url in (("Dodd-Frank Act", "http://www.sec.gov/spotlight/regreformcomments.shtml"), ("JOBS Act", "https://www.sec.gov/spotlight/jobsactcomments.shtml")):
+        spot_file = urllib2.urlopen(spot_url).read()
+        page = pq(etree.fromstring(spot_file, parser))
+
+        for link in page('a[href*="comments/df"],a[href*="comments/other"],a[href*="comments/jobs"]').items():
+            href = urlparse.urljoin(spot_url, link.attr('href'))
+            dkt = {
+                'url': href,
+                'id': crockford_hash(href)[:5],
+                'type': 'nonrulemaking',
+                'subtype': spotlight_type
+            }
+            out[dkt['id']] = dkt
     return out
 
 def run():
@@ -313,7 +314,7 @@ def run():
                 files[key]['type'] = 'rulemaking'
     
     # get Dodd-Frank non-rulemaking dockets
-    for key, value in get_df_files().iteritems():
+    for key, value in get_spotlight_files().iteritems():
         files[key].update(value)
 
     print "Retrieved info on %s key documents and %s dockets." % (len(fr_docs), len(files))

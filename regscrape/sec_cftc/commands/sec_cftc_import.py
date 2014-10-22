@@ -60,6 +60,12 @@ def docket_record_to_model(record, agency):
     if record.get('url', None):
         dkt['details']['Source_URL'] = record['url']
 
+    if record.get('type', None):
+        dkt['details']['Type'] = record['type']
+
+    if record.get('subtype', None):
+        dkt['details']['Subtype'] = record['subtype']
+
     dkt.source = 'sec_cftc'
     dkt.scraped = 'no'
 
@@ -267,17 +273,31 @@ def run(options, args):
         
         for dkt in dockets_for_saving:
             try:
+                print "Attempting to save docket %s..." % dkt.id
                 dkt.save(force_insert=True)
+                print "Docket %s saved." % dkt.id
             except DuplicateKeyError:
-                pass
+                print "Docket %s already exists." % dkt.id
+                if options.update:
+                    print "Fetching docket %s for update..." % dkt.id
+
+                    # fetch the current one
+                    current = Docket.objects.get(id=dkt.id)
+                    current.title = dkt.title
+                    current.details = dkt.details
+
+                    current.save()
         
         for doc_set in (all_fr_docs, all_comments):
             for doc_obj in doc_set:
                 try:
+                    print "Attempting to save document %s..." % doc_obj.id
                     doc_obj.save(force_insert=True)
+                    print "Document %s saved." % doc_obj.id
                 except DuplicateKeyError:
+                    print "Document %s already exists." % doc_obj.id
                     if options.update:
-                        print "Fetching %s for update..." % doc_obj.id
+                        print "Fetching document %s for update..." % doc_obj.id
 
                         # fetch the current one
                         current = Doc.objects.get(id=doc_obj.id)

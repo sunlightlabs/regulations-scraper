@@ -542,6 +542,10 @@ def flatten_docket(in_docket):
 
                 out_cmts.append(comment)
 
+    titles = [group['title'] for group in in_docket['comment_groups'] if 'title' in group]
+    if titles:
+        docket['title'] = titles[0]
+
     del docket['comment_groups']
     docket['comments'] = out_cmts
 
