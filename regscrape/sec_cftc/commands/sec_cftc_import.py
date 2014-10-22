@@ -283,7 +283,8 @@ def run(options, args):
 
                     # fetch the current one
                     current = Docket.objects.get(id=dkt.id)
-                    current.title = dkt.title
+                    if dkt.title:
+                        current.title = dkt.title
                     current.details = dkt.details
 
                     current.save()
