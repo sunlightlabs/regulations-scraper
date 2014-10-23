@@ -5,7 +5,7 @@ import datetime
 import settings
 from regs_models import *
 from regs_common.util import *
-from pymongo.errors import DuplicateKeyError
+from mongoengine.errors import NotUniqueError
 
 from optparse import OptionParser
 
@@ -96,7 +96,7 @@ def fr_doc_record_to_model(record, agency):
         file_id = crockford_hash(record['id'])
     
     doc.docket_id = "%s-X-%s" % (agency, file_id)
-    doc.id = "%s-%s" % (doc.docket_id, record['id'])
+    doc.id = "%s-%s" % (doc.docket_id, record['id'].encode('ascii', 'ignore'))
 
     doc.type = type_mappings[record['doctype']]
 
@@ -203,20 +203,9 @@ def run(options, args):
         all_dockets = {}
         dockets_for_saving = []
 
-        # first deal with the docket file
+        # first load the docket file
         dockets = json.load(open(os.path.join(settings.DUMP_DIR, "%s_dockets.json" % lagency)))
         docket_dir = os.path.join(settings.DUMP_DIR, "%s_dockets" % lagency)
-
-        for record in dockets.itervalues():
-            print "Processing docket %s in %s..." % (record['id'], agency) 
-            
-            dkt = docket_record_to_model(record, agency)
-            all_dockets[dkt.id] = dkt
-
-            if 'parent' in record:
-                dkt.details['Parent'] = record['parent']
-            else:
-                dockets_for_saving.append(dkt)
 
         # next deal with the FR documents
         doc_by_identifier = {}
@@ -231,7 +220,7 @@ def run(options, args):
             if 'doctype' not in doc:
                 doc['doctype'] = 'Federal Register Release'
 
-            print "Processing FR doc %s in %s..." % (doc['id'], agency) 
+            print "Processing FR doc %s in %s..." % (doc['id'].encode('utf8'), agency) 
             dc = fr_doc_record_to_model(doc, agency)
             for identifier in (doc['id'], dc.details.get('Federal_Register_Number', None), dc.details.get('Federal_Register_Citation', None)):
                 if identifier:
@@ -244,15 +233,30 @@ def run(options, args):
             else:
                 all_fr_docs.append(dc)
 
-        # now deal with the regular documents
+        # now load docket files one by one and deal with docket records and comments
         all_comments = []
-        for dkt in all_dockets.itervalues():
-            json_file = os.path.join(docket_dir, "%s.json" % dkt.details['Source_ID'])
-            if not os.path.exists(json_file):
-                continue
-            records = json.load(open(json_file))
+        for record in dockets.itervalues():
+            json_file = os.path.join(docket_dir, "%s.json" % record['id'])
+            
+            file_exists = os.path.exists(json_file)
+            
+            if file_exists:
+                full_record = json.load(open(json_file))
 
-            for comment_record in records['comments']:
+            print "Processing docket %s in %s..." % (record['id'], agency) 
+            
+            dkt = docket_record_to_model(full_record if file_exists else record, agency)
+            all_dockets[dkt.id] = dkt
+
+            if 'parent' in record:
+                dkt.details['Parent'] = record['parent']
+            else:
+                dockets_for_saving.append(dkt)
+
+            if not file_exists:
+                continue
+
+            for comment_record in full_record['comments']:
                 if 'doctype' not in comment_record:
                     comment_record['doctype'] = 'public_submission'
 
@@ -279,7 +283,7 @@ def run(options, args):
                 print "Attempting to save docket %s..." % dkt.id
                 dkt.save(force_insert=True)
                 print "Docket %s saved." % dkt.id
-            except DuplicateKeyError:
+            except NotUniqueError:
                 print "Docket %s already exists." % dkt.id
                 if options.update:
                     print "Fetching docket %s for update..." % dkt.id
@@ -288,6 +292,7 @@ def run(options, args):
                     current = Docket.objects.get(id=dkt.id)
                     if dkt.title:
                         current.title = dkt.title
+
                     current.details = dkt.details
 
                     current.save()
@@ -298,7 +303,7 @@ def run(options, args):
                     print "Attempting to save document %s..." % doc_obj.id
                     doc_obj.save(force_insert=True)
                     print "Document %s saved." % doc_obj.id
-                except DuplicateKeyError:
+                except NotUniqueError:
                     print "Document %s already exists." % doc_obj.id
                     if options.update:
                         print "Fetching document %s for update..." % doc_obj.id
