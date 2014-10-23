@@ -13,6 +13,7 @@ from optparse import OptionParser
 arg_parser = OptionParser()
 arg_parser.add_option("-v", "--verbose", action="store_true", dest="verbose", default=False)
 arg_parser.add_option("-u", "--update", dest="update", action="store_true", default=False, help="Update existing records.")
+arg_parser.add_option("-a", "--agency", dest="agency", action="store", default=None, help="Restrict import to a single agency.")
 
 GEVENT = False
 
@@ -46,6 +47,8 @@ file_mapping = {
     'html': 'html',
     'htm': 'html'
 }
+
+nineteen_hundred = parse_date("1900-01-01")
 
 def docket_record_to_model(record, agency):
     dkt = Docket()
@@ -111,7 +114,9 @@ def fr_doc_record_to_model(record, agency):
 
     doc.details = {k.replace(" ", "_").replace(".", ""): v for k, v in record.get("details", {}).iteritems()}
     if record.get('date', None) and record['date'].strip():
-        doc.details['Date_Posted'] = parse_date(record['date'].strip())
+        parsed_date = parse_date(record['date'].strip())
+        if parsed_date > nineteen_hundred:
+            doc.details['Date_Posted'] = parsed_date
 
     if record.get('description', None):
         doc.abstract = record['description']
@@ -170,12 +175,14 @@ def comment_record_to_model(record, agency, docket_id):
     doc.details = {k.replace(" ", "_"): v for k, v in record.get("details", {}).iteritems()}
     if record.get('date', None) and record['date'].strip():
         try:
-            doc.details['Date_Posted'] = parse_date(record['date'].strip())
+            parsed_date = parse_date(record['date'].strip())
+            if parsed_date > nineteen_hundred:
+                doc.details['Date_Posted'] = parsed_date
         except:
             pass
 
-    if 'num_received' in record.get("details", {}):
-        doc.details['Number_of_Duplicate_Submissions'] = record['details']['num_received']
+    if 'num_received' in record:
+        doc.details['Number_of_Duplicate_Submissions'] = record['num_received']
 
     if record.get('description', None):
         doc.abstract = record['description']
@@ -197,7 +204,7 @@ def comment_record_to_model(record, agency, docket_id):
     return doc
 
 def run(options, args):
-    for agency in ('CFTC', 'SEC'):
+    for agency in (options.agency,) if options.agency else ('CFTC', 'SEC'):
         lagency = agency.lower()
 
         all_dockets = {}
