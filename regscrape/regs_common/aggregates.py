@@ -8,6 +8,7 @@ FIELDS = [
     'details.Date_Posted',
     'details.Comment_Start_Date',
     'details.Comment_Due_Date',
+    'details.Number_of_Duplicate_Submissions',
     'type',
     'views.entities',
     'attachments.views.entities',
@@ -64,9 +65,17 @@ def mapfn(key, document):
     else:
         comment_date_range = None
 
+    # pre-compute expanded comment count
+    try:
+        expanded_count = int(details.get("Number_of_Duplicate_Submissions", 1)) if doc_type == "public_submission" else 0
+    except:
+        expanded_count = 1 if doc_type == "public_submission" else 0
+
+
     ### COLLECTION: dockets ###
     docket_info = {
         'count': 1,
+        'expanded_comment_count': expanded_count,
         'type_breakdown': {str(doc_type): 1},
         'doc_info': {
             'fr_docs': [{
@@ -96,6 +105,7 @@ def mapfn(key, document):
     ### COLLECTION: agencies ###
     agency_info = {
         'count': 1,
+        'expanded_comment_count': expanded_count,
         'date_range': [doc_date, doc_date],
         'months': [(doc_month, 1)],
         'type_breakdown': {str(doc_type): 1},
@@ -106,6 +116,7 @@ def mapfn(key, document):
     ### COLLECTION: docs (only writes to FR docs, only emits from public submissions) ###
     doc_info = {
         'count': 1,
+        'expanded_comment_count': expanded_count,
         'weeks': [(doc_week_range, 1)],
         'date_range': [doc_date, doc_date],
         'text_entities': {},
@@ -204,6 +215,7 @@ def reducefn(key, documents):
     if key[0] == 'dockets':
         out = {
             'count': 0,
+            'expanded_comment_count': 0,
             'type_breakdown': defaultdict(int),
             'doc_info': {
                 'fr_docs': [],
@@ -220,6 +232,7 @@ def reducefn(key, documents):
 
         for value in documents:
             out['count'] += value['count']
+            out['expanded_comment_count'] += value['expanded_comment_count']
             
             for doc_type, count in value['type_breakdown'].iteritems():
                 out['type_breakdown'][doc_type] += count
@@ -250,6 +263,7 @@ def reducefn(key, documents):
     if key[0] == 'agencies':
         out = {
             'count': 0,
+            'expanded_comment_count': 0,
             'type_breakdown': defaultdict(int),
             'months': defaultdict(int),
             'date_range': [None, None],
@@ -261,6 +275,7 @@ def reducefn(key, documents):
 
         for value in documents:
             out['count'] += value['count']
+            out['expanded_comment_count'] += value['expanded_comment_count']
             
             for doc_type, count in value['type_breakdown'].iteritems():
                 out['type_breakdown'][doc_type] += count
@@ -284,6 +299,7 @@ def reducefn(key, documents):
     if key[0] == 'docs':
         out = {
             'count': 0,
+            'expanded_comment_count': 0,
             'weeks': defaultdict(int),
             'date_range': [None, None],
             'text_entities': defaultdict(int),
@@ -295,6 +311,7 @@ def reducefn(key, documents):
 
         for value in documents:
             out['count'] += value['count']
+            out['expanded_comment_count'] += value['expanded_comment_count']
             
             for week, count in tf_dict(value['weeks']).iteritems():
                 out['weeks'][week] += count
