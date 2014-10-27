@@ -256,7 +256,7 @@ def run(options, args):
             all_dockets[dkt.id] = dkt
 
             if 'parent' in record:
-                dkt.details['Parent'] = record['parent']
+                dkt.details['Parent'] = '%s-X-%s' % (agency, record['parent'])
             else:
                 dockets_for_saving.append(dkt)
 
