@@ -74,6 +74,15 @@ def docket_record_to_model(record, agency):
 
     return dkt
 
+docket_record_from_id(docket_id, agency):
+    dkt = Docket()
+
+    dkt.id = docket_id
+    dkt.source = 'sec_cftc'
+    dkt.scraped = 'no'
+
+    return dkt
+
 def view_from_url(url):
     view = View()
     # strip fragments
@@ -208,7 +217,7 @@ def run(options, args):
         lagency = agency.lower()
 
         all_dockets = {}
-        dockets_for_saving = []
+        dockets_for_saving = {}
 
         # first load the docket file
         dockets = json.load(open(os.path.join(settings.DUMP_DIR, "%s_dockets.json" % lagency)))
@@ -218,6 +227,7 @@ def run(options, args):
         doc_by_identifier = {}
         cftc_ancient_mapping = {}
         all_fr_docs = []
+        dockets_seen = set()
 
         fr_docs = json.load(open(os.path.join(settings.DUMP_DIR, "%s_fr_docs.json" % lagency)))
         for doc in fr_docs:
@@ -239,6 +249,7 @@ def run(options, args):
                     cftc_ancient_mapping[dc.details['Federal_Register_Citation'].split(" FR ")[-1]] = dc
             else:
                 all_fr_docs.append(dc)
+                dockets_seen.add(dc.docket_id)
 
         # now load docket files one by one and deal with docket records and comments
         all_comments = []
@@ -258,7 +269,7 @@ def run(options, args):
             if 'parent' in record:
                 dkt.details['Parent'] = '%s-X-%s' % (agency, record['parent'])
             else:
-                dockets_for_saving.append(dkt)
+                dockets_for_saving[dkt.id] = dkt
 
             if not file_exists:
                 continue
@@ -284,8 +295,14 @@ def run(options, args):
                 all_comments.append(cmt)
 
         print len(all_dockets), len(all_fr_docs), len(all_comments)
+
+        # make sure we have docket records for all dockets that have documents in them
+        for docket_id in dockets_seen:
+            if docket_id not in dockets_for_saving:
+                simple_dkt = docket_record_from_id(docket_id)
+                dockets_for_saving[docket_id] = simple_dkt
         
-        for dkt in dockets_for_saving:
+        for dkt in dockets_for_saving.itervalues():
             try:
                 print "Attempting to save docket %s..." % dkt.id
                 dkt.save(force_insert=True)
@@ -301,6 +318,10 @@ def run(options, args):
                         current.title = dkt.title
 
                     current.details = dkt.details
+                    current.source = dkt.source
+
+                    if current.scraped != 'yes':
+                        current.scraped = dkt.scraped
 
                     current.save()
         
