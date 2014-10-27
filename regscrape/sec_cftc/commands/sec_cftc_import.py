@@ -74,10 +74,11 @@ def docket_record_to_model(record, agency):
 
     return dkt
 
-docket_record_from_id(docket_id, agency):
+def docket_record_from_id(docket_id, agency):
     dkt = Docket()
 
     dkt.id = docket_id
+    dkt.agency = agency
     dkt.source = 'sec_cftc'
     dkt.scraped = 'no'
 
@@ -299,7 +300,7 @@ def run(options, args):
         # make sure we have docket records for all dockets that have documents in them
         for docket_id in dockets_seen:
             if docket_id not in dockets_for_saving:
-                simple_dkt = docket_record_from_id(docket_id)
+                simple_dkt = docket_record_from_id(docket_id, agency)
                 dockets_for_saving[docket_id] = simple_dkt
         
         for dkt in dockets_for_saving.itervalues():
@@ -319,6 +320,7 @@ def run(options, args):
 
                     current.details = dkt.details
                     current.source = dkt.source
+                    current.agency = dkt.agency
 
                     if current.scraped != 'yes':
                         current.scraped = dkt.scraped
