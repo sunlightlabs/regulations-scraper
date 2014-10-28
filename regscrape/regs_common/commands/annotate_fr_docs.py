@@ -59,7 +59,7 @@ def guess_fr_num(doc):
     if not doc.title or len(doc.title) < 10:
         return None
 
-    query = {'conditions[term]': doc.title}
+    query = {'conditions[term]': doc.title.encode('utf8')}
     
     aid = fr_id_for_agency(doc.agency)
     if aid:
@@ -97,7 +97,7 @@ def guess_fr_num(doc):
 
 def fr_num_from_cite(fr_cite, title):
     # construct a query
-    query = {'conditions[term]': fr_cite}
+    query = {'conditions[term]': fr_cite.encode('utf8')}
 
     # do search -- has to be by HTML because there doesn't seem to be a way to do citation searches via the API
     page = pq(url="https://www.federalregister.gov/articles/search?" + urllib.urlencode(query))
@@ -207,9 +207,11 @@ def run(options, args):
                     except:
                         fr_cite = None
                         fr_num = None
-                else:
-                    doc.annotations['fr_data'] = None
-                    doc.save()
-                    print doc.id, 'No dice'
-                    nd += 1
+
+        if not fr_num and not fr_cite:
+            # we failed :/
+            doc.annotations['fr_data'] = None
+            doc.save()
+            print doc.id, 'No dice'
+            nd += 1
     print frn, frc, g, nd
