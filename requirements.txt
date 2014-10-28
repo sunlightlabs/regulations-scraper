@@ -25,3 +25,4 @@ pyquery
 crockford
 python-dateutil
 PyYAML
+jellyfish
