@@ -188,8 +188,9 @@ def add_to_search(options, args):
             meta = metadata[datatype](item)
 
             if record:
-                queue.append(json.dumps({'index':meta}))
-                queue.append(json.dumps(record, default=es.json_encoder))
+                if not item.suppression.get('replaced_by', None):
+                    queue.append(json.dumps({'index':meta}))
+                    queue.append(json.dumps(record, default=es.json_encoder))
                 ids.append(item.id)
 
             if len(queue) >= max_length:
