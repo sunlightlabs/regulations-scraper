@@ -232,7 +232,7 @@ def reducefn(key, documents):
 
         for value in documents:
             out['count'] += value['count']
-            out['expanded_comment_count'] += value['expanded_comment_count']
+            out['expanded_comment_count'] += value.get('expanded_comment_count', 0)
             
             for doc_type, count in value['type_breakdown'].iteritems():
                 out['type_breakdown'][doc_type] += count
@@ -275,7 +275,7 @@ def reducefn(key, documents):
 
         for value in documents:
             out['count'] += value['count']
-            out['expanded_comment_count'] += value['expanded_comment_count']
+            out['expanded_comment_count'] += value.get('expanded_comment_count', 0)
             
             for doc_type, count in value['type_breakdown'].iteritems():
                 out['type_breakdown'][doc_type] += count
@@ -311,7 +311,7 @@ def reducefn(key, documents):
 
         for value in documents:
             out['count'] += value['count']
-            out['expanded_comment_count'] += value['expanded_comment_count']
+            out['expanded_comment_count'] += value.get('expanded_comment_count', 0)
             
             for week, count in tf_dict(value['weeks']).iteritems():
                 out['weeks'][week] += count
