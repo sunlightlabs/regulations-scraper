@@ -59,6 +59,10 @@ def mapfn(key, document):
     doc_week = isoweek.Week(*(doc_date.isocalendar()[:-1])) if doc_date else None
     doc_week_range = (doc_week.monday().isoformat(), doc_week.sunday().isoformat()) if doc_week else None
     doc_month = doc_date.isoformat()[:7] if doc_date else None
+
+    # check to see if this document has been suppressed -- if so, we don't yield anything
+    if document.get('suppression', {}).get('replaced_by', None):
+        raise StopIteration
     
     if 'Comment_Start_Date' in details and 'Comment_Due_Date' in details:
         comment_date_range = [force_date(details['Comment_Start_Date']).date().isoformat(), force_date(details['Comment_Due_Date']).date().isoformat()]

@@ -13,7 +13,7 @@ def copy_data(source_db_name, dest_db_name, query):
         print 'Copying doc %s...' % doc['_id']
 
         # flip some flags
-        doc['stats'] = {}
+        #doc['stats'] = {}
         doc['in_aggregates'] = False
         doc['in_cluster_db'] = False
         doc['in_search_index'] = False
@@ -53,7 +53,7 @@ def copy_data(source_db_name, dest_db_name, query):
         print 'Copying docket %s...' % dkt['_id']
 
         # flip some flags
-        dkt['stats'] = {}
+        #dkt['stats'] = {}
         dkt['in_search_index'] = False
 
         if 'source' not in dkt:
