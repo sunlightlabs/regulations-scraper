@@ -88,7 +88,7 @@ def add_to_search(options, args):
         
         # build initial ES document
         es_doc = {
-            'docket_id': doc.docket_id,
+            'docket_id': doc.docket_id if doc.docket_id else doc.id.rsplit('-', 1)[0],
             'comment_on': doc.comment_on.get('document_id', None) if doc.comment_on else None,
             'title': doc.title,
             'agency': doc.agency,
@@ -144,7 +144,7 @@ def add_to_search(options, args):
         return es_doc
 
     def get_document_metadata(doc):
-        return {'_index': settings.ES_INDEX, '_type': 'document', '_id': doc.id, '_parent': doc.docket_id}
+        return {'_index': settings.ES_INDEX, '_type': 'document', '_id': doc.id, '_parent': doc.docket_id if doc.docket_id else doc.id.rsplit('-', 1)[0]}
 
     builders['document'] = build_document
     metadata['document'] = get_document_metadata
