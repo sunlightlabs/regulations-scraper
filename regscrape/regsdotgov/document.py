@@ -153,7 +153,7 @@ def _v1_scrape_document(id, cpool=None):
 
 DOC_DETAILS_SPECIAL = set(('title', 'docketId', 'docketTitle', 'docketType', 'documentId', 'documentType', 'agencyName', 'agencyAcronym', 'submitterName', 'rin', 'comment', 'attachmentCount'))
 DOC_DETAIL_NAMES = {'docSubType': 'Document_Subtype', 'trackingNumber': 'Tracking_Number', 'cfrPart': 'CFR', 'organization': 'Organization_Name', 'zip': 'ZIP_Postal_Code', 'commentCategory': 'Category', 'govAgencyType': 'Government_Agency_Type', 'numItemsReceived': 'Number_of_Duplicate_Submissions'}
-INCONSISTENT_DOC_TYPES = dict(DOC_TYPES, **{'PROPOSED_RULES': 'proposed_rule', 'RULES': 'rule', 'NOTICES': 'notice'})
+INCONSISTENT_DOC_TYPES = dict(DOC_TYPES, **{'PROPOSED_RULES': 'proposed_rule', 'RULES': 'rule', 'NOTICES': 'notice', 'OTHER': 'other'})
 def _v2v3_scrape_document(id, cpool=None):
     doc2 = json.load(_v2_get_document(id, cpool))
     doc3 = json.load(_v3_get_document(id, cpool))
