@@ -7,7 +7,7 @@ import dateutil.parser
 import datetime
 from settings import RDG_API_KEY, DDG_API_KEY
 from regs_models import *
-from regs_common.util import listify
+from regs_common.util import listify, crockford_hash
 from name_cleaver import IndividualNameCleaver
 
 DATE_FORMAT = re.compile('^(?P<month>\w+) (?P<day>\d{2}) (?P<year>\d{4}), at (?P<hour>\d{2}):(?P<minute>\d{2}) (?P<ampm>\w{2}) (?P<timezone>[\w ]+)$')
@@ -80,11 +80,21 @@ def _v3_get_document(id, cpool=None):
     url = "http://api.data.gov/regulations/v3/document.json?" + '&'.join(['%s=%s' % arg for arg in url_args.items()])
     return ddg_request(url, cpool)
 
-FORMAT_PARSER = re.compile(r"http://www\.regulations\.gov/api/contentStreamer\?objectId=(?P<object_id>[0-9a-z]+)&disposition=attachment&contentType=(?P<type>[0-9a-z]+)")
-def make_view(format):
-    match = FORMAT_PARSER.match(format).groupdict()
+V2_FORMAT_PARSER = re.compile(r"http://www\.regulations\.gov/api/contentStreamer\?objectId=(?P<object_id>[0-9a-z]+)&disposition=attachment&contentType=(?P<type>[0-9a-z]+)")
+def _v1v2_make_view(format):
+    match = V2_FORMAT_PARSER.match(format).groupdict()
     match['url'] = 'http://www.regulations.gov/contentStreamer?objectId=%s&disposition=inline&contentType=%s' % (match['object_id'], match['type'])
     return View(**match)
+
+V3_FORMAT_PARSER = re.compile(r"https://api\.data\.gov/regulations/v3/download\?documentId=(?P<document_id>[0-9A-Za-z_-]+)(&attachmentNumber=(?P<attachment_number>\d+))?&contentType=(?P<type>[0-9a-z]+)")
+def _v3_make_view(format):
+    match = V3_FORMAT_PARSER.match(format).groupdict()
+    view_data = {
+        'object_id': crockford_hash(format),
+        'url': format,
+        'type': match['type']
+    }
+    return View(**view_data)
 
 NON_LETTERS = re.compile('[^a-zA-Z]+')
 def _v1_scrape_document(id, cpool=None):
@@ -113,7 +123,7 @@ def _v1_scrape_document(id, cpool=None):
         ) if doc['metadata'] and 'entry' in doc['metadata'] else {},
         
         # views
-        'views': [make_view(format) for format in listify(doc['fileFormats'])] if 'fileFormats' in doc and doc['fileFormats'] else []
+        'views': [_v1v2_make_view(format) for format in listify(doc['fileFormats'])] if 'fileFormats' in doc and doc['fileFormats'] else []
     }
     if out['views']:
         out['object_id'] = out['views'][0].object_id
@@ -139,7 +149,7 @@ def _v1_scrape_document(id, cpool=None):
             attachment = Attachment(**{
                 'title': unicode(attachment.get('title', '')),
                 'abstract': unicode(attachment.get('abstract', '')),
-                'views': [make_view(format) for format in listify(attachment['fileFormats'])] if 'fileFormats' in attachment and attachment['fileFormats'] else []
+                'views': [_v1v2_make_view(format) for format in listify(attachment['fileFormats'])] if 'fileFormats' in attachment and attachment['fileFormats'] else []
             })
             if attachment.views:
                 attachment.object_id = attachment.views[0].object_id
@@ -155,7 +165,6 @@ DOC_DETAILS_SPECIAL = set(('title', 'docketId', 'docketTitle', 'docketType', 'do
 DOC_DETAIL_NAMES = {'docSubType': 'Document_Subtype', 'trackingNumber': 'Tracking_Number', 'cfrPart': 'CFR', 'organization': 'Organization_Name', 'zip': 'ZIP_Postal_Code', 'commentCategory': 'Category', 'govAgencyType': 'Government_Agency_Type', 'numItemsReceived': 'Number_of_Duplicate_Submissions'}
 INCONSISTENT_DOC_TYPES = dict(DOC_TYPES, **{'PROPOSED_RULES': 'proposed_rule', 'RULES': 'rule', 'NOTICES': 'notice', 'OTHER': 'other'})
 def _v2v3_scrape_document(id, cpool=None):
-    doc2 = json.load(_v2_get_document(id, cpool))
     doc3 = json.load(_v3_get_document(id, cpool))
 
     if 'code' in doc3:
@@ -208,9 +217,24 @@ def _v2v3_scrape_document(id, cpool=None):
         'details': details,
         
         # views
-        'views': [make_view(format) for format in doc2['renditionTypes']] if 'renditionTypes' in doc2 and doc2['renditionTypes'] else []
+        'views': [_v3_make_view(format) for format in doc3['fileFormats']] if 'fileFormats' in doc3 and doc3['fileFormats'] else []
     }
     out['fr_doc'] = out['type'] in set(('rule', 'proposed_rule', 'notice'))
+
+    if 'comment' in special and special['comment']:
+        out['abstract'] = unicode(special['comment'])
+        
+        # fake a view containing the contents of the comment field if there aren't any views, to deal with a behavior change in the RDGv3 API
+        if not out['views']:
+            view_data = {
+                'url': "http://api.data.gov/regulations/v3/document.json?documentId=%s" % out['id'],
+                'type': "txt",
+                'downloaded': 'yes',
+                'extracted': 'yes'
+            }
+            out['views'] = [View(**view_data)]
+            out['views'][0].write_on_save(out['abstract'].encode('utf8'))
+            
     if out['views']:
         out['object_id'] = out['views'][0].object_id
     
@@ -226,16 +250,13 @@ def _v2v3_scrape_document(id, cpool=None):
         }
         out['comment_on']['fr_doc'] =  out['comment_on']['type'] in set(('rule', 'proposed_rule', 'notice'))
     
-    if 'comment' in special and special['comment']:
-        out['abstract'] = unicode(special['comment'])
-    
-    if 'attachments' in doc2 and doc2['attachments']:
+    if 'attachments' in doc3 and doc3['attachments']:
         attachments = []
-        for attachment in doc2['attachments']:
+        for attachment in doc3['attachments']:
             attachment = Attachment(**{
                 'title': unicode(attachment.get('title', '')),
                 'abstract': unicode(attachment.get('abstract', '')),
-                'views': [make_view(format) for format in attachment['formats']] if 'formats' in attachment and attachment['formats'] else []
+                'views': [_v3_make_view(format) for format in attachment['fileFormats']] if 'fileFormats' in attachment and attachment['fileFormats'] else []
             })
             if attachment.views:
                 attachment.object_id = attachment.views[0].object_id
