@@ -52,7 +52,12 @@ def run_for_view_type(view_label, find_func, update_func, options):
                 save_name = '%s.%s' % (result['view'].object_id if result['view'].object_id else save_hash, result['view'].type)
                 save_path = os.path.join(settings.DOWNLOAD_DIR, save_hash[:2], save_name)
                 
-                yield (result['view'].url, save_path, result)
+                fetch_url = result['view'].url
+                if "api.data.gov/regulations/v3/download" in fetch_url and "api_key" not in fetch_url:
+                    # this requires an API key but one wasn't included in the upstream-provided URL, so add one
+                    fetch_url = fetch_url + "&api_key=" + settings.DDG_API_KEY
+
+                yield (fetch_url, save_path, result)
             except pymongo.errors.OperationFailure:
                 # occasionally pymongo seems to lose track of the cursor for some reason, so reset the query
                 v_array[0] = find_func(downloaded="no", query=query)
