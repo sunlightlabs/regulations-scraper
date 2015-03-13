@@ -232,6 +232,7 @@ def _v2v3_scrape_document(id, cpool=None):
                 'downloaded': 'yes',
                 'extracted': 'yes'
             }
+            view_data['object_id'] = crockford_hash(view_data['url'])
             out['views'] = [View(**view_data)]
             out['views'][0].write_on_save(out['abstract'].encode('utf8'))
             
