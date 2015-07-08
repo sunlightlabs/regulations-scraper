@@ -1,0 +1,3 @@
+# regulations-scraper
+
+This repo contains scraper code for maintaining a complete copy of all data on [Regulations.gov](http://regulations.gov) (consisting mainly of Federal Register documents and public comments), extracting text from said documents, and doing named entity recognition (using [Oxtail](https://github.com/sunlightlabs/oxtail)) and plagiarism detection/clustering (using [cluster-explorer](https://github.com/sunlightlabs/cluster-explorer)). Additionally, the project includes scrapers for a couple non-participating agencies, the SEC and CFTC, and shoehorns their content into the Regulations.gov data model.
